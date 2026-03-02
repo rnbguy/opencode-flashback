@@ -391,7 +391,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     const originalSetTimeout = globalThis.setTimeout;
     const timerDelays: number[] = [];
     globalThis.setTimeout = ((
-      handler: TimerHandler,
+      handler: (...args: unknown[]) => void,
       timeout?: number,
       ...args: unknown[]
     ) => {

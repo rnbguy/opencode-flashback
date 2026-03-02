@@ -88,14 +88,11 @@ describe("fuzz", () => {
     globalThis.fetch = mockFetch as unknown as typeof fetch;
     realSetTimeout = globalThis.setTimeout;
     globalThis.setTimeout = ((
-      fn: TimerHandler,
+      fn: (...args: unknown[]) => void,
       _ms?: number,
       ...args: unknown[]
     ) => {
-      if (typeof fn === "function") {
-        return realSetTimeout(fn, 0, ...args);
-      }
-      return realSetTimeout(fn, 0);
+      return realSetTimeout(fn, 0, ...args);
     }) as typeof setTimeout;
   });
 

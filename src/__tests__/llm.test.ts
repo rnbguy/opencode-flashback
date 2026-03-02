@@ -116,14 +116,11 @@ describe("llm", () => {
     globalThis.fetch = mockFetch as unknown as typeof fetch;
     // Make all setTimeout instant to speed up retry tests
     globalThis.setTimeout = ((
-      fn: TimerHandler,
+      fn: (...args: unknown[]) => void,
       _ms?: number,
       ...args: unknown[]
     ) => {
-      if (typeof fn === "function") {
-        return realSetTimeout(fn, 0, ...args);
-      }
-      return realSetTimeout(fn, 0);
+      return realSetTimeout(fn, 0, ...args);
     }) as typeof setTimeout;
   });
 
