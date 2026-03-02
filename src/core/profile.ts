@@ -44,6 +44,16 @@ const profileToolSchema = {
   },
 };
 
+type ProfileDeps = {
+  callLLMWithTool: typeof callLLMWithTool;
+};
+
+const defaultDeps: ProfileDeps = {
+  callLLMWithTool,
+};
+
+let deps: ProfileDeps = { ...defaultDeps };
+
 // ── Exported functions ───────────────────────────────────────────────────────
 
 export function getOrCreateProfile(userId: string): UserProfile {
@@ -74,7 +84,7 @@ export async function analyzeAndUpdateProfile(
     return { updated: false, version: profile.version };
   }
 
-  const result = await callLLMWithTool({
+  const result = await deps.callLLMWithTool({
     systemPrompt: PROFILE_SYSTEM_PROMPT,
     userPrompt: `Analyze these user prompts:\n${prompts.join("\n---\n")}`,
     toolSchema: profileToolSchema,
@@ -119,6 +129,16 @@ export async function analyzeAndUpdateProfile(
     db.exec("ROLLBACK");
     throw error;
   }
+}
+
+export function _setProfileDepsForTesting(
+  overrides: Partial<ProfileDeps>,
+): void {
+  deps = { ...deps, ...overrides };
+}
+
+export function _resetProfileDepsForTesting(): void {
+  deps = { ...defaultDeps };
 }
 
 export function decayConfidence(userId: string, decayFactor = 0.95): void {

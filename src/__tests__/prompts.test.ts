@@ -1,12 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import { Database } from "bun:sqlite";
-
-let testDb: Database;
-
-mock.module("../db/database.ts", () => ({
-  getDb: () => testDb,
-}));
-
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { getDb, closeDb } from "../db/database.ts";
 import {
   storePrompt,
   getLastUncapturedPrompt,
@@ -14,24 +10,6 @@ import {
   markAnalyzed,
   getUnanalyzedPrompts,
 } from "../core/prompts.ts";
-
-function createInMemoryDb(): Database {
-  const db = new Database(":memory:");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS user_prompts (
-      id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL,
-      message_id TEXT NOT NULL,
-      content TEXT NOT NULL,
-      directory TEXT,
-      is_captured INTEGER DEFAULT 0,
-      is_user_learning_captured INTEGER DEFAULT 0,
-      linked_memory_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-  return db;
-}
 
 function insertPromptRow(
   overrides: Partial<Record<string, unknown>> = {},
@@ -49,7 +27,7 @@ function insertPromptRow(
     ...overrides,
   };
 
-  testDb
+  getDb()
     .query(
       `INSERT INTO user_prompts (
         id, session_id, message_id, content, directory,
@@ -70,12 +48,17 @@ function insertPromptRow(
 }
 
 describe("prompts", () => {
+  let testDir: string;
+
   beforeEach(() => {
-    testDb = createInMemoryDb();
+    closeDb();
+    testDir = mkdtempSync(join(tmpdir(), "flashback-prompts-"));
+    getDb(join(testDir, "test.db"));
   });
 
   afterEach(() => {
-    testDb.close();
+    closeDb();
+    rmSync(testDir, { recursive: true, force: true });
   });
 
   test("storePrompt inserts a new uncaptured prompt", () => {
@@ -83,7 +66,7 @@ describe("prompts", () => {
 
     expect(id.startsWith("prompt_")).toBe(true);
 
-    const row = testDb
+    const row = getDb()
       .query("SELECT * FROM user_prompts WHERE id = ?")
       .get(id) as Record<string, unknown> | null;
 
@@ -138,7 +121,7 @@ describe("prompts", () => {
 
     markCaptured("mark_cap", "mem_123");
 
-    const row = testDb
+    const row = getDb()
       .query(
         "SELECT is_captured, linked_memory_id FROM user_prompts WHERE id = ?",
       )
@@ -156,7 +139,7 @@ describe("prompts", () => {
 
     markAnalyzed("mark_an");
 
-    const row = testDb
+    const row = getDb()
       .query("SELECT is_user_learning_captured FROM user_prompts WHERE id = ?")
       .get("mark_an") as { is_user_learning_captured: number };
 

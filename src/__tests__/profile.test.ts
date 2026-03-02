@@ -17,19 +17,13 @@ const mockCallLLM = mock(
   }),
 );
 
-// ── Module mocks (hoisted) ───────────────────────────────────────────────────
-
-mock.module("../core/llm.ts", () => ({
-  callLLMWithTool: ((...args: unknown[]) => mockCallLLM(args[0] as any)) as any,
-}));
-
-// ── Imports (resolved after mocks) ───────────────────────────────────────────
-
 import { getDb, closeDb, getProfile, updateProfile } from "../db/database";
 import {
   getOrCreateProfile,
   analyzeAndUpdateProfile,
   decayConfidence,
+  _setProfileDepsForTesting,
+  _resetProfileDepsForTesting,
 } from "../core/profile";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,6 +34,10 @@ beforeEach(() => {
   closeDb();
   tmpDir = mkdtempSync(join(tmpdir(), "flashback-prof-"));
   getDb(join(tmpDir, "test.db"));
+  _setProfileDepsForTesting({
+    callLLMWithTool: ((...args: unknown[]) =>
+      mockCallLLM(args[0] as any)) as typeof mockCallLLM,
+  });
   mockCallLLM.mockReset();
   mockCallLLM.mockImplementation(async () => ({
     success: true,
@@ -52,6 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  _resetProfileDepsForTesting();
   closeDb();
   rmSync(tmpDir, { recursive: true, force: true });
 });

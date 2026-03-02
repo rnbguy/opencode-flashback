@@ -1,8 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import {
+  _setConfigForTesting,
+  _resetConfigForTesting,
+  type PluginConfig,
+} from "../config";
 
 // ── Mock dependencies ───────────────────────────────────────────────────────
 
-const defaultConfig = {
+const defaultConfig: PluginConfig = {
   llm: {
     provider: "openai-chat" as const,
     model: "gpt-4o-mini",
@@ -19,14 +24,6 @@ const defaultConfig = {
   web: { port: 4747, enabled: false },
   search: { retrievalQuality: "balanced" as const },
 };
-
-mock.module("../config", () => ({
-  getConfig: () => defaultConfig,
-}));
-
-mock.module("../util/secrets", () => ({
-  resolveSecret: async (value: string) => value,
-}));
 
 import { callLLMWithTool } from "../core/llm.ts";
 import type { LLMCallOptions, LLMCallResult, ToolSchema } from "../core/llm.ts";
@@ -114,6 +111,7 @@ function mockError(
 
 describe("llm", () => {
   beforeEach(() => {
+    _setConfigForTesting(defaultConfig);
     mockFetch.mockReset();
     globalThis.fetch = mockFetch as unknown as typeof fetch;
     // Make all setTimeout instant to speed up retry tests
@@ -130,6 +128,7 @@ describe("llm", () => {
   });
 
   afterEach(() => {
+    _resetConfigForTesting();
     globalThis.setTimeout = realSetTimeout;
   });
 

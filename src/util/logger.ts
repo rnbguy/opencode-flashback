@@ -25,6 +25,8 @@ export function createLogger(storagePath: string, sessionId: string): Logger {
     // Ignore if directory already exists
   }
 
+  let writeQueue = Promise.resolve();
+
   const write = (
     level: string,
     msg: string,
@@ -39,9 +41,12 @@ export function createLogger(storagePath: string, sessionId: string): Logger {
       ...(data && Object.keys(data).length > 0 ? data : {}),
     };
 
-    appendFile(logPath, JSON.stringify(logEntry) + "\n", "utf-8").catch(() => {
-      console.log(`[${level}] ${msg}`, data);
-    });
+    const payload = JSON.stringify(logEntry) + "\n";
+    writeQueue = writeQueue
+      .then(() => appendFile(logPath, payload, "utf-8"))
+      .catch(() => {
+        console.log(`[${level}] ${msg}`, data);
+      });
   };
 
   return {

@@ -1,61 +1,14 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { Database } from "bun:sqlite";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { insertMemory, getDb, closeDb } from "../db/database.ts";
+import {
+  _setConfigForTesting,
+  _resetConfigForTesting,
+  type PluginConfig,
+} from "../config.ts";
 import type { Memory } from "../types.ts";
-
-// ── Test state ──────────────────────────────────────────────────────────────
-
-let testDb: Database;
-let testMemories: Memory[] = [];
-let shouldConfigThrow = false;
-
-// ── Mocks (hoisted before imports) ──────────────────────────────────────────
-
-const defaultConfig = {
-  llm: {
-    provider: "openai-chat" as const,
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
-    apiKey: "",
-  },
-  storage: { path: "/tmp/test" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first" as const,
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" as const },
-};
-
-mock.module("../config.ts", () => ({
-  getConfig: () => {
-    if (shouldConfigThrow) throw new Error("Config error for test");
-    return defaultConfig;
-  },
-  getHybridWeights: () => ({ semantic: 0.5, keyword: 0.5 }),
-}));
-
-mock.module("../db/database.ts", () => ({
-  getDb: () => testDb,
-  getAllActiveMemories: () => testMemories,
-  getMemory: (_db: unknown, id: string) =>
-    testMemories.find((m) => m.id === id) ?? null,
-  searchMemoriesByText: (
-    _db: unknown,
-    query: string,
-    containerTag: string,
-    limit: number,
-  ) =>
-    testMemories
-      .filter(
-        (m) =>
-          m.content.toLowerCase().includes(query.toLowerCase()) &&
-          m.containerTag === containerTag,
-      )
-      .slice(0, limit),
-}));
-
 import {
   initSearch,
   hybridSearch,
@@ -64,7 +17,23 @@ import {
   getSearchState,
 } from "../search/index.ts";
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+const defaultConfig: PluginConfig = {
+  llm: {
+    provider: "openai-chat",
+    model: "gpt-4o-mini",
+    apiUrl: "https://api.openai.com/v1",
+    apiKey: "",
+  },
+  storage: { path: "/tmp/test" },
+  memory: {
+    maxResults: 10,
+    autoCapture: true,
+    injection: "first",
+    excludeCurrentSession: true,
+  },
+  web: { port: 4747, enabled: false },
+  search: { retrievalQuality: "balanced" },
+};
 
 function makeVector(seed: number): number[] {
   const vec = new Array(768);
@@ -111,91 +80,30 @@ function makeMemory(
   };
 }
 
-function createTestDb(): Database {
-  const db = new Database(":memory:");
-  db.exec("PRAGMA journal_mode=WAL");
-  db.exec(`CREATE TABLE IF NOT EXISTS memories (
-    id TEXT PRIMARY KEY,
-    content TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    container_tag TEXT NOT NULL,
-    tags TEXT,
-    type TEXT,
-    is_pinned INTEGER DEFAULT 0,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    metadata TEXT,
-    display_name TEXT,
-    user_name TEXT,
-    user_email TEXT,
-    project_path TEXT,
-    project_name TEXT,
-    git_repo_url TEXT,
-    source_file TEXT,
-    source_line INTEGER,
-    provenance_session_id TEXT,
-    provenance_message_range TEXT,
-    provenance_tool_call_ids TEXT,
-    last_accessed_at INTEGER,
-    access_count INTEGER DEFAULT 0,
-    epistemic_confidence REAL DEFAULT 0.7,
-    epistemic_evidence_count INTEGER DEFAULT 1,
-    evicted_at INTEGER DEFAULT NULL,
-    suspended INTEGER DEFAULT 0,
-    suspended_reason TEXT,
-    suspended_at INTEGER,
-    stability REAL DEFAULT 0.0,
-    next_review_at INTEGER
-  )`);
-  return db;
-}
-
-function insertIntoTestDb(memory: Memory): void {
-  testDb
-    .query(
-      `INSERT INTO memories (
-      id, content, embedding, container_tag, tags, type, is_pinned,
-      created_at, updated_at, access_count, last_accessed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      memory.id,
-      memory.content,
-      Buffer.from(
-        memory.embedding.buffer,
-        memory.embedding.byteOffset,
-        memory.embedding.byteLength,
-      ),
-      memory.containerTag,
-      JSON.stringify(memory.tags),
-      memory.type,
-      memory.isPinned ? 1 : 0,
-      memory.createdAt,
-      memory.updatedAt,
-      memory.accessCount,
-      memory.lastAccessedAt,
-    );
-}
-
 function addMemory(
   id: string,
   content: string,
   containerTag: string,
   vectorSeed: number,
-): Memory {
-  const mem = makeMemory(id, content, containerTag, vectorSeed);
-  testMemories.push(mem);
-  insertIntoTestDb(mem);
-  return mem;
+): void {
+  const db = getDb();
+  insertMemory(db, makeMemory(id, content, containerTag, vectorSeed));
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────────
-
 describe("search", () => {
+  let testDir: string;
+
   beforeEach(() => {
-    testMemories = [];
-    shouldConfigThrow = false;
-    testDb = createTestDb();
+    closeDb();
+    testDir = mkdtempSync(join(tmpdir(), "flashback-search-"));
+    getDb(join(testDir, "test.db"));
+    _setConfigForTesting(defaultConfig);
+  });
+
+  afterEach(() => {
+    closeDb();
+    rmSync(testDir, { recursive: true, force: true });
+    _resetConfigForTesting();
   });
 
   test("initSearch sets state to ready", async () => {
@@ -251,7 +159,7 @@ describe("search", () => {
 
     await hybridSearch("Node.js", makeVector(50), "project-1", 10);
 
-    const row = testDb
+    const row = getDb()
       .query("SELECT access_count FROM memories WHERE id = ?")
       .get("mem-access") as { access_count: number } | null;
     expect(row).not.toBeNull();
@@ -262,11 +170,9 @@ describe("search", () => {
     addMemory("old", "Old content here", "proj", 1);
     await rebuildIndex();
 
-    // Add new memory after initial build
     addMemory("new", "New fresh content added", "proj", 2);
     markStale();
 
-    // hybridSearch should rebuild and find the new memory
     const results = await hybridSearch(
       "New fresh content",
       makeVector(2),
@@ -280,12 +186,9 @@ describe("search", () => {
     addMemory("fallback-mem", "Python data science guide", "proj", 5);
     await rebuildIndex();
 
-    // Make getConfig throw to trigger catch block in hybridSearch
-    shouldConfigThrow = true;
-
     const results = await hybridSearch(
       "Python data science",
-      makeVector(5),
+      [1, 2, 3],
       "proj",
       10,
     );

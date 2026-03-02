@@ -47,49 +47,6 @@ mock.module("../search/index.ts", () => ({
   getSearchState: () => "ready" as const,
 }));
 
-mock.module("../config.ts", () => ({
-  getConfig: () => ({
-    llm: {
-      provider: "openai-chat",
-      model: "test",
-      apiUrl: "http://test",
-      apiKey: "k",
-    },
-    storage: { path: "/tmp" },
-    memory: {
-      maxResults: 10,
-      autoCapture: true,
-      injection: "first",
-      excludeCurrentSession: true,
-    },
-    web: { port: 4747, enabled: false },
-    search: { retrievalQuality: "balanced" },
-  }),
-  getHybridWeights: () => ({ semantic: 0.5, keyword: 0.5 }),
-  ConfigSchema: {},
-}));
-
-mock.module("../core/tags.ts", () => ({
-  resolveContainerTag: () => ({
-    tag: "test-tag",
-    displayName: "Test",
-    userName: "tester",
-    userEmail: "test@test.com",
-    projectPath: "/test",
-    projectName: "test",
-    gitRepoUrl: "",
-  }),
-  resolveUserTag: () => ({
-    tag: "user-tag",
-    displayName: "Tester",
-    userName: "tester",
-    userEmail: "test@test.com",
-    projectPath: "",
-    projectName: "",
-    gitRepoUrl: "",
-  }),
-}));
-
 // ── Imports (resolved after mocks) ───────────────────────────────────────────
 
 import {
@@ -98,6 +55,11 @@ import {
   insertMemory,
   getAllActiveMemories,
 } from "../db/database";
+import {
+  _setConfigForTesting,
+  _resetConfigForTesting,
+  type PluginConfig,
+} from "../config";
 import {
   addMemory,
   searchMemories,
@@ -111,6 +73,24 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 let tmpDir: string;
+
+const testConfig: PluginConfig = {
+  llm: {
+    provider: "openai-chat",
+    model: "test",
+    apiUrl: "http://test",
+    apiKey: "k",
+  },
+  storage: { path: "/tmp" },
+  memory: {
+    maxResults: 10,
+    autoCapture: true,
+    injection: "first",
+    excludeCurrentSession: true,
+  },
+  web: { port: 4747, enabled: false },
+  search: { retrievalQuality: "balanced" },
+};
 
 function makeTestMemory(
   id: string,
@@ -154,6 +134,7 @@ function makeTestMemory(
 }
 
 beforeEach(() => {
+  _setConfigForTesting(testConfig);
   closeDb();
   tmpDir = mkdtempSync(join(tmpdir(), "flashback-mem-"));
   getDb(join(tmpDir, "test.db"));
@@ -161,6 +142,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  _resetConfigForTesting();
   closeDb();
   rmSync(tmpDir, { recursive: true, force: true });
 });

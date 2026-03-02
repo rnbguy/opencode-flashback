@@ -399,9 +399,7 @@ export function countMemories(db: Database, containerTag: string): number {
 
 export function getAllActiveMemories(db: Database): Memory[] {
   const rows = db
-    .query(
-      "SELECT * FROM memories WHERE evicted_at IS NULL AND suspended = 0",
-    )
+    .query("SELECT * FROM memories WHERE evicted_at IS NULL AND suspended = 0")
     .all() as MemoryRow[];
   return rows.map(rowToMemory);
 }
@@ -467,7 +465,9 @@ export function insertPrompt(db: Database, prompt: UserPrompt): void {
 }
 
 export function markPromptCaptured(db: Database, promptId: string): void {
-  db.query("UPDATE user_prompts SET is_captured = 1 WHERE id = ?").run(promptId);
+  db.query("UPDATE user_prompts SET is_captured = 1 WHERE id = ?").run(
+    promptId,
+  );
 }
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
@@ -477,4 +477,8 @@ export function closeDb(): void {
   _db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   _db.close();
   _db = null;
+}
+
+export function _setDbForTesting(db: Database): void {
+  _db = db;
 }

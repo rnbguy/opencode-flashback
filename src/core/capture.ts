@@ -19,6 +19,26 @@ const RETRY_BACKOFF = [30_000, 60_000, 120_000, 300_000] as const;
 type CaptureStatus = "stored" | "duplicate" | "skipped" | "failed";
 let lastCaptureStatus: CaptureStatus = "skipped";
 
+type CaptureDeps = {
+  addMemory: typeof addMemory;
+  callLLMWithTool: typeof callLLMWithTool;
+  storePrompt: typeof storePrompt;
+  getLastUncapturedPrompt: typeof getLastUncapturedPrompt;
+  markCaptured: typeof markCaptured;
+  markAnalyzed: typeof markAnalyzed;
+};
+
+const defaultDeps: CaptureDeps = {
+  addMemory,
+  callLLMWithTool,
+  storePrompt,
+  getLastUncapturedPrompt,
+  markCaptured,
+  markAnalyzed,
+};
+
+let deps: CaptureDeps = { ...defaultDeps };
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface CaptureRequest {
@@ -135,6 +155,16 @@ export function resetCapture(): void {
   state = "uninitialized";
 }
 
+export function _setCaptureDepsForTesting(
+  overrides: Partial<CaptureDeps>,
+): void {
+  deps = { ...deps, ...overrides };
+}
+
+export function _resetCaptureDepsForTesting(): void {
+  deps = { ...defaultDeps };
+}
+
 // ── Internal pipeline ─────────────────────────────────────────────────────────
 
 async function runCapture(opts: CaptureRequest): Promise<void> {
@@ -149,9 +179,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   }
 
   const messageId = `msg_${Date.now()}`;
-  storePrompt(opts.sessionId, messageId, lastUserMessage, opts.directory);
+  deps.storePrompt(opts.sessionId, messageId, lastUserMessage, opts.directory);
 
-  const uncaptured = getLastUncapturedPrompt(opts.sessionId);
+  const uncaptured = deps.getLastUncapturedPrompt(opts.sessionId);
   if (!uncaptured) {
     lastCaptureStatus = "skipped";
     return;
@@ -164,7 +194,7 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   let lastError: string | undefined;
   for (let attempt = 0; attempt < RETRY_BACKOFF.length; attempt++) {
-    const result = await callLLMWithTool({
+    const result = await deps.callLLMWithTool({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt: context,
       toolSchema: extractionToolSchema,
@@ -193,12 +223,12 @@ async function processResult(
   const memoryType = data.type as string;
 
   if (memoryType === "skip") {
-    markCaptured(promptId, "");
+    deps.markCaptured(promptId, "");
     lastCaptureStatus = "skipped";
     return;
   }
 
-  const result = await addMemory({
+  const result = await deps.addMemory({
     content: data.summary as string,
     containerTag: opts.containerTag,
     tags: (data.tags as string[]) ?? [],
@@ -225,8 +255,8 @@ async function processResult(
   });
 
   lastCaptureStatus = result.deduplicated ? "duplicate" : "stored";
-  markCaptured(promptId, result.id);
-  markAnalyzed(promptId);
+  deps.markCaptured(promptId, result.id);
+  deps.markAnalyzed(promptId);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

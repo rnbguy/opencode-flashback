@@ -313,6 +313,16 @@ export function getConfig(): PluginConfig {
   return _config;
 }
 
+/** @internal - test-only: override the config singleton */
+export function _setConfigForTesting(config: PluginConfig): void {
+  _config = config;
+}
+
+/** @internal - test-only: reset the config singleton */
+export function _resetConfigForTesting(): void {
+  _config = null;
+}
+
 // ── Retrieval quality preset mapping ─────────────────────────────────────────
 
 export function getHybridWeights(config: PluginConfig): {

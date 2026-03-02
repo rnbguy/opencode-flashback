@@ -165,11 +165,14 @@ more text`;
   });
 });
 
-
 // ── createLogger ─────────────────────────────────────────────────────────────
 
 describe("createLogger", () => {
   let tmpDir: string;
+
+  async function waitForLogFlush(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), "logger-test-"));
@@ -179,17 +182,19 @@ describe("createLogger", () => {
     rmSync(tmpDir, { recursive: true });
   });
 
-  test("creates log file on first write", () => {
+  test("creates log file on first write", async () => {
     const logger = createLogger(tmpDir, "test-session");
     logger.info("hello");
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     expect(existsSync(logPath)).toBe(true);
   });
 
-  test("writes JSON-L format", () => {
+  test("writes JSON-L format", async () => {
     const logger = createLogger(tmpDir, "ses_001");
     logger.info("test message");
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const content = readFileSync(logPath, "utf-8").trim();
@@ -202,12 +207,13 @@ describe("createLogger", () => {
     expect(entry.pid).toBe(process.pid);
   });
 
-  test("all log levels write correctly", () => {
+  test("all log levels write correctly", async () => {
     const logger = createLogger(tmpDir, "ses_levels");
     logger.debug("d");
     logger.info("i");
     logger.warn("w");
     logger.error("e");
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
@@ -217,9 +223,10 @@ describe("createLogger", () => {
     expect(levels).toEqual(["DEBUG", "INFO", "WARN", "ERROR"]);
   });
 
-  test("includes extra data fields", () => {
+  test("includes extra data fields", async () => {
     const logger = createLogger(tmpDir, "ses_data");
     logger.info("with data", { count: 42, tag: "test" });
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
@@ -227,9 +234,10 @@ describe("createLogger", () => {
     expect(entry.tag).toBe("test");
   });
 
-  test("omits data field when empty object", () => {
+  test("omits data field when empty object", async () => {
     const logger = createLogger(tmpDir, "ses_empty");
     logger.info("no data", {});
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
@@ -239,11 +247,12 @@ describe("createLogger", () => {
     );
   });
 
-  test("appends multiple entries (not overwrite)", () => {
+  test("appends multiple entries (not overwrite)", async () => {
     const logger = createLogger(tmpDir, "ses_append");
     logger.info("first");
     logger.info("second");
     logger.info("third");
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
@@ -252,11 +261,12 @@ describe("createLogger", () => {
     expect(JSON.parse(lines[2]).msg).toBe("third");
   });
 
-  test("each line is valid JSON", () => {
+  test("each line is valid JSON", async () => {
     const logger = createLogger(tmpDir, "ses_json");
     logger.info("msg1", { a: 1 });
     logger.warn("msg2");
     logger.error("msg3", { err: "boom" });
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
@@ -265,9 +275,10 @@ describe("createLogger", () => {
     }
   });
 
-  test("handles data=undefined gracefully", () => {
+  test("handles data=undefined gracefully", async () => {
     const logger = createLogger(tmpDir, "ses_undef");
     logger.info("no extra");
+    await waitForLogFlush();
 
     const logPath = join(tmpDir, "flashback.log");
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());

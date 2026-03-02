@@ -63,26 +63,6 @@ const mockGetLastUncaptured = mock(
 const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
 const mockMarkAnalyzed = mock((_pid: string) => {});
 
-// ── Module mocks (hoisted) ───────────────────────────────────────────────────
-
-mock.module("../core/memory.ts", () => ({
-  addMemory: mockAddMemory,
-}));
-
-mock.module("../core/llm.ts", () => ({
-  callLLMWithTool: mockCallLLM,
-}));
-
-mock.module("../core/prompts.ts", () => ({
-  storePrompt: (...args: unknown[]) =>
-    mockStorePrompt(...(args as [string, string, string, string])),
-  getLastUncapturedPrompt: (...args: unknown[]) =>
-    mockGetLastUncaptured(...(args as [string])),
-  markCaptured: (...args: unknown[]) =>
-    mockMarkCaptured(...(args as [string, string])),
-  markAnalyzed: (...args: unknown[]) => mockMarkAnalyzed(...(args as [string])),
-}));
-
 // ── Imports (resolved after mocks) ───────────────────────────────────────────
 
 import {
@@ -90,6 +70,8 @@ import {
   getCaptureState,
   getLastCaptureStatus,
   resetCapture,
+  _setCaptureDepsForTesting,
+  _resetCaptureDepsForTesting,
   type CaptureRequest,
 } from "../core/capture";
 
@@ -147,6 +129,14 @@ function resetMockDefaults() {
 beforeEach(() => {
   jest.useFakeTimers();
   resetCapture();
+  _setCaptureDepsForTesting({
+    addMemory: mockAddMemory,
+    callLLMWithTool: mockCallLLM,
+    storePrompt: mockStorePrompt,
+    getLastUncapturedPrompt: mockGetLastUncaptured,
+    markCaptured: mockMarkCaptured,
+    markAnalyzed: mockMarkAnalyzed,
+  });
   mockAddMemory.mockReset();
   mockCallLLM.mockReset();
   mockStorePrompt.mockReset();
@@ -166,6 +156,7 @@ afterEach(async () => {
   }
   await flushPromises();
   resetCapture();
+  _resetCaptureDepsForTesting();
   jest.useRealTimers();
 });
 
