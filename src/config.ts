@@ -263,7 +263,7 @@ function loadConfigFile(): PluginConfig {
   // Validate against schema
   const result = ConfigSchema.safeParse(config);
   if (!result.success) {
-    console.error("Config validation failed:", result.error.errors);
+    console.error("Config validation failed:", result.error.issues);
     return defaults;
   }
 
