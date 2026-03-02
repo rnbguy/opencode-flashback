@@ -8,3 +8,4 @@ coverage/
 .sisyphus/evidence/
 scripts/*.d.ts
 scripts/*.d.ts.map
+schema.json
