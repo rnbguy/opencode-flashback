@@ -10,7 +10,6 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { resolveSecret } from "../util/secrets";
 import { stripPrivate } from "../util/privacy";
-import { detectLanguage } from "../util/language";
 import { createLogger } from "../util/logger";
 
 // ── resolveSecret ────────────────────────────────────────────────────────────
@@ -166,74 +165,6 @@ more text`;
   });
 });
 
-// ── detectLanguage ───────────────────────────────────────────────────────────
-
-describe("detectLanguage", () => {
-  test("empty string returns nl mode with en", async () => {
-    const result = await detectLanguage("");
-    expect(result.mode).toBe("nl");
-    expect(result.codeRatio).toBe(0);
-    expect(result.detectedLang).toBe("en");
-  });
-
-  test("whitespace-only returns nl mode", async () => {
-    const result = await detectLanguage("   \n  ");
-    expect(result.mode).toBe("nl");
-    expect(result.codeRatio).toBe(0);
-  });
-
-  test("high code ratio returns code mode", async () => {
-    // Dense code with lots of camelCase, brackets, symbols to exceed 0.3 ratio
-    const code =
-      "if(getX()){setY([a,b]);forEach(i=>{doZ(arr[i])});map(x=>fn(x))}(()=>{callA(callB(callC()))})";
-    const result = await detectLanguage(code);
-    expect(result.mode).toBe("code");
-    expect(result.codeRatio).toBeGreaterThan(0.3);
-    expect(result.detectedLang).toBeUndefined();
-  });
-
-  test("plain English returns nl mode with language detection", async () => {
-    const text =
-      "This is a long enough English sentence that should be detected as natural language by the tinyld library for testing purposes.";
-    const result = await detectLanguage(text);
-    expect(result.mode).toBe("nl");
-    expect(result.codeRatio).toBeLessThan(0.1);
-    expect(result.detectedLang).toBeDefined();
-  });
-
-  test("mixed content returns mixed mode", async () => {
-    // Some code indicators but not dominant, and short enough to skip language detection
-    const text = "install the package (npm) and run_tests";
-    const result = await detectLanguage(text);
-    // Should be either mixed or nl depending on exact ratio
-    expect(["mixed", "nl", "code"]).toContain(result.mode);
-    expect(typeof result.codeRatio).toBe("number");
-  });
-
-  test("codeRatio is always a number between 0 and 1", async () => {
-    for (const input of ["hello", "const x = 1;", "a_b c_d {}", ""]) {
-      const result = await detectLanguage(input);
-      expect(result.codeRatio).toBeGreaterThanOrEqual(0);
-      expect(result.codeRatio).toBeLessThanOrEqual(1);
-    }
-  });
-
-  test("snake_case increases code ratio", async () => {
-    const withSnake = "the_quick_brown_fox jumped_over the_lazy_dog";
-    const withoutSnake = "the quick brown fox jumped over the lazy dog";
-    const r1 = await detectLanguage(withSnake);
-    const r2 = await detectLanguage(withoutSnake);
-    expect(r1.codeRatio).toBeGreaterThan(r2.codeRatio);
-  });
-
-  test("brackets and symbols increase code ratio", async () => {
-    const withSymbols = "fn() { x[0] = <div>(y)</div>; }";
-    const withoutSymbols = "fn was called with x equals y";
-    const r1 = await detectLanguage(withSymbols);
-    const r2 = await detectLanguage(withoutSymbols);
-    expect(r1.codeRatio).toBeGreaterThan(r2.codeRatio);
-  });
-});
 
 // ── createLogger ─────────────────────────────────────────────────────────────
 

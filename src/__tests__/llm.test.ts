@@ -115,7 +115,7 @@ function mockError(
 describe("llm", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    globalThis.fetch = mockFetch;
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
     // Make all setTimeout instant to speed up retry tests
     globalThis.setTimeout = ((
       fn: TimerHandler,
@@ -571,11 +571,11 @@ describe("llm", () => {
 
   describe("timeout", () => {
     test("returns timeout error on AbortError", async () => {
-      mockFetch.mockImplementation(async () => {
+      mockFetch.mockImplementation((async () => {
         const err = new Error("The operation was aborted");
         err.name = "AbortError";
         throw err;
-      });
+      }) as unknown as typeof fetch);
 
       const result = await callLLMWithTool({
         ...baseOptions,
@@ -595,9 +595,9 @@ describe("llm", () => {
 
   describe("network error", () => {
     test("returns network_error on fetch failure", async () => {
-      mockFetch.mockImplementation(async () => {
+      mockFetch.mockImplementation((async () => {
         throw new Error("ECONNREFUSED");
-      });
+      }) as unknown as typeof fetch);
 
       const result = await callLLMWithTool({
         ...baseOptions,

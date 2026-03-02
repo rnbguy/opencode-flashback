@@ -20,7 +20,7 @@ const mockCallLLM = mock(
 // ── Module mocks (hoisted) ───────────────────────────────────────────────────
 
 mock.module("../core/llm.ts", () => ({
-  callLLMWithTool: (...args: unknown[]) => mockCallLLM(...args),
+  callLLMWithTool: ((...args: unknown[]) => mockCallLLM(args[0] as any)) as any,
 }));
 
 // ── Imports (resolved after mocks) ───────────────────────────────────────────
