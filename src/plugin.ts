@@ -207,7 +207,9 @@ async function getDiagnostics(
     if (dbPath) {
       dbSizeBytes = Bun.file(dbPath).size;
     }
-  } catch {}
+  } catch {
+    // DB file may not exist yet -- use zero size
+  }
 
   return {
     memoryCount,
@@ -231,7 +233,9 @@ function scheduleWarmup(): void {
     warmupTimer = null;
     try {
       await Promise.all([initSearch(), embed(["warmup"], "query")]);
-    } catch {}
+    } catch {
+      // Warmup is best-effort -- lazy init handles failures
+    }
   }, 30_000);
 }
 

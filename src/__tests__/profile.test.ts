@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import type { LLMCallResult } from "../core/llm";
+import type { LLMCallResult, LLMCallOptions } from "../core/llm";
 
 // -- Mock functions -----------------------------------------------------------
 
@@ -36,7 +36,7 @@ beforeEach(() => {
   getDb(join(tmpDir, "test.db"));
   _setProfileDepsForTesting({
     callLLMWithTool: ((...args: unknown[]) =>
-      mockCallLLM(args[0] as any)) as typeof mockCallLLM,
+      mockCallLLM(args[0] as LLMCallOptions)) as typeof mockCallLLM,
   });
   mockCallLLM.mockReset();
   mockCallLLM.mockImplementation(async () => ({

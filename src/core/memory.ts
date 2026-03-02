@@ -130,7 +130,9 @@ export async function searchMemories(
 
   try {
     await initSearch();
-  } catch {}
+  } catch {
+    // Search init failure is non-fatal -- text fallback used below
+  }
 
   try {
     const vectors = await embed([query], "query");
