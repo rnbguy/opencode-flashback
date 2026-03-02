@@ -1,0 +1,457 @@
+[
+  {
+    "id": "gen-001",
+    "memory_content": "The project uses PostgreSQL with connection pooling via pgBouncer.",
+    "query": "database connection management",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-002",
+    "memory_content": "CI runs lint, typecheck, and tests on every pull request.",
+    "query": "continuous integration checks",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-003",
+    "memory_content": "Production deployments happen through GitHub Actions with manual approval.",
+    "query": "release pipeline approval step",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-004",
+    "memory_content": "Feature flags are stored in Redis and cached for thirty seconds.",
+    "query": "how feature toggles are stored",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-005",
+    "memory_content": "The API gateway enforces rate limits of 120 requests per minute per token.",
+    "query": "api throttling policy",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-006",
+    "memory_content": "Session data is signed and stored in HTTP-only secure cookies.",
+    "query": "where session state is kept",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-007",
+    "memory_content": "The frontend uses React Query for server-state caching.",
+    "query": "client side data cache library",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-008",
+    "memory_content": "Authentication uses OAuth with Google and GitHub providers.",
+    "query": "social login providers",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-009",
+    "memory_content": "The service emits OpenTelemetry traces to the collector endpoint.",
+    "query": "distributed tracing setup",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-010",
+    "memory_content": "Logs are structured JSON lines with request_id and user_id fields.",
+    "query": "log format includes request id",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-011",
+    "memory_content": "The mobile app supports offline drafts synchronized on reconnect.",
+    "query": "offline editing behavior",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-012",
+    "memory_content": "User avatars are resized and optimized by an image worker service.",
+    "query": "avatar processing pipeline",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-013",
+    "memory_content": "Email notifications are queued in RabbitMQ before delivery.",
+    "query": "notification queue technology",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-014",
+    "memory_content": "The billing system reconciles Stripe webhooks every night.",
+    "query": "stripe reconciliation timing",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-015",
+    "memory_content": "API responses include ETag headers for cache validation.",
+    "query": "http cache validation header",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-016",
+    "memory_content": "A nightly job compacts old audit records into monthly partitions.",
+    "query": "audit data retention process",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-017",
+    "memory_content": "Secrets are loaded from environment variables, never committed to git.",
+    "query": "secret management rule",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-018",
+    "memory_content": "The default API timeout is fifteen seconds with one retry.",
+    "query": "network timeout configuration",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-019",
+    "memory_content": "Customer support tags urgent tickets with the label P1.",
+    "query": "highest support priority label",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-020",
+    "memory_content": "The search index is rebuilt when schema version changes.",
+    "query": "when search index rebuilds",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-021",
+    "memory_content": "Staging uses a smaller instance size than production.",
+    "query": "staging infrastructure size",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-022",
+    "memory_content": "The docs site is generated from Markdown using Astro.",
+    "query": "documentation generator framework",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-023",
+    "memory_content": "Developers run pre-commit hooks for formatting and lint checks.",
+    "query": "local quality gate before commit",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-024",
+    "memory_content": "The app exposes health and readiness probes at slash healthz and slash readyz.",
+    "query": "kubernetes probe endpoints",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-025",
+    "memory_content": "Backups are encrypted with AES-256 and stored for thirty days.",
+    "query": "backup encryption policy",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-026",
+    "memory_content": "The analytics pipeline batches events every sixty seconds.",
+    "query": "event batching interval",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-027",
+    "memory_content": "The design system uses semantic color tokens for themes.",
+    "query": "ui theme token strategy",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-028",
+    "memory_content": "User uploads are scanned for malware before being persisted.",
+    "query": "file upload security scan",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-029",
+    "memory_content": "The team follows trunk-based development with short-lived branches.",
+    "query": "branching model",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-030",
+    "memory_content": "SLO targets 99.9 percent uptime for the public API.",
+    "query": "availability objective",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-031",
+    "memory_content": "Customer data exports are generated asynchronously and emailed as links.",
+    "query": "how data exports are delivered",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-032",
+    "memory_content": "The app supports dark mode and follows system preference by default.",
+    "query": "default theme behavior",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-033",
+    "memory_content": "The team tracks incidents in PagerDuty with postmortem templates.",
+    "query": "incident management tooling",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-034",
+    "memory_content": "GraphQL is used internally while public APIs remain REST.",
+    "query": "internal api protocol",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-035",
+    "memory_content": "The application caches product catalogs in Redis for five minutes.",
+    "query": "catalog cache duration",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-036",
+    "memory_content": "A cron task purges expired sessions every hour.",
+    "query": "session cleanup schedule",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-037",
+    "memory_content": "The QA checklist requires accessibility checks for keyboard navigation.",
+    "query": "accessibility verification requirement",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-038",
+    "memory_content": "New accounts must verify email before creating API tokens.",
+    "query": "token creation prerequisite",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-039",
+    "memory_content": "The team uses semantic versioning for all public package releases.",
+    "query": "versioning policy",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-040",
+    "memory_content": "Frontend bundles are analyzed weekly to monitor size regressions.",
+    "query": "bundle size monitoring cadence",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-041",
+    "memory_content": "The localization pipeline manages translations in Crowdin.",
+    "query": "translation management platform",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-042",
+    "memory_content": "Password reset links expire after twenty minutes.",
+    "query": "password reset expiration",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-043",
+    "memory_content": "The desktop client auto-updates from signed release artifacts.",
+    "query": "desktop update mechanism",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-044",
+    "memory_content": "Data migrations run inside transactional boundaries whenever possible.",
+    "query": "migration safety approach",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-045",
+    "memory_content": "The API uses idempotency keys for payment creation endpoints.",
+    "query": "prevent duplicate payments",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-046",
+    "memory_content": "Search suggestions are generated from popular queries over the last seven days.",
+    "query": "autocomplete suggestion source",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-047",
+    "memory_content": "The observability stack includes Prometheus metrics and Grafana dashboards.",
+    "query": "monitoring stack components",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-048",
+    "memory_content": "The support bot escalates to human agents after two failed answers.",
+    "query": "chatbot escalation rule",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-049",
+    "memory_content": "Feature discovery tours run only for first-time users.",
+    "query": "onboarding tour audience",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "gen-050",
+    "memory_content": "The team uses canary releases with automatic rollback on error spikes.",
+    "query": "deployment rollback trigger",
+    "expected_rank": 1,
+    "category": "general"
+  },
+  {
+    "id": "code-001",
+    "memory_content": "Function `buildSearchIndex()` precomputes trigram tokens before inserting documents.",
+    "query": "where are trigrams built for indexing",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-002",
+    "memory_content": "Class `RetryBudget` enforces a token bucket for outbound HTTP retries.",
+    "query": "retry token bucket class name",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-003",
+    "memory_content": "Python helper `normalize_snake_case(value)` strips punctuation before tokenization.",
+    "query": "javascript query about snake case normalization helper",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-004",
+    "memory_content": "Use `await db.transaction()` around `insertInvoiceLineItems` to avoid partial writes.",
+    "query": "how to prevent partial invoice writes",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-005",
+    "memory_content": "Stack trace showed `TypeError: Cannot read properties of undefined (reading 'headers')` in `requestProxy.ts:87`.",
+    "query": "undefined headers error in request proxy",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-006",
+    "memory_content": "API pattern: `POST /v1/memories/search` accepts `{ query, limit, containerTag }` and returns ranked results.",
+    "query": "memory search endpoint payload",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-007",
+    "memory_content": "Commit message: `fix(search): normalize unicode whitespace before token split`.",
+    "query": "which commit fixed token split normalization",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-008",
+    "memory_content": "Function `serializeEmbedding(vector: Float32Array): Uint8Array` stores vectors as blobs in sqlite.",
+    "query": "how embeddings are converted before database insert",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-009",
+    "memory_content": "Rust module `cache::lru` uses `hashbrown::HashMap` plus intrusive linked list nodes.",
+    "query": "lru cache implementation details",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-010",
+    "memory_content": "Error message `SQLITE_BUSY: database is locked` was fixed by setting `PRAGMA busy_timeout=5000`.",
+    "query": "database locked mitigation pragma",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-011",
+    "memory_content": "Method `MemoryService.recallForSession(sessionId)` merges recent prompts into one semantic query.",
+    "query": "session recall method name",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-012",
+    "memory_content": "JavaScript call site uses `new AbortController()` to cancel long-running embedding requests.",
+    "query": "cancel embedding generation request",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-013",
+    "memory_content": "Python stack trace included `ValueError: expected ndim=2 got ndim=1` in `vectorize.py`.",
+    "query": "shape mismatch error during vectorize",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-014",
+    "memory_content": "API guideline: always return `{ success, data, error }` envelope from service handlers.",
+    "query": "standard response envelope format",
+    "expected_rank": 1,
+    "category": "code"
+  },
+  {
+    "id": "code-015",
+    "memory_content": "Commit `feat(memory): add retrievalQuality presets fast balanced thorough` introduced weighted hybrid search.",
+    "query": "which change added retrieval quality presets",
+    "expected_rank": 1,
+    "category": "code"
+  }
+]
