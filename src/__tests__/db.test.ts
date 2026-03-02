@@ -1,0 +1,630 @@
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { Database } from "bun:sqlite";
+import type { Memory, UserProfile, UserPrompt } from "../types";
+import {
+  getDb,
+  insertMemory,
+  getMemory,
+  deleteMemory,
+  listMemories,
+  searchMemoriesByText,
+  countMemories,
+  getAllActiveMemories,
+  insertProfile,
+  getProfile,
+  updateProfile,
+  insertPrompt,
+  markPromptCaptured,
+  closeDb,
+} from "../db/database";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function createInMemoryDb(): Database {
+  const db = new Database(":memory:");
+  db.exec("PRAGMA journal_mode=WAL");
+  db.exec("PRAGMA foreign_keys=ON");
+  // Run migration v1 inline
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      container_tag TEXT NOT NULL,
+      tags TEXT,
+      type TEXT,
+      is_pinned INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      metadata TEXT,
+      display_name TEXT,
+      user_name TEXT,
+      user_email TEXT,
+      project_path TEXT,
+      project_name TEXT,
+      git_repo_url TEXT,
+      source_file TEXT,
+      source_line INTEGER,
+      provenance_session_id TEXT,
+      provenance_message_range TEXT,
+      provenance_tool_call_ids TEXT,
+      last_accessed_at INTEGER,
+      access_count INTEGER DEFAULT 0,
+      epistemic_confidence REAL DEFAULT 0.7,
+      epistemic_evidence_count INTEGER DEFAULT 1,
+      evicted_at INTEGER DEFAULT NULL,
+      suspended INTEGER DEFAULT 0,
+      suspended_reason TEXT,
+      suspended_at INTEGER,
+      stability REAL DEFAULT 0.0,
+      next_review_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_memories_container_tag ON memories(container_tag);
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      profile_data TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      last_analyzed_at INTEGER NOT NULL,
+      total_prompts_analyzed INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS user_profile_changelogs (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      change_summary TEXT NOT NULL,
+      profile_data_snapshot TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS user_prompts (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      directory TEXT,
+      is_captured INTEGER DEFAULT 0,
+      is_user_learning_captured INTEGER DEFAULT 0,
+      linked_memory_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '1');
+  `);
+  return db;
+}
+
+function makeMemory(overrides: Partial<Memory> = {}): Memory {
+  const now = Date.now();
+  return {
+    id: `mem_${Math.random().toString(36).slice(2, 10)}`,
+    content: "test memory content",
+    embedding: new Float32Array([0.1, 0.2, 0.3]),
+    containerTag: "mem_project_abc123",
+    tags: ["test"],
+    type: "knowledge",
+    isPinned: false,
+    createdAt: now,
+    updatedAt: now,
+    metadata: {},
+    displayName: "test-project",
+    userName: "tester",
+    userEmail: "test@example.com",
+    projectPath: "/tmp/test",
+    projectName: "test",
+    gitRepoUrl: "",
+    provenance: {
+      sessionId: "ses_001",
+      messageRange: [1, 5],
+      toolCallIds: ["tc_1"],
+    },
+    lastAccessedAt: now,
+    accessCount: 0,
+    epistemicStatus: { confidence: 0.7, evidenceCount: 1 },
+    evictedAt: null,
+    suspended: false,
+    suspendedReason: null,
+    suspendedAt: null,
+    stability: 0.0,
+    nextReviewAt: null,
+    ...overrides,
+  };
+}
+
+function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
+  const now = Date.now();
+  return {
+    id: "prof_001",
+    userId: "user_001",
+    profileData: { preferences: {}, patterns: {}, workflows: {} },
+    version: 1,
+    createdAt: now,
+    lastAnalyzedAt: now,
+    totalPromptsAnalyzed: 0,
+    ...overrides,
+  };
+}
+
+function makePrompt(overrides: Partial<UserPrompt> = {}): UserPrompt {
+  return {
+    id: `prompt_${Math.random().toString(36).slice(2, 10)}`,
+    sessionId: "ses_001",
+    messageId: "msg_001",
+    content: "test prompt",
+    directory: "/tmp",
+    isCaptured: false,
+    isUserLearningCaptured: false,
+    ...overrides,
+  };
+}
+
+// ── Memory CRUD ──────────────────────────────────────────────────────────────
+
+describe("memory CRUD", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("insert and retrieve memory", () => {
+    const mem = makeMemory({ id: "mem_test1", content: "hello world" });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_test1");
+    expect(retrieved).not.toBeNull();
+    expect(retrieved!.id).toBe("mem_test1");
+    expect(retrieved!.content).toBe("hello world");
+    expect(retrieved!.containerTag).toBe("mem_project_abc123");
+    expect(retrieved!.tags).toEqual(["test"]);
+    expect(retrieved!.isPinned).toBe(false);
+    expect(retrieved!.userName).toBe("tester");
+    expect(retrieved!.userEmail).toBe("test@example.com");
+  });
+
+  test("embedding round-trips correctly", () => {
+    const embedding = new Float32Array([1.5, -2.3, 0.0, 42.0]);
+    const mem = makeMemory({ id: "mem_embed", embedding });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_embed");
+    expect(retrieved).not.toBeNull();
+    expect(retrieved!.embedding.length).toBe(4);
+    expect(retrieved!.embedding[0]).toBeCloseTo(1.5);
+    expect(retrieved!.embedding[1]).toBeCloseTo(-2.3);
+    expect(retrieved!.embedding[2]).toBeCloseTo(0.0);
+    expect(retrieved!.embedding[3]).toBeCloseTo(42.0);
+  });
+
+  test("getMemory returns null for missing id", () => {
+    expect(getMemory(db, "nonexistent")).toBeNull();
+  });
+
+  test("deleteMemory removes the record", () => {
+    const mem = makeMemory({ id: "mem_del" });
+    insertMemory(db, mem);
+    expect(getMemory(db, "mem_del")).not.toBeNull();
+
+    deleteMemory(db, "mem_del");
+    expect(getMemory(db, "mem_del")).toBeNull();
+  });
+
+  test("deleteMemory is a no-op for missing id", () => {
+    // Should not throw
+    deleteMemory(db, "nonexistent");
+  });
+
+  test("insertMemory upserts on same id", () => {
+    const mem = makeMemory({ id: "mem_upsert", content: "v1" });
+    insertMemory(db, mem);
+    expect(getMemory(db, "mem_upsert")!.content).toBe("v1");
+
+    const updated = makeMemory({ id: "mem_upsert", content: "v2" });
+    insertMemory(db, updated);
+    expect(getMemory(db, "mem_upsert")!.content).toBe("v2");
+    expect(countMemories(db, "mem_project_abc123")).toBe(1);
+  });
+
+  test("provenance fields round-trip", () => {
+    const mem = makeMemory({
+      id: "mem_prov",
+      provenance: {
+        sessionId: "ses_abc",
+        messageRange: [10, 20],
+        toolCallIds: ["tc_a", "tc_b"],
+      },
+    });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_prov")!;
+    expect(retrieved.provenance.sessionId).toBe("ses_abc");
+    expect(retrieved.provenance.messageRange).toEqual([10, 20]);
+    expect(retrieved.provenance.toolCallIds).toEqual(["tc_a", "tc_b"]);
+  });
+
+  test("metadata round-trips", () => {
+    const mem = makeMemory({
+      id: "mem_meta",
+      metadata: { key: "value", num: 42, flag: true, nil: null },
+    });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_meta")!;
+    expect(retrieved.metadata).toEqual({
+      key: "value",
+      num: 42,
+      flag: true,
+      nil: null,
+    });
+  });
+
+  test("boolean fields round-trip", () => {
+    const mem = makeMemory({
+      id: "mem_bool",
+      isPinned: true,
+      suspended: true,
+    });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_bool")!;
+    expect(retrieved.isPinned).toBe(true);
+    expect(retrieved.suspended).toBe(true);
+  });
+
+  test("optional fields default correctly", () => {
+    const mem = makeMemory({
+      id: "mem_opt",
+      sourceFile: undefined,
+      sourceLine: undefined,
+    });
+    insertMemory(db, mem);
+
+    const retrieved = getMemory(db, "mem_opt")!;
+    expect(retrieved.sourceFile).toBeUndefined();
+    expect(retrieved.sourceLine).toBeUndefined();
+  });
+});
+
+// ── List / search / count ────────────────────────────────────────────────────
+
+describe("listMemories / searchMemoriesByText / countMemories", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("listMemories returns by container tag", () => {
+    insertMemory(db, makeMemory({ id: "m1", containerTag: "tag_a" }));
+    insertMemory(db, makeMemory({ id: "m2", containerTag: "tag_a" }));
+    insertMemory(db, makeMemory({ id: "m3", containerTag: "tag_b" }));
+
+    expect(listMemories(db, "tag_a", 100, 0)).toHaveLength(2);
+    expect(listMemories(db, "tag_b", 100, 0)).toHaveLength(1);
+    expect(listMemories(db, "tag_c", 100, 0)).toHaveLength(0);
+  });
+
+  test("listMemories respects limit and offset", () => {
+    for (let i = 0; i < 5; i++) {
+      insertMemory(
+        db,
+        makeMemory({
+          id: `m_${i}`,
+          containerTag: "tag_x",
+          createdAt: Date.now() + i,
+        }),
+      );
+    }
+
+    const page1 = listMemories(db, "tag_x", 2, 0);
+    expect(page1).toHaveLength(2);
+
+    const page2 = listMemories(db, "tag_x", 2, 2);
+    expect(page2).toHaveLength(2);
+
+    const page3 = listMemories(db, "tag_x", 2, 4);
+    expect(page3).toHaveLength(1);
+  });
+
+  test("searchMemoriesByText matches substring", () => {
+    insertMemory(
+      db,
+      makeMemory({
+        id: "s1",
+        content: "Rust is great",
+        containerTag: "tag_s",
+      }),
+    );
+    insertMemory(
+      db,
+      makeMemory({
+        id: "s2",
+        content: "Python is fine",
+        containerTag: "tag_s",
+      }),
+    );
+
+    const results = searchMemoriesByText(db, "Rust", "tag_s", 10);
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe("s1");
+  });
+
+  test("searchMemoriesByText is case-sensitive in LIKE", () => {
+    insertMemory(
+      db,
+      makeMemory({
+        id: "cs1",
+        content: "Hello World",
+        containerTag: "tag_cs",
+      }),
+    );
+
+    // SQLite LIKE is case-insensitive for ASCII by default
+    const results = searchMemoriesByText(db, "hello", "tag_cs", 10);
+    expect(results).toHaveLength(1);
+  });
+
+  test("searchMemoriesByText returns empty for no match", () => {
+    insertMemory(
+      db,
+      makeMemory({ id: "nm1", content: "abc", containerTag: "tag_nm" }),
+    );
+    expect(searchMemoriesByText(db, "xyz", "tag_nm", 10)).toHaveLength(0);
+  });
+
+  test("countMemories counts per container tag", () => {
+    insertMemory(db, makeMemory({ id: "c1", containerTag: "tag_cnt" }));
+    insertMemory(db, makeMemory({ id: "c2", containerTag: "tag_cnt" }));
+    insertMemory(db, makeMemory({ id: "c3", containerTag: "other" }));
+
+    expect(countMemories(db, "tag_cnt")).toBe(2);
+    expect(countMemories(db, "other")).toBe(1);
+    expect(countMemories(db, "empty")).toBe(0);
+  });
+});
+
+// ── getAllActiveMemories ──────────────────────────────────────────────────────
+
+describe("getAllActiveMemories", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("excludes evicted memories", () => {
+    insertMemory(db, makeMemory({ id: "active1" }));
+    insertMemory(db, makeMemory({ id: "evicted1", evictedAt: Date.now() }));
+
+    const active = getAllActiveMemories(db);
+    expect(active).toHaveLength(1);
+    expect(active[0].id).toBe("active1");
+  });
+
+  test("excludes suspended memories", () => {
+    insertMemory(db, makeMemory({ id: "active2" }));
+    insertMemory(db, makeMemory({ id: "susp1", suspended: true }));
+
+    const active = getAllActiveMemories(db);
+    expect(active).toHaveLength(1);
+    expect(active[0].id).toBe("active2");
+  });
+
+  test("returns empty when no active memories", () => {
+    insertMemory(db, makeMemory({ id: "e1", evictedAt: Date.now() }));
+    insertMemory(db, makeMemory({ id: "s1", suspended: true }));
+    expect(getAllActiveMemories(db)).toHaveLength(0);
+  });
+});
+
+// ── Profile CRUD ─────────────────────────────────────────────────────────────
+
+describe("profile CRUD", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("insert and retrieve profile", () => {
+    const prof = makeProfile({
+      profileData: {
+        preferences: { lang: "en" },
+        patterns: {},
+        workflows: {},
+      },
+    });
+    insertProfile(db, prof);
+
+    const retrieved = getProfile(db, "user_001");
+    expect(retrieved).not.toBeNull();
+    expect(retrieved!.userId).toBe("user_001");
+    expect(retrieved!.profileData.preferences).toEqual({ lang: "en" });
+  });
+
+  test("getProfile returns null for missing user", () => {
+    expect(getProfile(db, "nonexistent")).toBeNull();
+  });
+
+  test("updateProfile modifies fields", () => {
+    const prof = makeProfile();
+    insertProfile(db, prof);
+
+    const updated: UserProfile = {
+      ...prof,
+      version: 2,
+      totalPromptsAnalyzed: 5,
+      profileData: {
+        preferences: { theme: "dark" },
+        patterns: { freq: "daily" },
+        workflows: {},
+      },
+    };
+    updateProfile(db, updated);
+
+    const retrieved = getProfile(db, "user_001")!;
+    expect(retrieved.version).toBe(2);
+    expect(retrieved.totalPromptsAnalyzed).toBe(5);
+    expect(retrieved.profileData.preferences).toEqual({ theme: "dark" });
+  });
+
+  test("insertProfile upserts on same id", () => {
+    const prof = makeProfile({ id: "prof_upsert" });
+    insertProfile(db, prof);
+
+    const updated = makeProfile({
+      id: "prof_upsert",
+      totalPromptsAnalyzed: 99,
+    });
+    insertProfile(db, updated);
+
+    const retrieved = getProfile(db, "user_001")!;
+    expect(retrieved.totalPromptsAnalyzed).toBe(99);
+  });
+});
+
+// ── Prompt CRUD ──────────────────────────────────────────────────────────────
+
+describe("prompt CRUD", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("insert prompt", () => {
+    const prompt = makePrompt({ id: "p1", content: "how do I X?" });
+    insertPrompt(db, prompt);
+
+    const row = db
+      .query("SELECT * FROM user_prompts WHERE id = ?")
+      .get("p1") as Record<string, unknown> | null;
+    expect(row).not.toBeNull();
+    expect(row!.content).toBe("how do I X?");
+    expect(row!.is_captured).toBe(0);
+  });
+
+  test("markPromptCaptured sets is_captured = 1", () => {
+    const prompt = makePrompt({ id: "p2" });
+    insertPrompt(db, prompt);
+
+    markPromptCaptured(db, "p2");
+
+    const row = db
+      .query("SELECT is_captured FROM user_prompts WHERE id = ?")
+      .get("p2") as { is_captured: number };
+    expect(row.is_captured).toBe(1);
+  });
+
+  test("markPromptCaptured is idempotent", () => {
+    const prompt = makePrompt({ id: "p3" });
+    insertPrompt(db, prompt);
+
+    markPromptCaptured(db, "p3");
+    markPromptCaptured(db, "p3");
+
+    const row = db
+      .query("SELECT is_captured FROM user_prompts WHERE id = ?")
+      .get("p3") as { is_captured: number };
+    expect(row.is_captured).toBe(1);
+  });
+
+  test("prompt with linkedMemoryId", () => {
+    const prompt = makePrompt({ id: "p4", linkedMemoryId: "mem_linked" });
+    insertPrompt(db, prompt);
+
+    const row = db
+      .query("SELECT linked_memory_id FROM user_prompts WHERE id = ?")
+      .get("p4") as { linked_memory_id: string | null };
+    expect(row.linked_memory_id).toBe("mem_linked");
+  });
+
+  test("prompt without linkedMemoryId stores null", () => {
+    const prompt = makePrompt({ id: "p5" });
+    insertPrompt(db, prompt);
+
+    const row = db
+      .query("SELECT linked_memory_id FROM user_prompts WHERE id = ?")
+      .get("p5") as { linked_memory_id: string | null };
+    expect(row.linked_memory_id).toBeNull();
+  });
+});
+
+// ── WAL mode ─────────────────────────────────────────────────────────────────
+
+describe("WAL mode", () => {
+  test(":memory: db with WAL pragma", () => {
+    const db = createInMemoryDb();
+    // In :memory: databases, WAL may not apply but the pragma should not error
+    const result = db.query("PRAGMA journal_mode").get() as {
+      journal_mode: string;
+    };
+    // :memory: databases return "memory" for journal_mode
+    expect(["wal", "memory"]).toContain(result.journal_mode);
+    db.close();
+  });
+});
+
+// ── Schema / migrations ──────────────────────────────────────────────────────
+
+describe("schema", () => {
+  test("meta table tracks schema version", () => {
+    const db = createInMemoryDb();
+    const row = db
+      .query("SELECT value FROM meta WHERE key = 'schema_version'")
+      .get() as { value: string };
+    expect(row.value).toBe("1");
+    db.close();
+  });
+
+  test("all expected tables exist", () => {
+    const db = createInMemoryDb();
+    const tables = db
+      .query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+      .all() as { name: string }[];
+    const names = tables.map((t) => t.name);
+
+    expect(names).toContain("memories");
+    expect(names).toContain("user_profiles");
+    expect(names).toContain("user_profile_changelogs");
+    expect(names).toContain("user_prompts");
+    expect(names).toContain("meta");
+    db.close();
+  });
+
+  test("foreign keys are enforced", () => {
+    const db = createInMemoryDb();
+    // user_profile_changelogs has FK to user_profiles
+    expect(() => {
+      db.exec(`
+        INSERT INTO user_profile_changelogs (id, profile_id, version, change_summary, profile_data_snapshot, created_at)
+        VALUES ('cl_1', 'nonexistent', 1, 'test', '{}', ${Date.now()})
+      `);
+    }).toThrow();
+    db.close();
+  });
+});
