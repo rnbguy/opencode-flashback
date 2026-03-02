@@ -1,6 +1,11 @@
 import { normalize, resolve, isAbsolute, basename, dirname, sep } from "path";
 import type { ContainerTagInfo } from "../types";
 
+// ── Tag caching ──────────────────────────────────────────────────────────
+
+const tagCache = new Map<string, ContainerTagInfo>();
+let userTagCached: ContainerTagInfo | null = null;
+
 // ── SHA-256 hashing ──────────────────────────────────────────────────────────
 
 function sha256hex16(input: string): string {
@@ -112,6 +117,9 @@ function getUserIdentity(): string {
  * Returns project-scoped tag with both project and user metadata.
  */
 export function resolveContainerTag(directory: string): ContainerTagInfo {
+  const cached = tagCache.get(directory);
+  if (cached) return cached;
+
   const projectRoot = getProjectRoot(directory);
   const projectName = getProjectName(projectRoot);
   const projectIdentity = getProjectIdentity(projectRoot);
@@ -124,7 +132,7 @@ export function resolveContainerTag(directory: string): ContainerTagInfo {
   // Project tag
   const projectTag = `mem_project_${sha256hex16(projectIdentity)}`;
 
-  return {
+  const result = {
     tag: projectTag,
     displayName: projectRoot,
     userName,
@@ -133,6 +141,9 @@ export function resolveContainerTag(directory: string): ContainerTagInfo {
     projectName,
     gitRepoUrl: gitRepoUrl || "",
   };
+
+  tagCache.set(directory, result);
+  return result;
 }
 
 /**
@@ -140,6 +151,8 @@ export function resolveContainerTag(directory: string): ContainerTagInfo {
  * Returns user-scoped tag with user metadata only.
  */
 export function resolveUserTag(): ContainerTagInfo {
+  if (userTagCached) return userTagCached;
+
   const userIdentity = getUserIdentity();
   const userEmail = getGitEmail() || "";
   const userName = getGitName() || "";
@@ -147,7 +160,7 @@ export function resolveUserTag(): ContainerTagInfo {
   // User tag
   const userTag = `mem_user_${sha256hex16(userIdentity)}`;
 
-  return {
+  const result = {
     tag: userTag,
     displayName: userName || userEmail || userIdentity,
     userName,
@@ -156,4 +169,13 @@ export function resolveUserTag(): ContainerTagInfo {
     projectName: "",
     gitRepoUrl: "",
   };
+
+  userTagCached = result;
+  return result;
+}
+
+/** @internal — test-only */
+export function _resetTagCache(): void {
+  tagCache.clear();
+  userTagCached = null;
 }

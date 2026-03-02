@@ -230,8 +230,7 @@ function scheduleWarmup(): void {
   warmupTimer = setTimeout(async () => {
     warmupTimer = null;
     try {
-      await initSearch();
-      await embed(["warmup"], "query");
+      await Promise.all([initSearch(), embed(["warmup"], "query")]);
     } catch {}
   }, 30_000);
 }

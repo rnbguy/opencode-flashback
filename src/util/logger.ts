@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
+import { appendFile } from "fs/promises";
 import { dirname, join } from "path";
 import { homedir } from "os";
 
@@ -29,21 +30,18 @@ export function createLogger(storagePath: string, sessionId: string): Logger {
     msg: string,
     data?: Record<string, unknown>,
   ) => {
-    try {
-      const logEntry = {
-        ts: new Date().toISOString(),
-        pid: process.pid,
-        sid: sessionId,
-        level,
-        msg,
-        ...(data && Object.keys(data).length > 0 ? data : {}),
-      };
+    const logEntry = {
+      ts: new Date().toISOString(),
+      pid: process.pid,
+      sid: sessionId,
+      level,
+      msg,
+      ...(data && Object.keys(data).length > 0 ? data : {}),
+    };
 
-      appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf-8");
-    } catch {
-      // Fallback to console if file write fails
+    appendFile(logPath, JSON.stringify(logEntry) + "\n", "utf-8").catch(() => {
       console.log(`[${level}] ${msg}`, data);
-    }
+    });
   };
 
   return {
