@@ -397,6 +397,15 @@ export function countMemories(db: Database, containerTag: string): number {
   return row.count;
 }
 
+export function getAllActiveMemories(db: Database): Memory[] {
+  const rows = db
+    .query(
+      "SELECT * FROM memories WHERE evicted_at IS NULL AND suspended = 0",
+    )
+    .all() as MemoryRow[];
+  return rows.map(rowToMemory);
+}
+
 // ── CRUD: profiles ──────────────────────────────────────────────────────────
 
 export function insertProfile(db: Database, profile: UserProfile): void {
