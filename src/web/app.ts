@@ -1,7 +1,47 @@
 const API_BASE = "";
 let csrfToken = "";
 
-const state = {
+type Memory = {
+  id: string;
+  content: string;
+  createdAt?: string;
+  type?: string;
+  tags?: string[];
+};
+
+type SearchResult = {
+  memory: Memory;
+};
+
+type UserProfile = {
+  exists?: boolean;
+  displayName?: string;
+  userId?: string;
+  version?: number;
+  lastAnalyzedAt?: string;
+  updatedAt?: string;
+  profileData?: Record<string, unknown> | string;
+};
+
+type ApiResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+};
+
+type State = {
+  memories: Memory[];
+  limit: number;
+  offset: number;
+  totalItems: number;
+  currentView: "project" | "profile";
+  searchQuery: string;
+  isSearching: boolean;
+  autoRefreshInterval: ReturnType<typeof setInterval> | null;
+  userProfile: UserProfile | null;
+};
+
+const state: State = {
   memories: [],
   limit: 20,
   offset: 0,
@@ -20,23 +60,26 @@ marked.setOptions({
   mangle: false,
 });
 
-function renderMarkdown(markdown) {
+function renderMarkdown(markdown: string): string {
   const html = marked.parse(markdown);
   return DOMPurify.sanitize(html);
 }
 
-async function fetchAPI(endpoint, options = {}) {
+async function fetchAPI<T = unknown>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<ApiResult<T>> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-    const headers = { ...options.headers };
+    const headers = new Headers(options.headers);
     if (
       options.method &&
       ["POST", "PUT", "DELETE"].includes(options.method.toUpperCase())
     ) {
       if (csrfToken) {
-        headers["X-CSRF-Token"] = csrfToken;
+        headers.set("X-CSRF-Token", csrfToken);
       }
     }
 
@@ -52,15 +95,18 @@ async function fetchAPI(endpoint, options = {}) {
       return { success: false, error: "Session expired" };
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as T & { error?: string };
     return {
       success: response.ok,
-      data: response.ok ? data : null,
-      error: response.ok ? null : data.error || "Unknown error",
+      data: response.ok ? data : undefined,
+      error: response.ok ? undefined : data.error || "Unknown error",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("API Error:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }
 
@@ -77,11 +123,13 @@ async function loadCsrfToken() {
 }
 
 function initTheme() {
-  const toggleBtn = document.getElementById("theme-toggle");
-  const sunIcon = toggleBtn.querySelector(".sun-icon");
-  const moonIcon = toggleBtn.querySelector(".moon-icon");
+  const toggleBtn = document.getElementById(
+    "theme-toggle",
+  ) as HTMLButtonElement;
+  const sunIcon = toggleBtn.querySelector(".sun-icon") as HTMLElement;
+  const moonIcon = toggleBtn.querySelector(".moon-icon") as HTMLElement;
 
-  function updateIcons(theme) {
+  function updateIcons(theme: string | null): void {
     if (theme === "dark") {
       sunIcon.classList.remove("hidden");
       moonIcon.classList.add("hidden");
@@ -106,7 +154,7 @@ function initTheme() {
 
   window
     .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", (e) => {
+    .addEventListener("change", (e: MediaQueryListEvent) => {
       if (!localStorage.getItem("flashback-theme")) {
         const newTheme = e.matches ? "dark" : "light";
         document.documentElement.setAttribute("data-theme", newTheme);
@@ -115,8 +163,8 @@ function initTheme() {
     });
 }
 
-function renderMemories() {
-  const container = document.getElementById("memories-list");
+function renderMemories(): void {
+  const container = document.getElementById("memories-list") as HTMLDivElement;
 
   if (state.memories.length === 0) {
     container.innerHTML = '<div class="empty-state">No memories found</div>';
@@ -127,7 +175,7 @@ function renderMemories() {
   lucide.createIcons();
 }
 
-function renderMemoryCard(memory) {
+function renderMemoryCard(memory: Memory): string {
   const createdDate = formatDate(memory.createdAt);
 
   const tagsHtml =
@@ -158,49 +206,60 @@ function renderMemoryCard(memory) {
   `;
 }
 
-function updatePagination() {
+function updatePagination(): void {
   const currentPage = Math.floor(state.offset / state.limit) + 1;
   const totalPages = Math.ceil(state.totalItems / state.limit) || 1;
 
   const pageInfo = `Page ${currentPage} of ${totalPages}`;
-  document.getElementById("page-info-top").textContent = pageInfo;
-  document.getElementById("page-info-bottom").textContent = pageInfo;
+  (document.getElementById("page-info-top") as HTMLSpanElement).textContent =
+    pageInfo;
+  (document.getElementById("page-info-bottom") as HTMLSpanElement).textContent =
+    pageInfo;
 
   const hasPrev = state.offset > 0;
   const hasNext = state.offset + state.limit < state.totalItems;
 
-  document.getElementById("prev-page-top").disabled = !hasPrev;
-  document.getElementById("next-page-top").disabled = !hasNext;
-  document.getElementById("prev-page-bottom").disabled = !hasPrev;
-  document.getElementById("next-page-bottom").disabled = !hasNext;
+  (document.getElementById("prev-page-top") as HTMLButtonElement).disabled =
+    !hasPrev;
+  (document.getElementById("next-page-top") as HTMLButtonElement).disabled =
+    !hasNext;
+  (document.getElementById("prev-page-bottom") as HTMLButtonElement).disabled =
+    !hasPrev;
+  (document.getElementById("next-page-bottom") as HTMLButtonElement).disabled =
+    !hasNext;
 }
 
-function updateSectionTitle() {
+function updateSectionTitle(): void {
   const title = state.isSearching
     ? `└─ SEARCH RESULTS (${state.totalItems}) ──`
     : `└─ PROJECT MEMORIES (${state.totalItems}) ──`;
-  document.getElementById("section-title").textContent = title;
+  (document.getElementById("section-title") as HTMLHeadingElement).textContent =
+    title;
 }
 
 async function loadStats() {
-  const result = await fetchAPI("/api/diagnostics");
-  if (result.success) {
-    document.getElementById("stats-total").textContent =
+  const result = await fetchAPI<{ memoryCount: number }>("/api/diagnostics");
+  if (result.success && result.data) {
+    (document.getElementById("stats-total") as HTMLSpanElement).textContent =
       `Total: ${result.data.memoryCount}`;
   }
 }
 
-async function addMemory(e) {
+async function addMemory(e: SubmitEvent): Promise<void> {
   e.preventDefault();
 
-  const content = document.getElementById("add-content").value.trim();
-  const type = document.getElementById("add-type").value;
-  const tagsStr = document.getElementById("add-tags").value.trim();
+  const content = (
+    document.getElementById("add-content") as HTMLTextAreaElement
+  ).value.trim();
+  const type = (document.getElementById("add-type") as HTMLSelectElement).value;
+  const tagsStr = (
+    document.getElementById("add-tags") as HTMLInputElement
+  ).value.trim();
   const tags = tagsStr
     ? tagsStr
         .split(",")
         .map((t) => t.trim())
-        .filter((t) => t)
+        .filter((t) => Boolean(t))
     : [];
 
   if (!content) {
@@ -216,7 +275,7 @@ async function addMemory(e) {
 
   if (result.success) {
     showToast("Memory added successfully", "success");
-    document.getElementById("add-form").reset();
+    (document.getElementById("add-form") as HTMLFormElement).reset();
     state.offset = 0;
     await loadMemories();
     await loadStats();
@@ -225,7 +284,7 @@ async function addMemory(e) {
   }
 }
 
-async function loadMemories() {
+async function loadMemories(): Promise<void> {
   showRefreshIndicator(true);
 
   let endpoint = `/api/memories?limit=${state.limit}&offset=${state.offset}`;
@@ -234,21 +293,29 @@ async function loadMemories() {
     endpoint = `/api/search?q=${encodeURIComponent(state.searchQuery || "")}&limit=${state.limit}&offset=${state.offset}`;
   }
 
-  const result = await fetchAPI(endpoint);
+  const result = await fetchAPI<
+    Memory[] | { results: SearchResult[]; count: number }
+  >(endpoint);
 
   showRefreshIndicator(false);
 
-  if (result.success) {
+  if (result.success && result.data) {
     if (state.isSearching) {
-      state.memories = result.data.results.map((r) => r.memory);
-      state.totalItems = result.data.count;
+      const searchData = result.data as {
+        results: SearchResult[];
+        count: number;
+      };
+      state.memories = searchData.results.map((r) => r.memory);
+      state.totalItems = searchData.count;
     } else {
-      state.memories = result.data;
+      state.memories = result.data as Memory[];
       // If not searching, we don't get a total count from the memories endpoint directly,
       // so we rely on the stats endpoint to update totalItems if we are on the first page
       if (state.offset === 0) {
-        const statsResult = await fetchAPI("/api/diagnostics");
-        if (statsResult.success) {
+        const statsResult = await fetchAPI<{ memoryCount: number }>(
+          "/api/diagnostics",
+        );
+        if (statsResult.success && statsResult.data) {
           state.totalItems = statsResult.data.memoryCount;
         }
       }
@@ -262,7 +329,7 @@ async function loadMemories() {
   }
 }
 
-async function deleteMemory(id) {
+async function deleteMemory(id: string): Promise<void> {
   if (!confirm("Delete this memory?")) return;
 
   const result = await fetchAPI(`/api/memories/${id}`, {
@@ -278,8 +345,10 @@ async function deleteMemory(id) {
   }
 }
 
-function performSearch() {
-  const query = document.getElementById("search-input").value.trim();
+function performSearch(): void {
+  const query = (
+    document.getElementById("search-input") as HTMLInputElement
+  ).value.trim();
 
   if (!query) {
     clearSearch();
@@ -290,23 +359,27 @@ function performSearch() {
   state.isSearching = true;
   state.offset = 0;
 
-  document.getElementById("clear-search-btn").classList.remove("hidden");
+  (
+    document.getElementById("clear-search-btn") as HTMLButtonElement
+  ).classList.remove("hidden");
 
   loadMemories();
 }
 
-function clearSearch() {
+function clearSearch(): void {
   state.searchQuery = "";
   state.isSearching = false;
   state.offset = 0;
 
-  document.getElementById("search-input").value = "";
-  document.getElementById("clear-search-btn").classList.add("hidden");
+  (document.getElementById("search-input") as HTMLInputElement).value = "";
+  (
+    document.getElementById("clear-search-btn") as HTMLButtonElement
+  ).classList.add("hidden");
 
   loadMemories();
 }
 
-function changePage(delta) {
+function changePage(delta: number): void {
   const newOffset = state.offset + delta * state.limit;
   if (newOffset < 0 || newOffset >= state.totalItems) return;
 
@@ -314,8 +387,8 @@ function changePage(delta) {
   loadMemories();
 }
 
-function showToast(message, type = "success") {
-  const toast = document.getElementById("toast");
+function showToast(message: string, type = "success"): void {
+  const toast = document.getElementById("toast") as HTMLDivElement;
   toast.textContent = message;
   toast.className = `toast ${type}`;
   toast.classList.remove("hidden");
@@ -325,13 +398,15 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
-function showError(message) {
-  const container = document.getElementById("memories-list");
+function showError(message: string): void {
+  const container = document.getElementById("memories-list") as HTMLDivElement;
   container.innerHTML = `<div class="error-state">Error: ${escapeHtml(message)}</div>`;
 }
 
-function showRefreshIndicator(show) {
-  const indicator = document.getElementById("refresh-indicator");
+function showRefreshIndicator(show: boolean): void {
+  const indicator = document.getElementById(
+    "refresh-indicator",
+  ) as HTMLSpanElement;
   if (show) {
     indicator.classList.remove("hidden");
   } else {
@@ -339,7 +414,7 @@ function showRefreshIndicator(show) {
   }
 }
 
-function formatDate(isoString) {
+function formatDate(isoString?: string): string {
   if (!isoString) return "Unknown";
   const date = new Date(isoString);
   return date.toLocaleString("en-US", {
@@ -351,7 +426,7 @@ function formatDate(isoString) {
   });
 }
 
-function startAutoRefresh() {
+function startAutoRefresh(): void {
   if (state.autoRefreshInterval) {
     clearInterval(state.autoRefreshInterval);
   }
@@ -364,9 +439,9 @@ function startAutoRefresh() {
   }, 30000);
 }
 
-async function loadUserProfile() {
-  const result = await fetchAPI("/api/profile");
-  if (result.success) {
+async function loadUserProfile(): Promise<void> {
+  const result = await fetchAPI<UserProfile>("/api/profile");
+  if (result.success && result.data) {
     state.userProfile = result.data;
     renderUserProfile();
   } else {
@@ -374,8 +449,10 @@ async function loadUserProfile() {
   }
 }
 
-function renderUserProfile() {
-  const container = document.getElementById("profile-content");
+function renderUserProfile(): void {
+  const container = document.getElementById(
+    "profile-content",
+  ) as HTMLDivElement;
   const profile = state.userProfile;
 
   if (!profile || !profile.exists) {
@@ -398,7 +475,7 @@ function renderUserProfile() {
     }
   }
 
-  const parseField = (field) => {
+  const parseField = (field: unknown): Array<Record<string, unknown>> => {
     if (!field) return [];
     let result = field;
     let lastResult = null;
@@ -413,18 +490,22 @@ function renderUserProfile() {
       }
     }
     if (!Array.isArray(result)) return [];
-    const flattened = [];
-    const walk = (item) => {
+    const flattened: Array<Record<string, unknown>> = [];
+    const walk = (item: unknown): void => {
       if (Array.isArray(item)) item.forEach(walk);
-      else if (item && typeof item === "object") flattened.push(item);
+      else if (item && typeof item === "object") {
+        flattened.push(item as Record<string, unknown>);
+      }
     };
     walk(result);
     return flattened;
   };
 
-  const preferences = parseField(data.preferences);
-  const patterns = parseField(data.patterns);
-  const workflows = parseField(data.workflows);
+  const profileData =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const preferences = parseField(profileData.preferences);
+  const patterns = parseField(profileData.patterns);
+  const workflows = parseField(profileData.workflows);
 
   container.innerHTML = `
     <div class="profile-header">
@@ -452,24 +533,30 @@ function renderUserProfile() {
             : `
           <div class="cards-grid">
             ${preferences
-              .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+              .sort(
+                (a, b) =>
+                  (Number(b.confidence ?? 0) || 0) -
+                  (Number(a.confidence ?? 0) || 0),
+              )
               .map(
                 (p) => `
               <div class="compact-card preference-card">
                 <div class="card-top">
-                  <span class="category-tag">${escapeHtml(p.category || "General")}</span>
-                  <div class="confidence-ring" style="--p:${Math.round((p.confidence || 0) * 100)}">
-                    <span>${Math.round((p.confidence || 0) * 100)}%</span>
+                  <span class="category-tag">${escapeHtml(String(p.category ?? "General"))}</span>
+                  <div class="confidence-ring" style="--p:${Math.round((Number(p.confidence ?? 0) || 0) * 100)}">
+                    <span>${Math.round((Number(p.confidence ?? 0) || 0) * 100)}%</span>
                   </div>
                 </div>
                 <div class="card-body">
-                  <p class="card-text">${escapeHtml(p.description || "")}</p>
+                  <p class="card-text">${escapeHtml(String(p.description ?? ""))}</p>
                 </div>
                 ${
-                  p.evidence && p.evidence.length > 0
+                  p.evidence &&
+                  Array.isArray(p.evidence) &&
+                  p.evidence.length > 0
                     ? `
                 <div class="card-footer">
-                  <span class="evidence-toggle" title="${escapeHtml(Array.isArray(p.evidence) ? p.evidence.join("\n") : p.evidence)}">
+                  <span class="evidence-toggle" title="${escapeHtml(Array.isArray(p.evidence) ? p.evidence.map((item) => String(item)).join("\n") : String(p.evidence))}">
                     <i data-lucide="info" class="icon-xs"></i> ${Array.isArray(p.evidence) ? p.evidence.length : 1} evidence
                   </span>
                 </div>`
@@ -496,10 +583,10 @@ function renderUserProfile() {
                 (p) => `
               <div class="compact-card pattern-card">
                 <div class="card-top">
-                  <span class="category-tag">${escapeHtml(p.category || "General")}</span>
+                  <span class="category-tag">${escapeHtml(String(p.category ?? "General"))}</span>
                 </div>
                 <div class="card-body">
-                  <p class="card-text">${escapeHtml(p.description || "")}</p>
+                  <p class="card-text">${escapeHtml(String(p.description ?? ""))}</p>
                 </div>
               </div>
             `,
@@ -521,16 +608,16 @@ function renderUserProfile() {
               .map(
                 (w) => `
               <div class="workflow-row">
-                <div class="workflow-title">${escapeHtml(w.description || "")}</div>
+                <div class="workflow-title">${escapeHtml(String(w.description ?? ""))}</div>
                 <div class="workflow-steps-horizontal">
-                  ${(w.steps || [])
+                  ${(Array.isArray(w.steps) ? w.steps : [])
                     .map(
                       (step, i) => `
                     <div class="step-node">
                       <span class="step-idx">${i + 1}</span>
-                      <span class="step-content">${escapeHtml(step)}</span>
+                      <span class="step-content">${escapeHtml(String(step))}</span>
                     </div>
-                    ${i < (w.steps || []).length - 1 ? '<i data-lucide="arrow-right" class="step-arrow"></i>' : ""}
+                    ${i < (Array.isArray(w.steps) ? w.steps.length : 0) - 1 ? '<i data-lucide="arrow-right" class="step-arrow"></i>' : ""}
                   `,
                     )
                     .join("")}
@@ -549,30 +636,50 @@ function renderUserProfile() {
   lucide.createIcons();
 }
 
-function switchView(view) {
+function switchView(view: "project" | "profile"): void {
   state.currentView = view;
 
-  document
-    .querySelectorAll(".tab-btn")
-    .forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    (btn as HTMLButtonElement).classList.remove("active");
+  });
 
   if (view === "project") {
-    document.getElementById("tab-project").classList.add("active");
-    document.getElementById("project-section").classList.remove("hidden");
-    document.getElementById("profile-section").classList.add("hidden");
-    document.querySelector(".controls").classList.remove("hidden");
-    document.querySelector(".add-section").classList.remove("hidden");
+    (document.getElementById("tab-project") as HTMLButtonElement).classList.add(
+      "active",
+    );
+    (
+      document.getElementById("project-section") as HTMLDivElement
+    ).classList.remove("hidden");
+    (
+      document.getElementById("profile-section") as HTMLDivElement
+    ).classList.add("hidden");
+    (document.querySelector(".controls") as HTMLDivElement).classList.remove(
+      "hidden",
+    );
+    (document.querySelector(".add-section") as HTMLDivElement).classList.remove(
+      "hidden",
+    );
   } else if (view === "profile") {
-    document.getElementById("tab-profile").classList.add("active");
-    document.getElementById("project-section").classList.add("hidden");
-    document.getElementById("profile-section").classList.remove("hidden");
-    document.querySelector(".controls").classList.add("hidden");
-    document.querySelector(".add-section").classList.add("hidden");
+    (document.getElementById("tab-profile") as HTMLButtonElement).classList.add(
+      "active",
+    );
+    (
+      document.getElementById("project-section") as HTMLDivElement
+    ).classList.add("hidden");
+    (
+      document.getElementById("profile-section") as HTMLDivElement
+    ).classList.remove("hidden");
+    (document.querySelector(".controls") as HTMLDivElement).classList.add(
+      "hidden",
+    );
+    (document.querySelector(".add-section") as HTMLDivElement).classList.add(
+      "hidden",
+    );
     loadUserProfile();
   }
 }
 
-function escapeHtml(text) {
+function escapeHtml(text: string): string {
   if (!text) return "";
   const div = document.createElement("div");
   div.textContent = text;
@@ -583,37 +690,43 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   await loadCsrfToken();
 
-  document
-    .getElementById("tab-project")
-    .addEventListener("click", () => switchView("project"));
-  document
-    .getElementById("tab-profile")
-    .addEventListener("click", () => switchView("profile"));
+  (
+    document.getElementById("tab-project") as HTMLButtonElement
+  ).addEventListener("click", () => switchView("project"));
+  (
+    document.getElementById("tab-profile") as HTMLButtonElement
+  ).addEventListener("click", () => switchView("profile"));
 
-  document
-    .getElementById("search-btn")
-    .addEventListener("click", performSearch);
-  document
-    .getElementById("clear-search-btn")
-    .addEventListener("click", clearSearch);
-  document.getElementById("search-input").addEventListener("keypress", (e) => {
+  (document.getElementById("search-btn") as HTMLButtonElement).addEventListener(
+    "click",
+    performSearch,
+  );
+  (
+    document.getElementById("clear-search-btn") as HTMLButtonElement
+  ).addEventListener("click", clearSearch);
+  (
+    document.getElementById("search-input") as HTMLInputElement
+  ).addEventListener("keypress", (e: KeyboardEvent) => {
     if (e.key === "Enter") performSearch();
   });
 
-  document.getElementById("add-form").addEventListener("submit", addMemory);
+  (document.getElementById("add-form") as HTMLFormElement).addEventListener(
+    "submit",
+    addMemory,
+  );
 
-  document
-    .getElementById("prev-page-top")
-    .addEventListener("click", () => changePage(-1));
-  document
-    .getElementById("next-page-top")
-    .addEventListener("click", () => changePage(1));
-  document
-    .getElementById("prev-page-bottom")
-    .addEventListener("click", () => changePage(-1));
-  document
-    .getElementById("next-page-bottom")
-    .addEventListener("click", () => changePage(1));
+  (
+    document.getElementById("prev-page-top") as HTMLButtonElement
+  ).addEventListener("click", () => changePage(-1));
+  (
+    document.getElementById("next-page-top") as HTMLButtonElement
+  ).addEventListener("click", () => changePage(1));
+  (
+    document.getElementById("prev-page-bottom") as HTMLButtonElement
+  ).addEventListener("click", () => changePage(-1));
+  (
+    document.getElementById("next-page-bottom") as HTMLButtonElement
+  ).addEventListener("click", () => changePage(1));
 
   await loadStats();
   await loadMemories();
@@ -622,3 +735,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   lucide.createIcons();
 });
+
+(
+  window as Window & { deleteMemory: (id: string) => Promise<void> }
+).deleteMemory = deleteMemory;

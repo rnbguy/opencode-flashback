@@ -320,7 +320,7 @@ function jsonResponse(data: unknown, status = 200): Response {
 }
 
 function serveStatic(filePath: string): Response {
-  const fullPath = join(import.meta.dir, filePath);
+  const fullPath = join(import.meta.dir, "web", filePath);
   const file = Bun.file(fullPath);
   if (!file.size) {
     return jsonResponse({ error: "Not found" }, 404);

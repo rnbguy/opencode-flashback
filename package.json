@@ -22,7 +22,8 @@
     "bun": ">=1.2.0"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target bun && tsc --emitDeclarationOnly --outDir dist",
+    "prebuild": "mkdir -p dist/web",
+    "build": "bun build src/index.ts --outdir dist --target bun && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/ && cp -r src/web/vendor dist/web/",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
