@@ -5,7 +5,7 @@ import {
   type PluginConfig,
 } from "../config";
 
-// ── Mock dependencies ───────────────────────────────────────────────────────
+// -- Mock dependencies -------------------------------------------------------
 
 const defaultConfig: PluginConfig = {
   llm: {
@@ -28,11 +28,11 @@ const defaultConfig: PluginConfig = {
 import { callLLMWithTool } from "../core/llm.ts";
 import type { LLMCallOptions, LLMCallResult, ToolSchema } from "../core/llm.ts";
 
-// ── Speed up retries: make setTimeout instant ───────────────────────────────
+// -- Speed up retries: make setTimeout instant -------------------------------
 
 const realSetTimeout = globalThis.setTimeout;
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// -- Helpers -----------------------------------------------------------------
 
 const testTool: ToolSchema = {
   name: "test_tool",
@@ -107,7 +107,7 @@ function mockError(
   );
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────────
+// -- Tests -------------------------------------------------------------------
 
 describe("llm", () => {
   beforeEach(() => {
@@ -132,7 +132,7 @@ describe("llm", () => {
     globalThis.setTimeout = realSetTimeout;
   });
 
-  // ── OpenAI Chat ─────────────────────────────────────────────────────────
+  // -- OpenAI Chat ---------------------------------------------------------
 
   describe("openai-chat", () => {
     test("returns parsed tool call arguments", async () => {
@@ -180,7 +180,7 @@ describe("llm", () => {
     });
   });
 
-  // ── OpenAI Responses ────────────────────────────────────────────────────
+  // -- OpenAI Responses ----------------------------------------------------
 
   describe("openai-responses", () => {
     test("returns parsed function call arguments", async () => {
@@ -260,7 +260,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Anthropic ───────────────────────────────────────────────────────────
+  // -- Anthropic -----------------------------------------------------------
 
   describe("anthropic", () => {
     test("returns parsed tool_use input", async () => {
@@ -337,7 +337,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Gemini ──────────────────────────────────────────────────────────────
+  // -- Gemini --------------------------------------------------------------
 
   describe("gemini", () => {
     test("returns parsed functionCall args", async () => {
@@ -408,7 +408,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Generic ─────────────────────────────────────────────────────────────
+  // -- Generic -------------------------------------------------------------
 
   describe("generic", () => {
     test("returns parsed tool call arguments", async () => {
@@ -468,7 +468,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Retry logic ─────────────────────────────────────────────────────────
+  // -- Retry logic ---------------------------------------------------------
 
   describe("retry logic", () => {
     test("retries on 429 with Retry-After header", async () => {
@@ -534,7 +534,7 @@ describe("llm", () => {
     });
 
     test("does not retry on parse_error", async () => {
-      // Response with missing tool call → parse_error
+      // Response with missing tool call -> parse_error
       mockSuccess({ choices: [{ message: {} }] });
 
       const result = await callLLMWithTool({
@@ -546,7 +546,7 @@ describe("llm", () => {
       if (!result.success) {
         expect(result.code).toBe("parse_error");
       }
-      // Only 1 call — no retries for parse errors
+      // Only 1 call -- no retries for parse errors
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -566,7 +566,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Timeout ─────────────────────────────────────────────────────────────
+  // -- Timeout -------------------------------------------------------------
 
   describe("timeout", () => {
     test("returns timeout error on AbortError", async () => {
@@ -590,7 +590,7 @@ describe("llm", () => {
     });
   });
 
-  // ── Network error ───────────────────────────────────────────────────────
+  // -- Network error -------------------------------------------------------
 
   describe("network error", () => {
     test("returns network_error on fetch failure", async () => {
@@ -612,7 +612,7 @@ describe("llm", () => {
     });
   });
 
-  // ── API key sanitization ──────────────────────────────────────────────
+  // -- API key sanitization ----------------------------------------------
 
   describe("error sanitization", () => {
     test("redacts API key from error messages", async () => {

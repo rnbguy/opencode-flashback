@@ -10,7 +10,7 @@ import {
 } from "bun:test";
 import type { LLMCallResult } from "../core/llm";
 
-// ── Mock functions (referenced in mock.module factories) ─────────────────────
+// -- Mock functions (referenced in mock.module factories) ---------------------
 
 const mockAddMemory = mock(
   async (_opts: unknown) =>
@@ -63,7 +63,7 @@ const mockGetLastUncaptured = mock(
 const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
 const mockMarkAnalyzed = mock((_pid: string) => {});
 
-// ── Imports (resolved after mocks) ───────────────────────────────────────────
+// -- Imports (resolved after mocks) -------------------------------------------
 
 import {
   enqueueCapture,
@@ -75,7 +75,7 @@ import {
   type CaptureRequest,
 } from "../core/capture";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 function makeRequest(overrides?: Partial<CaptureRequest>): CaptureRequest {
   return {
@@ -164,7 +164,7 @@ afterAll(() => {
   mock.restore();
 });
 
-// ── Per-session debounce ─────────────────────────────────────────────────────
+// -- Per-session debounce -----------------------------------------------------
 
 describe("per-session debounce", () => {
   test("debounces rapid calls for same session", async () => {
@@ -207,7 +207,7 @@ describe("per-session debounce", () => {
   });
 });
 
-// ── Serial queue ordering ────────────────────────────────────────────────────
+// -- Serial queue ordering ----------------------------------------------------
 
 describe("serial queue", () => {
   test("tasks execute in order", async () => {
@@ -238,7 +238,7 @@ describe("serial queue", () => {
   });
 });
 
-// ── LLM extraction ───────────────────────────────────────────────────────────
+// -- LLM extraction -----------------------------------------------------------
 
 describe("LLM extraction", () => {
   test("saves memory from successful LLM extraction", async () => {
@@ -330,7 +330,7 @@ describe("LLM extraction", () => {
   });
 });
 
-// ── Error handling & retry ───────────────────────────────────────────────────
+// -- Error handling & retry ---------------------------------------------------
 
 describe("error handling", () => {
   test("retries on api_error with backoff", async () => {
@@ -366,7 +366,7 @@ describe("error handling", () => {
     await flushPromises();
     expect(callCount).toBe(4);
 
-    // After 4th call, sleep(300_000) is pending — advance past it
+    // After 4th call, sleep(300_000) is pending -- advance past it
     jest.advanceTimersByTime(300_000);
     await flushPromises();
 
@@ -390,7 +390,7 @@ describe("error handling", () => {
     jest.advanceTimersByTime(5000);
     await flushPromises();
 
-    // Should break immediately on parse_error — no retries
+    // Should break immediately on parse_error -- no retries
     expect(callCount).toBe(1);
     expect(getCaptureState()).toBe("degraded");
   });
@@ -431,7 +431,7 @@ describe("error handling", () => {
   });
 });
 
-// ── State management ─────────────────────────────────────────────────────────
+// -- State management ---------------------------------------------------------
 
 describe("state management", () => {
   test("initial state is uninitialized", () => {

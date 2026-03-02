@@ -4,7 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import type { Memory, SearchResult } from "../types";
 
-// ── Deterministic embedding ──────────────────────────────────────────────────
+// -- Deterministic embedding --------------------------------------------------
 
 function deterministicVector(text: string): number[] {
   let seed = 0;
@@ -20,7 +20,7 @@ function deterministicVector(text: string): number[] {
   return norm > 0 ? vec.map((v) => v / norm) : vec;
 }
 
-// ── Module mocks (hoisted by Bun) ────────────────────────────────────────────
+// -- Module mocks (hoisted by Bun) --------------------------------------------
 
 const mockHybridSearch = mock(
   async (
@@ -47,7 +47,7 @@ mock.module("../search/index.ts", () => ({
   getSearchState: () => "ready" as const,
 }));
 
-// ── Imports (resolved after mocks) ───────────────────────────────────────────
+// -- Imports (resolved after mocks) -------------------------------------------
 
 import {
   getDb,
@@ -70,7 +70,7 @@ import {
   getMemoryById,
 } from "../core/memory";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 let tmpDir: string;
 
@@ -147,7 +147,7 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true });
 });
 
-// ── addMemory ────────────────────────────────────────────────────────────────
+// -- addMemory ----------------------------------------------------------------
 
 describe("addMemory", () => {
   test("adds a new memory and returns id", async () => {
@@ -265,7 +265,7 @@ describe("addMemory", () => {
   });
 });
 
-// ── searchMemories ───────────────────────────────────────────────────────────
+// -- searchMemories -----------------------------------------------------------
 
 describe("searchMemories", () => {
   test("returns reranked hybrid search results", async () => {
@@ -307,7 +307,7 @@ describe("searchMemories", () => {
   });
 });
 
-// ── recallMemories ───────────────────────────────────────────────────────────
+// -- recallMemories -----------------------------------------------------------
 
 describe("recallMemories", () => {
   test("returns empty for no messages", async () => {
@@ -331,7 +331,7 @@ describe("recallMemories", () => {
   });
 });
 
-// ── forgetMemory ─────────────────────────────────────────────────────────────
+// -- forgetMemory -------------------------------------------------------------
 
 describe("forgetMemory", () => {
   test("deletes memory from database", async () => {
@@ -347,7 +347,7 @@ describe("forgetMemory", () => {
   });
 });
 
-// ── listMemories ─────────────────────────────────────────────────────────────
+// -- listMemories -------------------------------------------------------------
 
 describe("listMemories", () => {
   test("returns paginated memories with total", async () => {
@@ -379,7 +379,7 @@ describe("listMemories", () => {
   });
 });
 
-// ── getContext ────────────────────────────────────────────────────────────────
+// -- getContext ----------------------------------------------------------------
 
 describe("getContext", () => {
   test("formats context with memories", async () => {
@@ -450,7 +450,7 @@ describe("getContext", () => {
   });
 });
 
-// ── enforceTagBudget ─────────────────────────────────────────────────────────
+// -- enforceTagBudget ---------------------------------------------------------
 
 describe("enforceTagBudget", () => {
   test("evicts excess memories beyond 500 cap", async () => {

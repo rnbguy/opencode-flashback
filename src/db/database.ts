@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import type { Memory, UserProfile, UserPrompt } from "../types.ts";
 
-// ── DB row shapes (internal) ────────────────────────────────────────────────
+// -- DB row shapes (internal) ------------------------------------------------
 
 interface MemoryRow {
   id: string;
@@ -62,7 +62,7 @@ interface PromptRow {
   created_at: number;
 }
 
-// ── Singleton ───────────────────────────────────────────────────────────────
+// -- Singleton ---------------------------------------------------------------
 
 let _db: Database | null = null;
 
@@ -99,7 +99,7 @@ export function getDb(dbPath?: string): Database {
   return db;
 }
 
-// ── Migrations ──────────────────────────────────────────────────────────────
+// -- Migrations --------------------------------------------------------------
 
 const MIGRATIONS: { version: number; sql: string }[] = [
   {
@@ -193,7 +193,7 @@ function runMigrations(db: Database): void {
       .get() as { value: string } | null;
     if (row) currentVersion = parseInt(row.value, 10);
   } catch {
-    // meta table doesn't exist yet — version is 0
+    // meta table doesn't exist yet -- version is 0
   }
 
   for (const migration of MIGRATIONS) {
@@ -206,7 +206,7 @@ function runMigrations(db: Database): void {
   }
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// -- Helpers -----------------------------------------------------------------
 
 function parseJson<T>(value: string | null, fallback: T): T {
   if (value === null) return fallback;
@@ -293,7 +293,7 @@ function rowToPrompt(row: PromptRow): UserPrompt {
   };
 }
 
-// ── CRUD: memories ──────────────────────────────────────────────────────────
+// -- CRUD: memories ----------------------------------------------------------
 
 const MEMORY_INSERT_SQL = `INSERT OR REPLACE INTO memories (
   id, content, embedding, container_tag, tags, type, is_pinned,
@@ -404,7 +404,7 @@ export function getAllActiveMemories(db: Database): Memory[] {
   return rows.map(rowToMemory);
 }
 
-// ── CRUD: profiles ──────────────────────────────────────────────────────────
+// -- CRUD: profiles ----------------------------------------------------------
 
 export function insertProfile(db: Database, profile: UserProfile): void {
   db.query(
@@ -443,7 +443,7 @@ export function updateProfile(db: Database, profile: UserProfile): void {
   );
 }
 
-// ── CRUD: prompts ───────────────────────────────────────────────────────────
+// -- CRUD: prompts -----------------------------------------------------------
 
 export function insertPrompt(db: Database, prompt: UserPrompt): void {
   db.query(
@@ -470,7 +470,7 @@ export function markPromptCaptured(db: Database, promptId: string): void {
   );
 }
 
-// ── Lifecycle ───────────────────────────────────────────────────────────────
+// -- Lifecycle ---------------------------------------------------------------
 
 export function closeDb(): void {
   if (!_db) return;

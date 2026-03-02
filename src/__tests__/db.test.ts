@@ -18,7 +18,7 @@ import {
   closeDb,
 } from "../db/database";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 function createInMemoryDb(): Database {
   const db = new Database(":memory:");
@@ -162,7 +162,7 @@ function makePrompt(overrides: Partial<UserPrompt> = {}): UserPrompt {
   };
 }
 
-// ── Memory CRUD ──────────────────────────────────────────────────────────────
+// -- Memory CRUD --------------------------------------------------------------
 
 describe("memory CRUD", () => {
   let db: Database;
@@ -293,7 +293,7 @@ describe("memory CRUD", () => {
   });
 });
 
-// ── List / search / count ────────────────────────────────────────────────────
+// -- List / search / count ----------------------------------------------------
 
 describe("listMemories / searchMemoriesByText / countMemories", () => {
   let db: Database;
@@ -395,7 +395,7 @@ describe("listMemories / searchMemoriesByText / countMemories", () => {
   });
 });
 
-// ── getAllActiveMemories ──────────────────────────────────────────────────────
+// -- getAllActiveMemories ------------------------------------------------------
 
 describe("getAllActiveMemories", () => {
   let db: Database;
@@ -433,7 +433,7 @@ describe("getAllActiveMemories", () => {
   });
 });
 
-// ── Profile CRUD ─────────────────────────────────────────────────────────────
+// -- Profile CRUD -------------------------------------------------------------
 
 describe("profile CRUD", () => {
   let db: Database;
@@ -503,7 +503,7 @@ describe("profile CRUD", () => {
   });
 });
 
-// ── Prompt CRUD ──────────────────────────────────────────────────────────────
+// -- Prompt CRUD --------------------------------------------------------------
 
 describe("prompt CRUD", () => {
   let db: Database;
@@ -574,7 +574,7 @@ describe("prompt CRUD", () => {
   });
 });
 
-// ── WAL mode ─────────────────────────────────────────────────────────────────
+// -- WAL mode -----------------------------------------------------------------
 
 describe("WAL mode", () => {
   test(":memory: db with WAL pragma", () => {
@@ -589,7 +589,7 @@ describe("WAL mode", () => {
   });
 });
 
-// ── Schema / migrations ──────────────────────────────────────────────────────
+// -- Schema / migrations ------------------------------------------------------
 
 describe("schema", () => {
   test("meta table tracks schema version", () => {

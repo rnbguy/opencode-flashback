@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import { ConfigSchema, getHybridWeights } from "../config";
 import type { PluginConfig } from "../config";
 
-// ── ConfigSchema validation ─────────────────────────────────────────────────
+// -- ConfigSchema validation -------------------------------------------------
 
 describe("ConfigSchema", () => {
   const validConfig: PluginConfig = {
@@ -156,7 +156,7 @@ describe("ConfigSchema", () => {
   });
 });
 
-// ── getHybridWeights ────────────────────────────────────────────────────────
+// -- getHybridWeights --------------------------------------------------------
 
 describe("getHybridWeights", () => {
   function makeConfig(

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { resolveContainerTag, resolveUserTag } from "../core/tags";
 
-// ── sha256hex16 determinism (tested via resolveContainerTag / resolveUserTag) ─
+// -- sha256hex16 determinism (tested via resolveContainerTag / resolveUserTag) -
 
 describe("resolveContainerTag", () => {
   test("returns a tag prefixed with mem_project_", () => {
@@ -24,7 +24,7 @@ describe("resolveContainerTag", () => {
   test("fills user metadata from git config", () => {
     const result = resolveContainerTag(process.cwd());
     // In a git-configured env, these should be non-empty strings
-    // In CI without git config, they may be empty — test for string type
+    // In CI without git config, they may be empty -- test for string type
     expect(typeof result.userName).toBe("string");
     expect(typeof result.userEmail).toBe("string");
   });
@@ -85,7 +85,7 @@ describe("resolveUserTag", () => {
   });
 });
 
-// ── Hash determinism ─────────────────────────────────────────────────────────
+// -- Hash determinism ---------------------------------------------------------
 
 describe("hash determinism", () => {
   test("same input always produces same hash prefix", () => {

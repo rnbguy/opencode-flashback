@@ -1,12 +1,12 @@
 import { normalize, resolve, isAbsolute, basename, dirname, sep } from "path";
 import type { ContainerTagInfo } from "../types";
 
-// ── Tag caching ──────────────────────────────────────────────────────────
+// -- Tag caching ----------------------------------------------------------
 
 const tagCache = new Map<string, ContainerTagInfo>();
 let userTagCached: ContainerTagInfo | null = null;
 
-// ── SHA-256 hashing ──────────────────────────────────────────────────────────
+// -- SHA-256 hashing ----------------------------------------------------------
 
 function sha256hex16(input: string): string {
   const hasher = new Bun.CryptoHasher("sha256");
@@ -14,7 +14,7 @@ function sha256hex16(input: string): string {
   return hasher.digest("hex").slice(0, 16);
 }
 
-// ── Git command helpers ──────────────────────────────────────────────────────
+// -- Git command helpers ------------------------------------------------------
 
 function gitCmd(args: string[], cwd?: string): string | null {
   try {
@@ -55,7 +55,7 @@ function getGitTopLevel(directory: string): string | null {
   return gitCmd(["rev-parse", "--show-toplevel"], directory);
 }
 
-// ── Project identity resolution ──────────────────────────────────────────────
+// -- Project identity resolution ----------------------------------------------
 
 function getProjectRoot(directory: string): string {
   const commonDir = getGitCommonDir(directory);
@@ -91,7 +91,7 @@ function getProjectIdentity(directory: string): string {
   return `path:${normalize(directory)}`;
 }
 
-// ── User identity resolution ─────────────────────────────────────────────────
+// -- User identity resolution -------------------------------------------------
 
 function getUserIdentity(): string {
   // Try git email first (primary)
@@ -110,7 +110,7 @@ function getUserIdentity(): string {
   return "anonymous";
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// -- Public API ---------------------------------------------------------------
 
 /**
  * Resolve container tag info for a project directory.
@@ -174,7 +174,7 @@ export function resolveUserTag(): ContainerTagInfo {
   return result;
 }
 
-/** @internal — test-only */
+/** @internal -- test-only */
 export function _resetTagCache(): void {
   tagCache.clear();
   userTagCached = null;

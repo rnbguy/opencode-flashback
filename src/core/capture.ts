@@ -8,7 +8,7 @@ import {
 } from "./prompts.ts";
 import type { SubsystemState } from "../types.ts";
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// -- State ---------------------------------------------------------------------
 
 let state: SubsystemState = "uninitialized";
 let queuePromise: Promise<void> = Promise.resolve();
@@ -39,7 +39,7 @@ const defaultDeps: CaptureDeps = {
 
 let deps: CaptureDeps = { ...defaultDeps };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// -- Types ---------------------------------------------------------------------
 
 export interface CaptureRequest {
   sessionId: string;
@@ -54,7 +54,7 @@ export interface CaptureRequest {
   gitRepoUrl?: string;
 }
 
-// ── Extraction tool schema ────────────────────────────────────────────────────
+// -- Extraction tool schema ----------------------------------------------------
 
 const extractionToolSchema: ToolSchema = {
   name: "save_memory",
@@ -123,7 +123,7 @@ FORMAT for summary:
 SKIP if: greetings, casual chat, no code/decisions made
 CAPTURE if: code changed, bug fixed, feature added, decision made`;
 
-// ── Core exports ──────────────────────────────────────────────────────────────
+// -- Core exports --------------------------------------------------------------
 
 export function enqueueCapture(opts: CaptureRequest): void {
   const existing = debounceTimers.get(opts.sessionId);
@@ -165,7 +165,7 @@ export function _resetCaptureDepsForTesting(): void {
   deps = { ...defaultDeps };
 }
 
-// ── Internal pipeline ─────────────────────────────────────────────────────────
+// -- Internal pipeline ---------------------------------------------------------
 
 async function runCapture(opts: CaptureRequest): Promise<void> {
   if (state === "uninitialized") {
@@ -259,7 +259,7 @@ async function processResult(
   deps.markAnalyzed(promptId);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
 function findLastUserMessage(
   messages: Array<{ role: string; content: string }>,

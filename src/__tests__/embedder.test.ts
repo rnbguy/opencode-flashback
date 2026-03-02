@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 
-// ── Mock @huggingface/transformers before importing embedder ────────────────
+// -- Mock @huggingface/transformers before importing embedder ----------------
 
 const mockDispose = mock(() => {});
 const mockPipelineInstance = mock();
@@ -11,7 +11,7 @@ mock.module("@huggingface/transformers", () => ({
 
 import { embed, getEmbedderState, resetEmbedder } from "../embed/embedder.ts";
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// -- Helpers -----------------------------------------------------------------
 
 function makeVector(seed: number): number[] {
   return Array.from({ length: 768 }, (_, i) => (seed + i) * 0.001);
@@ -39,7 +39,7 @@ function setupSuccessfulPipeline(vectors?: number[][]) {
   return pipelineFn;
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────────
+// -- Tests -------------------------------------------------------------------
 
 describe("embedder", () => {
   beforeEach(() => {
@@ -109,7 +109,7 @@ describe("embedder", () => {
 
       pipelineFn.mockClear();
       const result = await embed(["cached text"], "query");
-      // Should not call model again — all cached
+      // Should not call model again -- all cached
       expect(pipelineFn).not.toHaveBeenCalled();
       expect(result[0]).toHaveLength(768);
     });

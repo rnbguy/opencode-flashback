@@ -1,4 +1,4 @@
-// ── Core entity types ──────────────────────────────────────────────────────
+// -- Core entity types ------------------------------------------------------
 
 export interface Memory {
   id: string;
@@ -28,7 +28,7 @@ export interface Memory {
   lastAccessedAt: number; // Unix ms, updated on retrieval
   accessCount: number; // incremented on each retrieval
   epistemicStatus: {
-    confidence: number; // 0.0–1.0
+    confidence: number; // 0.0-1.0
     evidenceCount: number;
   };
   evictedAt: number | null; // Unix ms tombstone, null = active
@@ -89,9 +89,9 @@ export interface ContainerTagInfo {
   gitRepoUrl: string;
 }
 
-// ── Config types (derived from Zod schema in config.ts) ──────────────────
+// -- Config types (derived from Zod schema in config.ts) ------------------
 
-// NOTE: PluginConfig is z.infer<typeof ConfigSchema> — defined in config.ts
+// NOTE: PluginConfig is z.infer<typeof ConfigSchema> -- defined in config.ts
 // These nested shapes are helpers for type annotations inside config.ts
 export interface LlmConfig {
   provider: LLMProvider;
@@ -122,7 +122,7 @@ export interface SearchConfig {
   rankingWeights?: { recency: number; importance: number; semantic: number };
 }
 
-// ── Enum-like union types ─────────────────────────────────────────────────
+// -- Enum-like union types -------------------------------------------------
 
 export type RetrievalQuality = "fast" | "balanced" | "thorough" | "custom";
 export type MemoryTier = "pinned" | "semantic" | "ephemeral";
@@ -140,7 +140,7 @@ export type LLMProvider =
   | "generic";
 export type ExportFormat = "json" | "markdown";
 
-// ── API response types ────────────────────────────────────────────────────
+// -- API response types ----------------------------------------------------
 
 export interface ErrorResponse {
   success: false;
@@ -178,7 +178,7 @@ export interface DiagnosticsResponse {
   version: string;
 }
 
-// ── Round-4 new types (suspend / review / export / consolidation) ─────────
+// -- Round-4 new types (suspend / review / export / consolidation) ---------
 
 export interface ReviewSchedule {
   memoryId: string;

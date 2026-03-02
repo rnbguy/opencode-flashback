@@ -50,7 +50,7 @@ export async function resolveSecret(value: string): Promise<string> {
   return value;
 }
 
-/** @internal — test-only */
+/** @internal -- test-only */
 export function _resetSecretCache(): void {
   secretCache.clear();
 }

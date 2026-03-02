@@ -10,7 +10,7 @@ import type {
   WebConfig,
 } from "./types";
 
-// ── JSONC comment stripping ──────────────────────────────────────────────────
+// -- JSONC comment stripping --------------------------------------------------
 
 function stripJsoncComments(content: string): string {
   let result = "";
@@ -88,7 +88,7 @@ function stripJsoncComments(content: string): string {
   return result.replace(/,\s*([}\]])/g, "$1");
 }
 
-// ── XDG path helpers ─────────────────────────────────────────────────────────
+// -- XDG path helpers ---------------------------------------------------------
 
 function getConfigDir(): string {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
@@ -116,7 +116,7 @@ function expandPath(path: string): string {
   return path;
 }
 
-// ── Zod schema ───────────────────────────────────────────────────────────────
+// -- Zod schema ---------------------------------------------------------------
 
 export const ConfigSchema = z
   .object({
@@ -176,7 +176,7 @@ export const ConfigSchema = z
 
 export type PluginConfig = z.infer<typeof ConfigSchema>;
 
-// ── Config loader ───────────────────────────────────────────────────────────
+// -- Config loader -----------------------------------------------------------
 
 function loadConfigFile(): PluginConfig {
   const configDir = getConfigDir();
@@ -302,7 +302,7 @@ function deepMerge(
   return result as PluginConfig;
 }
 
-// ── Lazy config getter ───────────────────────────────────────────────────────
+// -- Lazy config getter -------------------------------------------------------
 
 let _config: PluginConfig | null = null;
 
@@ -323,7 +323,7 @@ export function _resetConfigForTesting(): void {
   _config = null;
 }
 
-// ── Retrieval quality preset mapping ─────────────────────────────────────────
+// -- Retrieval quality preset mapping -----------------------------------------
 
 export function getHybridWeights(config: PluginConfig): {
   semantic: number;

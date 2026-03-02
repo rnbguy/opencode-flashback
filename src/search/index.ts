@@ -9,7 +9,7 @@ import {
 import { getConfig, getHybridWeights } from "../config.ts";
 import type { Memory, SearchResult, SubsystemState } from "../types.ts";
 
-// ── Schema ──────────────────────────────────────────────────────────────────
+// -- Schema ------------------------------------------------------------------
 
 const schema = {
   memoryId: "string",
@@ -29,13 +29,13 @@ type SearchDoc = {
   embedding: number[];
 };
 
-// ── State ───────────────────────────────────────────────────────────────────
+// -- State -------------------------------------------------------------------
 
 let state: SubsystemState = "uninitialized";
 let oramaDb: Orama<typeof schema> | null = null;
 let isStale = false;
 
-// ── Init / Rebuild ──────────────────────────────────────────────────────────
+// -- Init / Rebuild ----------------------------------------------------------
 
 export async function initSearch(): Promise<void> {
   if (oramaDb) return;
@@ -77,7 +77,7 @@ export async function rebuildIndex(): Promise<void> {
   }
 }
 
-// ── Search ──────────────────────────────────────────────────────────────────
+// -- Search ------------------------------------------------------------------
 
 export async function hybridSearch(
   query: string,
@@ -155,7 +155,7 @@ export async function hybridSearch(
   }
 }
 
-// ── Stale / State ───────────────────────────────────────────────────────────
+// -- Stale / State -----------------------------------------------------------
 
 export function markStale(): void {
   isStale = true;

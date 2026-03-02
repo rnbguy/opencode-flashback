@@ -4,7 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import type { LLMCallResult } from "../core/llm";
 
-// ── Mock functions ───────────────────────────────────────────────────────────
+// -- Mock functions -----------------------------------------------------------
 
 const mockCallLLM = mock(
   async (_opts: unknown): Promise<LLMCallResult> => ({
@@ -26,7 +26,7 @@ import {
   _resetProfileDepsForTesting,
 } from "../core/profile";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 let tmpDir: string;
 
@@ -55,7 +55,7 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true });
 });
 
-// ── getOrCreateProfile ───────────────────────────────────────────────────────
+// -- getOrCreateProfile -------------------------------------------------------
 
 describe("getOrCreateProfile", () => {
   test("creates default profile on first call", () => {
@@ -89,7 +89,7 @@ describe("getOrCreateProfile", () => {
   });
 });
 
-// ── analyzeAndUpdateProfile ──────────────────────────────────────────────────
+// -- analyzeAndUpdateProfile --------------------------------------------------
 
 describe("analyzeAndUpdateProfile", () => {
   test("skips analysis when prompts < threshold (10)", async () => {
@@ -206,7 +206,7 @@ describe("analyzeAndUpdateProfile", () => {
   });
 });
 
-// ── Changelog ────────────────────────────────────────────────────────────────
+// -- Changelog ----------------------------------------------------------------
 
 describe("changelog", () => {
   test("records added preferences in change summary", async () => {
@@ -295,7 +295,7 @@ describe("changelog", () => {
   });
 });
 
-// ── decayConfidence ──────────────────────────────────────────────────────────
+// -- decayConfidence ----------------------------------------------------------
 
 describe("decayConfidence", () => {
   test("reduces numeric values by decay factor", () => {

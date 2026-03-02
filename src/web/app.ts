@@ -135,7 +135,7 @@ async function fetchAPI<T = unknown>(
     clearTimeout(timeoutId);
 
     if (response.status === 403) {
-      showToast("Session expired — please refresh the page", "error");
+      showToast("Session expired -- please refresh the page", "error");
       return { success: false, error: "Session expired" };
     }
 
@@ -275,8 +275,8 @@ function updatePagination(): void {
 
 function updateSectionTitle(): void {
   const title = state.isSearching
-    ? `└─ SEARCH RESULTS (${state.totalItems}) ──`
-    : `└─ PROJECT MEMORIES (${state.totalItems}) ──`;
+    ? `+- SEARCH RESULTS (${state.totalItems}) --`
+    : `+- PROJECT MEMORIES (${state.totalItems}) --`;
   (document.getElementById("section-title") as HTMLHeadingElement).textContent =
     title;
 }

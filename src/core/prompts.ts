@@ -1,13 +1,13 @@
 import { getDb } from "../db/database.ts";
 import type { UserPrompt } from "../types.ts";
 
-// ── Prompt ID generation ─────────────────────────────────────────────────────
+// -- Prompt ID generation -----------------------------------------------------
 
 function generatePromptId(): string {
   return `prompt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-// ── Row deserialization ──────────────────────────────────────────────────────
+// -- Row deserialization ------------------------------------------------------
 
 interface PromptRow {
   id: string;
@@ -34,7 +34,7 @@ function rowToPrompt(row: PromptRow): UserPrompt {
   };
 }
 
-// ── Prompt lifecycle operations ──────────────────────────────────────────────
+// -- Prompt lifecycle operations ----------------------------------------------
 
 /**
  * Store a new prompt in the database.

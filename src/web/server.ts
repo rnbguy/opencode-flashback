@@ -17,13 +17,13 @@ import { getCaptureState } from "../core/capture.ts";
 import { getConfig } from "../config.ts";
 import type { SubsystemState, DiagnosticsResponse } from "../types.ts";
 
-// ── State ──────────────────────────────────────────────────────────────────
+// -- State ------------------------------------------------------------------
 
 let server: ReturnType<typeof Bun.serve> | null = null;
 let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 
-// ── Rate limiter (token bucket) ────────────────────────────────────────────
+// -- Rate limiter (token bucket) --------------------------------------------
 
 const rateLimiter = {
   tokens: 100,
@@ -41,7 +41,7 @@ const rateLimiter = {
   },
 };
 
-// ── Public API ─────────────────────────────────────────────────────────────
+// -- Public API -------------------------------------------------------------
 
 export async function startServer(directory: string): Promise<void> {
   csrfToken = crypto.randomUUID();
@@ -82,7 +82,7 @@ export function getServerState(): SubsystemState {
   return serverState;
 }
 
-// ── Request handler ────────────────────────────────────────────────────────
+// -- Request handler --------------------------------------------------------
 
 async function handleRequest(
   req: Request,
@@ -170,7 +170,7 @@ async function handleRequest(
   }
 }
 
-// ── API handlers ───────────────────────────────────────────────────────────
+// -- API handlers -----------------------------------------------------------
 
 function handleDiagnostics(directory: string): Response {
   const db = getDb();
@@ -294,7 +294,7 @@ function handleGetProfile(directory: string): Response {
   return jsonResponse(profile);
 }
 
-// ── Security helpers ───────────────────────────────────────────────────────
+// -- Security helpers -------------------------------------------------------
 
 function isLocalhostRequest(req: Request): boolean {
   const url = new URL(req.url);
@@ -307,7 +307,7 @@ function validateCsrf(req: Request): boolean {
   return token === csrfToken;
 }
 
-// ── Response helpers ───────────────────────────────────────────────────────
+// -- Response helpers -------------------------------------------------------
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -341,7 +341,7 @@ function serveStatic(filePath: string): Response {
   return new Response(file, { headers });
 }
 
-// ── Path / tag helpers ─────────────────────────────────────────────────────
+// -- Path / tag helpers -----------------------------------------------------
 
 function getContainerTag(directory: string, urlTag?: string): string {
   if (urlTag) return urlTag;

@@ -12,7 +12,7 @@ import { resolveSecret } from "../util/secrets";
 import { stripPrivate } from "../util/privacy";
 import { createLogger } from "../util/logger";
 
-// ── resolveSecret ────────────────────────────────────────────────────────────
+// -- resolveSecret ------------------------------------------------------------
 
 describe("resolveSecret", () => {
   test("returns empty string for empty value", async () => {
@@ -65,7 +65,7 @@ describe("resolveSecret", () => {
   });
 });
 
-// ── stripPrivate ─────────────────────────────────────────────────────────────
+// -- stripPrivate -------------------------------------------------------------
 
 describe("stripPrivate", () => {
   test("returns unchanged text with no secrets", () => {
@@ -165,7 +165,7 @@ more text`;
   });
 });
 
-// ── createLogger ─────────────────────────────────────────────────────────────
+// -- createLogger -------------------------------------------------------------
 
 describe("createLogger", () => {
   let tmpDir: string;

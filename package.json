@@ -2,7 +2,7 @@
   "name": "opencode-flashback",
   "version": "0.1.0",
   "type": "module",
-  "description": "Persistent AI memory plugin for OpenCode — free, local, open-source",
+  "description": "Persistent AI memory plugin for OpenCode -- free, local, open-source",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

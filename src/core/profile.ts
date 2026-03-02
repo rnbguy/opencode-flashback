@@ -8,7 +8,7 @@ import {
 import { callLLMWithTool } from "./llm.ts";
 import type { UserProfile, UserProfileChangelog } from "../types.ts";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// -- Constants ----------------------------------------------------------------
 
 const ANALYSIS_THRESHOLD = 10;
 
@@ -54,7 +54,7 @@ const defaultDeps: ProfileDeps = {
 
 let deps: ProfileDeps = { ...defaultDeps };
 
-// ── Exported functions ───────────────────────────────────────────────────────
+// -- Exported functions -------------------------------------------------------
 
 export function getOrCreateProfile(userId: string): UserProfile {
   const db = getDb();
@@ -155,7 +155,7 @@ export function decayConfidence(userId: string, decayFactor = 0.95): void {
   updateProfile(db, { ...profile, profileData: decayed });
 }
 
-// ── Internal helpers ─────────────────────────────────────────────────────────
+// -- Internal helpers ---------------------------------------------------------
 
 function extractProfileData(
   data: Record<string, unknown>,
