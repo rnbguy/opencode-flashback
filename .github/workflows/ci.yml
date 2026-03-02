@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -40,4 +40,16 @@ jobs:
         run: bun run build
 
       - name: test
-        run: bun run test
+        run: bun test
+
+      - name: check tarball size
+        shell: bash
+        run: |
+          TARBALL=$(npm pack --quiet 2>/dev/null | tail -1)
+          SIZE=$(wc -c < "$TARBALL" | tr -d ' ')
+          echo "Tarball: $TARBALL ($SIZE bytes)"
+          rm -f "$TARBALL"
+          if [ "$SIZE" -gt 5242880 ]; then
+            echo "ERROR: Tarball exceeds 5MB limit"
+            exit 1
+          fi

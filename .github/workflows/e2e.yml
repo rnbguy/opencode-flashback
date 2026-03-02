@@ -1,4 +1,4 @@
-name: coverage
+name: e2e
 
 on:
   push:
@@ -13,7 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  coverage:
+  e2e:
+    name: e2e tests
     runs-on: ubuntu-latest
 
     steps:
@@ -28,12 +29,8 @@ jobs:
       - name: install
         run: bun install --frozen-lockfile
 
-      - name: test with coverage
-        run: bun run test:coverage
+      - name: build
+        run: bun run build
 
-      - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: e2e tests
+        run: bun test src/__tests__/e2e/lifecycle.test.ts
