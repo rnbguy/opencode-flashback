@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, mkdirSync, rmSync, statSync } from "fs";
+import { mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { getDb, closeDb } from "../db/database.ts";
@@ -117,9 +117,7 @@ describe("migration", () => {
       }),
     }));
 
-    const migrate = await import(
-      `../db/migrate.ts?migration-test=${Date.now()}`
-    );
+    const migrate = await import("../db/migrate.ts");
     runMigration = migrate.runMigration;
     getMigrationStatus = migrate.getMigrationStatus;
 
@@ -332,5 +330,128 @@ describe("migration", () => {
         metadata: JSON.stringify({ score: 7, ok: true, maybe: null }),
       },
     ]);
+  });
+
+  test("migrates from fallback old db path", async () => {
+    const fallbackPath = join(tmpHome, ".opencode-mem", "memories.db");
+    createOldDb(fallbackPath, 2);
+
+    const result = await runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 2 });
+
+    const status = getMigrationStatus();
+    expect(status).toEqual({ status: "completed", migratedCount: 2 });
+  });
+
+  test("ignores invalid checkpoint json and restarts from backup", async () => {
+    createOldDb(oldDbPath(), 3);
+
+    const db = getDb();
+    db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+      "migration_checkpoint",
+      "{not-valid-json",
+    );
+
+    const result = await runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 3 });
+  });
+
+  test("returns failed status when old database schema is invalid", async () => {
+    const path = oldDbPath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, "not-a-valid-sqlite-db");
+
+    const result = await runMigration();
+    expect(result.status).toBe("failed");
+
+    const failedRow = getDb()
+      .query("SELECT value FROM meta WHERE key = 'migration_failed_error'")
+      .get() as { value: string } | null;
+    expect(failedRow).not.toBeNull();
+    expect((failedRow?.value ?? "").length).toBeGreaterThan(0);
+  });
+
+  test("reports default in_progress status when migration is pending", () => {
+    createOldDb(oldDbPath(), 1);
+
+    const status = getMigrationStatus();
+    expect(status.status).toBe("in_progress");
+    if (status.status === "in_progress") {
+      expect(status.checkpoint).toEqual({
+        phase: "backup",
+        lastId: "",
+        count: 0,
+        total: 0,
+      });
+    }
+  });
+
+  test("reports in_progress status from existing checkpoint", () => {
+    createOldDb(oldDbPath(), 4);
+    const db = getDb();
+    db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+      "migration_checkpoint",
+      JSON.stringify({
+        phase: "reembed",
+        lastId: "old-0001",
+        count: 2,
+        total: 4,
+      }),
+    );
+
+    const status = getMigrationStatus();
+    expect(status).toEqual({
+      status: "in_progress",
+      checkpoint: {
+        phase: "reembed",
+        lastId: "old-0001",
+        count: 2,
+        total: 4,
+      },
+    });
+  });
+
+  test("static import coverage: migrates rows and reports completed status", async () => {
+    createOldDb(oldDbPath(), 6);
+    const migrate = await import("../db/migrate.ts");
+
+    const result = await migrate.runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 6 });
+
+    const status = migrate.getMigrationStatus();
+    expect(status).toEqual({ status: "completed", migratedCount: 6 });
+  });
+
+  test("static import coverage: records migration failure on invalid old db", async () => {
+    const path = oldDbPath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, "not-a-valid-sqlite-db");
+
+    const migrate = await import("../db/migrate.ts");
+    const result = await migrate.runMigration();
+    expect(result.status).toBe("failed");
+
+    const status = migrate.getMigrationStatus();
+    expect(status.status).toBe("in_progress");
+  });
+
+  test("static import coverage: reports failed status marker", async () => {
+    createOldDb(oldDbPath(), 1);
+    const migrate = await import("../db/migrate.ts");
+
+    const db = getDb();
+    db.query("DELETE FROM meta WHERE key = 'migration_checkpoint'").run();
+    db.query("DELETE FROM meta WHERE key = 'migration_completed'").run();
+    db.query("DELETE FROM meta WHERE key = 'migration_migrated_count'").run();
+    db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+      "migration_failed_error",
+      "static-import-failure",
+    );
+
+    const status = migrate.getMigrationStatus();
+    expect(status).toEqual({
+      status: "failed",
+      error: "static-import-failure",
+    });
   });
 });

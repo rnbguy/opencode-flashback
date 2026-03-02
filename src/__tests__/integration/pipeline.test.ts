@@ -1,5 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import { mkdtempSync, rmSync } from "fs";
+import {
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  copyFileSync,
+  existsSync,
+  writeFileSync,
+} from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { PluginConfig } from "../../config.ts";
@@ -57,7 +64,7 @@ import {
 import { _setConfigForTesting, _resetConfigForTesting } from "../../config.ts";
 import { _resetTagCache } from "../../core/tags.ts";
 import { _resetSecretCache } from "../../util/secrets.ts";
-import { startServer, stopServer } from "../../web/server.ts";
+import { startServer, stopServer, getServerState } from "../../web/server.ts";
 
 function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
   return {
@@ -79,9 +86,32 @@ function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
   };
 }
 
+function ensureStaticMirrorWithScript(): () => void {
+  const sourceDir = join(process.cwd(), "src", "web");
+  const mirrorDir = join(sourceDir, "web");
+  const createdDir = !existsSync(mirrorDir);
+  const scriptPath = join(mirrorDir, "test-script.js");
+
+  if (createdDir) {
+    mkdirSync(mirrorDir, { recursive: true });
+    copyFileSync(join(sourceDir, "index.html"), join(mirrorDir, "index.html"));
+    copyFileSync(join(sourceDir, "styles.css"), join(mirrorDir, "styles.css"));
+  }
+
+  writeFileSync(scriptPath, "window.__flashback_test = true;\n");
+
+  return () => {
+    rmSync(scriptPath, { force: true });
+    if (createdDir) {
+      rmSync(mirrorDir, { recursive: true, force: true });
+    }
+  };
+}
+
 describe("integration: memory pipeline", () => {
   let tmpDir = "";
   let dbPath = "";
+  let cleanupStaticMirror: (() => void) | null = null;
 
   beforeEach(async () => {
     stopServer();
@@ -101,6 +131,8 @@ describe("integration: memory pipeline", () => {
 
   afterEach(() => {
     stopServer();
+    cleanupStaticMirror?.();
+    cleanupStaticMirror = null;
     _resetConfigForTesting();
     closeDb();
     _resetTagCache();
@@ -274,5 +306,121 @@ describe("integration: memory pipeline", () => {
     expect(searchA.map((r) => r.memory.id)).toEqual(
       searchB.map((r) => r.memory.id),
     );
+  });
+
+  test("covers server error and validation paths", async () => {
+    cleanupStaticMirror = ensureStaticMirrorWithScript();
+    const port = 19748;
+    _setConfigForTesting(makeTestConfig(tmpDir, port));
+
+    await startServer(tmpDir);
+    expect(getServerState()).toBe("ready");
+
+    const base = `http://127.0.0.1:${port}`;
+    const httpFetch = Bun.fetch;
+
+    const csrfRes = await httpFetch(`${base}/api/csrf-token`);
+    const csrf = (await csrfRes.json()) as { token: string };
+
+    const forbiddenRes = await httpFetch(`${base}/api/csrf-token`, {
+      headers: { Host: "example.com" },
+    });
+    expect(forbiddenRes.status).toBe(403);
+
+    const missingContentRes = await httpFetch(`${base}/api/memories`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrf.token,
+      },
+      body: JSON.stringify({ tags: ["missing-content"] }),
+    });
+    expect(missingContentRes.status).toBe(400);
+
+    const tooLargeRes = await httpFetch(`${base}/api/memories`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrf.token,
+      },
+      body: "x".repeat(1_048_577),
+    });
+    expect(tooLargeRes.status).toBe(413);
+
+    let gotRateLimited = false;
+    for (let i = 0; i < 120; i++) {
+      const res = await httpFetch(`${base}/api/csrf-token`);
+      if (res.status === 429) {
+        gotRateLimited = true;
+        break;
+      }
+      expect(res.status).toBe(200);
+    }
+    expect(gotRateLimited).toBe(true);
+
+    await Bun.sleep(1100);
+    const afterRefill = await httpFetch(`${base}/api/csrf-token`);
+    expect(afterRefill.status).toBe(200);
+
+    const missingIdGet = await httpFetch(`${base}/api/memories/`);
+    expect(missingIdGet.status).toBe(400);
+
+    const notFoundMemory = await httpFetch(`${base}/api/memories/not-real`);
+    expect(notFoundMemory.status).toBe(404);
+
+    const missingIdDelete = await httpFetch(`${base}/api/memories/`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrf.token },
+    });
+    expect(missingIdDelete.status).toBe(400);
+
+    const missingSearchQ = await httpFetch(`${base}/api/search`);
+    expect(missingSearchQ.status).toBe(400);
+
+    const scriptRes = await httpFetch(`${base}/test-script.js`);
+    expect(scriptRes.status).toBe(200);
+    expect(scriptRes.headers.get("content-type") ?? "").toContain(
+      "application/javascript",
+    );
+
+    const notFoundRoute = await httpFetch(`${base}/api/unknown`);
+    expect(notFoundRoute.status).toBe(404);
+
+    const originalFile = Bun.file;
+    Bun.file = ((
+      path: string | URL | ArrayBufferLike | Uint8Array<ArrayBuffer> | number,
+    ) => {
+      throw new Error(`forced static failure: ${path}`);
+    }) as typeof Bun.file;
+
+    try {
+      const serverErrorRes = await httpFetch(`${base}/test-script.js`);
+      expect(serverErrorRes.status).toBe(500);
+    } finally {
+      Bun.file = originalFile;
+    }
+
+    const profileRes = await httpFetch(`${base}/api/profile`);
+    expect(profileRes.status).toBe(200);
+  });
+
+  test("sets error server state when port retries are exhausted", async () => {
+    const originalServe = Bun.serve;
+    let attempts = 0;
+
+    Bun.serve = ((options: Parameters<typeof Bun.serve>[0]) => {
+      attempts += 1;
+      void options;
+      throw new Error("EADDRINUSE simulated");
+    }) as typeof Bun.serve;
+
+    try {
+      await expect(startServer(tmpDir)).rejects.toThrow("EADDRINUSE simulated");
+    } finally {
+      Bun.serve = originalServe;
+    }
+
+    expect(attempts).toBe(3);
+    expect(getServerState()).toBe("error");
   });
 });
