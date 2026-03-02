@@ -138,6 +138,16 @@ describe("migration", () => {
     expect(result).toEqual({ status: "not_needed" });
   });
 
+  test("completes with zero migrated rows when old database is empty", async () => {
+    createOldDb(oldDbPath(), 0);
+
+    const result = await runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 0 });
+
+    const status = getMigrationStatus();
+    expect(status).toEqual({ status: "completed", migratedCount: 0 });
+  });
+
   test("migrates all rows and preserves content", async () => {
     createOldDb(oldDbPath(), 12);
 
@@ -228,5 +238,99 @@ describe("migration", () => {
     oldDbAfter.close();
 
     expect(afterCount.count).toBe(beforeCount.count);
+  });
+
+  test("reports completed migration status when completion marker exists", async () => {
+    createOldDb(oldDbPath(), 5);
+    const result = await runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 5 });
+
+    const status = getMigrationStatus();
+    expect(status).toEqual({ status: "completed", migratedCount: 5 });
+  });
+
+  test("reports failed status when failed marker exists", () => {
+    createOldDb(oldDbPath(), 1);
+
+    const db = getDb();
+    db.query("DELETE FROM meta WHERE key = 'migration_checkpoint'").run();
+    db.query("DELETE FROM meta WHERE key = 'migration_completed'").run();
+    db.query("DELETE FROM meta WHERE key = 'migration_migrated_count'").run();
+    db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+      "migration_failed_error",
+      "manual failure",
+    );
+
+    const status = getMigrationStatus();
+    expect(status).toEqual({ status: "failed", error: "manual failure" });
+  });
+
+  test("returns failed when verification count does not match", async () => {
+    createOldDb(oldDbPath(), 3);
+
+    const result = await runMigration((msg) => {
+      if (msg.includes("Migrated 3/3")) {
+        getDb().query("DELETE FROM memories WHERE id = ?").run("old-0002");
+      }
+    });
+
+    expect(result).toEqual({ status: "failed", error: "Row count mismatch" });
+
+    const status = getMigrationStatus();
+    expect(status.status).toBe("in_progress");
+    if (status.status === "in_progress") {
+      expect(status.checkpoint.phase).toBe("verify");
+      expect(status.checkpoint.count).toBe(3);
+      expect(status.checkpoint.total).toBe(3);
+    }
+
+    const failedRow = getDb()
+      .query("SELECT value FROM meta WHERE key = 'migration_failed_error'")
+      .get() as { value: string } | null;
+    expect(failedRow).toEqual({ value: "Row count mismatch" });
+  });
+
+  test("normalizes metadata edge cases during migration", async () => {
+    createOldDb(oldDbPath(), 4);
+
+    const oldDb = new Database(oldDbPath());
+    oldDb
+      .query("UPDATE memories SET metadata = ? WHERE id = ?")
+      .run(null, "old-0000");
+    oldDb
+      .query("UPDATE memories SET metadata = ? WHERE id = ?")
+      .run("{not-json", "old-0001");
+    oldDb
+      .query("UPDATE memories SET metadata = ? WHERE id = ?")
+      .run('["a","b"]', "old-0002");
+    oldDb.query("UPDATE memories SET metadata = ? WHERE id = ?").run(
+      JSON.stringify({
+        score: 7,
+        ok: true,
+        nested: { keep: false },
+        list: [1, 2],
+        maybe: null,
+      }),
+      "old-0003",
+    );
+    oldDb.close();
+
+    const result = await runMigration();
+    expect(result).toEqual({ status: "completed", migratedCount: 4 });
+
+    const db = getDb();
+    const rows = db
+      .query("SELECT id, metadata FROM memories ORDER BY id ASC")
+      .all() as Array<{ id: string; metadata: string }>;
+
+    expect(rows).toEqual([
+      { id: "old-0000", metadata: "{}" },
+      { id: "old-0001", metadata: "{}" },
+      { id: "old-0002", metadata: "{}" },
+      {
+        id: "old-0003",
+        metadata: JSON.stringify({ score: 7, ok: true, maybe: null }),
+      },
+    ]);
   });
 });

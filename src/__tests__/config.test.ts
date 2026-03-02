@@ -1,8 +1,13 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
-import { tmpdir } from "os";
-import { ConfigSchema, getHybridWeights } from "../config";
+import { homedir, tmpdir } from "os";
+import {
+  ConfigSchema,
+  getConfig,
+  getHybridWeights,
+  _resetConfigForTesting,
+} from "../config";
 import type { PluginConfig } from "../config";
 
 // -- ConfigSchema validation -------------------------------------------------
@@ -214,5 +219,284 @@ describe("getHybridWeights", () => {
       semantic: 0.5,
       keyword: 0.5,
     });
+  });
+});
+
+describe("getConfig", () => {
+  let tempRoot = "";
+  let xdgConfigBackup: string | undefined;
+  let xdgDataBackup: string | undefined;
+
+  function defaultsStoragePath(): string {
+    return join(homedir(), ".local", "share", "opencode-flashback");
+  }
+
+  function writeConfigFiles(json?: string, jsonc?: string): void {
+    const configDir = join(tempRoot, "opencode");
+    mkdirSync(configDir, { recursive: true });
+    if (json !== undefined) {
+      writeFileSync(join(configDir, "opencode-flashback.json"), json);
+    }
+    if (jsonc !== undefined) {
+      writeFileSync(join(configDir, "opencode-flashback.jsonc"), jsonc);
+    }
+  }
+
+  beforeEach(() => {
+    xdgConfigBackup = process.env.XDG_CONFIG_HOME;
+    xdgDataBackup = process.env.XDG_DATA_HOME;
+    tempRoot = mkdtempSync(join(tmpdir(), "flashback-config-"));
+    process.env.XDG_CONFIG_HOME = tempRoot;
+    process.env.XDG_DATA_HOME = join(tempRoot, "xdg-data");
+    _resetConfigForTesting();
+  });
+
+  afterEach(() => {
+    if (xdgConfigBackup === undefined) {
+      delete process.env.XDG_CONFIG_HOME;
+    } else {
+      process.env.XDG_CONFIG_HOME = xdgConfigBackup;
+    }
+
+    if (xdgDataBackup === undefined) {
+      delete process.env.XDG_DATA_HOME;
+    } else {
+      process.env.XDG_DATA_HOME = xdgDataBackup;
+    }
+
+    _resetConfigForTesting();
+    rmSync(tempRoot, { recursive: true, force: true });
+    mock.restore();
+  });
+
+  test("returns defaults when no config files exist", () => {
+    const config = getConfig();
+    expect(config.storage.path).toBe(
+      join(tempRoot, "xdg-data", "opencode-flashback"),
+    );
+    expect(config.search.retrievalQuality).toBe("balanced");
+    expect(config.memory.maxResults).toBe(10);
+  });
+
+  test("loads JSONC with comments and preserves comment-like strings", () => {
+    writeConfigFiles(
+      undefined,
+      `{
+        // top-level comment
+        "llm": {
+          "apiKey": "sk-//keep",
+          "model": "my-model"
+        },
+        "storage": {
+          "path": "~/custom-db"
+        },
+        /* inline block comment */
+        "search": {
+          "retrievalQuality": "custom",
+          "hybridWeights": {
+            "semantic": 0.9,
+            "keyword": 0.1
+          }
+        }
+      }`,
+    );
+
+    const config = getConfig();
+    expect(config.llm.apiKey).toBe("sk-//keep");
+    expect(config.llm.model).toBe("my-model");
+    expect(config.storage.path).toBe(join(homedir(), "custom-db"));
+    expect(config.search.hybridWeights).toEqual({
+      semantic: 0.9,
+      keyword: 0.1,
+    });
+  });
+
+  test("loads JSONC with trailing commas", () => {
+    writeConfigFiles(
+      undefined,
+      `{
+        "memory": {
+          "autoCapture": false,
+        },
+        "web": {
+          "enabled": false,
+        },
+      }`,
+    );
+
+    const config = getConfig();
+    expect(config.memory.autoCapture).toBe(false);
+    expect(config.web.enabled).toBe(false);
+  });
+
+  test("loads JSONC with escaped quotes in strings", () => {
+    writeConfigFiles(
+      undefined,
+      `{
+        "llm": {
+          "model": "gpt-\\\"edge\\\""
+        }
+      }`,
+    );
+
+    const config = getConfig();
+    expect(config.llm.model).toBe('gpt-"edge"');
+  });
+
+  test("loads JSON config when only json exists", () => {
+    writeConfigFiles(
+      JSON.stringify({
+        web: { port: 5050 },
+        memory: { autoCapture: false },
+      }),
+    );
+
+    const config = getConfig();
+    expect(config.web.port).toBe(5050);
+    expect(config.memory.autoCapture).toBe(false);
+    expect(config.memory.maxResults).toBe(10);
+  });
+
+  test("loads JSONC without comments", () => {
+    writeConfigFiles(undefined, JSON.stringify({ web: { enabled: false } }));
+
+    const config = getConfig();
+    expect(config.web.enabled).toBe(false);
+    expect(config.web.port).toBe(4747);
+  });
+
+  test("prefers JSONC values over JSON and warns when both exist", () => {
+    const warnSpy = mock(() => {});
+    const warnOriginal = console.warn;
+    console.warn = warnSpy;
+
+    try {
+      writeConfigFiles(
+        JSON.stringify({
+          llm: { model: "json-model", apiKey: "json-key" },
+          web: { port: 4001 },
+        }),
+        JSON.stringify({
+          llm: { model: "jsonc-model" },
+          web: { enabled: false },
+        }),
+      );
+
+      const config = getConfig();
+      expect(config.llm.model).toBe("jsonc-model");
+      expect(config.llm.apiKey).toBe("json-key");
+      expect(config.web.port).toBe(4001);
+      expect(config.web.enabled).toBe(false);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      console.warn = warnOriginal;
+    }
+  });
+
+  test("falls back to defaults on invalid JSON", () => {
+    writeConfigFiles("{ invalid");
+    const config = getConfig();
+    expect(config).toMatchObject({
+      llm: { provider: "openai-chat", model: "gpt-4o-mini" },
+      search: { retrievalQuality: "balanced" },
+    });
+    expect(config.storage.path).toBe(
+      join(tempRoot, "xdg-data", "opencode-flashback"),
+    );
+  });
+
+  test("falls back to defaults on invalid JSONC", () => {
+    writeConfigFiles(undefined, '{\n  "llm": {\n');
+    const config = getConfig();
+    expect(config.search.retrievalQuality).toBe("balanced");
+    expect(config.web.port).toBe(4747);
+  });
+
+  test("falls back to defaults for unknown keys because schema is strict", () => {
+    const errorSpy = mock(() => {});
+    const errorOriginal = console.error;
+    console.error = errorSpy;
+
+    try {
+      writeConfigFiles(
+        JSON.stringify({
+          llm: { apiKey: "ok" },
+          unexpected: true,
+        }),
+      );
+
+      const config = getConfig();
+      expect(config.llm.apiKey).toBe("");
+      expect(config.search.retrievalQuality).toBe("balanced");
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      console.error = errorOriginal;
+    }
+  });
+
+  test("deep merges nested objects for partial overrides", () => {
+    writeConfigFiles(
+      JSON.stringify({
+        llm: { apiKey: "partial-key" },
+        memory: { injection: "every" },
+        web: { port: 8787 },
+      }),
+    );
+
+    const config = getConfig();
+    expect(config.llm.apiKey).toBe("partial-key");
+    expect(config.llm.provider).toBe("openai-chat");
+    expect(config.memory.injection).toBe("every");
+    expect(config.memory.maxResults).toBe(10);
+    expect(config.web.port).toBe(8787);
+    expect(config.web.enabled).toBe(true);
+  });
+
+  test("falls back when array value overrides object shape", () => {
+    writeConfigFiles(
+      JSON.stringify({
+        search: {
+          retrievalQuality: "custom",
+          rankingWeights: [1, 2, 3],
+        },
+      }),
+    );
+
+    const config = getConfig();
+    expect(config.search.retrievalQuality).toBe("balanced");
+  });
+
+  test("uses homedir fallback paths when XDG env vars are unset", () => {
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.XDG_DATA_HOME;
+    _resetConfigForTesting();
+
+    const config = getConfig();
+    expect(config.storage.path).toBe(defaultsStoragePath());
+  });
+
+  test("loads empty JSONC as invalid input and returns defaults", () => {
+    writeConfigFiles(undefined, "");
+
+    const config = getConfig();
+    expect(config.web.enabled).toBe(true);
+    expect(config.llm.model).toBe("gpt-4o-mini");
+  });
+
+  test("returns cached reference until reset", () => {
+    writeConfigFiles(undefined, JSON.stringify({ web: { port: 6060 } }));
+
+    const first = getConfig();
+    const second = getConfig();
+    expect(second).toBe(first);
+    expect(second.web.port).toBe(6060);
+
+    writeConfigFiles(undefined, JSON.stringify({ web: { port: 7070 } }));
+    const stillCached = getConfig();
+    expect(stillCached.web.port).toBe(6060);
+
+    _resetConfigForTesting();
+    const reloaded = getConfig();
+    expect(reloaded.web.port).toBe(7070);
   });
 });
