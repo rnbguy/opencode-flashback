@@ -1,3 +1,28 @@
+import {
+  Activity,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  Github,
+  Heart,
+  Info,
+  Moon,
+  Plus,
+  RotateCw,
+  Search,
+  Sun,
+  Trash2,
+  User,
+  UserX,
+  Workflow,
+  X,
+  createIcons,
+} from "lucide";
+import DOMPurify from "dompurify";
+import { jsonrepair } from "jsonrepair";
+import { marked } from "marked";
+
 const API_BASE = "";
 let csrfToken = "";
 
@@ -53,15 +78,34 @@ const state: State = {
   userProfile: null,
 };
 
-marked.setOptions({
+marked.use({
   gfm: true,
   breaks: true,
-  headerIds: false,
-  mangle: false,
 });
 
+const lucideIcons = {
+  Sun,
+  Moon,
+  Github,
+  Folder,
+  User,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
+  Plus,
+  Trash2,
+  UserX,
+  Heart,
+  Activity,
+  Workflow,
+  Info,
+  ArrowRight,
+};
+
 function renderMarkdown(markdown: string): string {
-  const html = marked.parse(markdown);
+  const html = marked.parse(markdown, { async: false });
   return DOMPurify.sanitize(html);
 }
 
@@ -172,7 +216,7 @@ function renderMemories(): void {
   }
 
   container.innerHTML = state.memories.map(renderMemoryCard).join("");
-  lucide.createIcons();
+  createIcons({ icons: lucideIcons });
 }
 
 function renderMemoryCard(memory: Memory): string {
@@ -462,7 +506,7 @@ function renderUserProfile(): void {
         <p>No user profile found yet.</p>
       </div>
     `;
-    lucide.createIcons();
+    createIcons({ icons: lucideIcons });
     return;
   }
 
@@ -478,7 +522,7 @@ function renderUserProfile(): void {
   const parseField = (field: unknown): Array<Record<string, unknown>> => {
     if (!field) return [];
     let result = field;
-    let lastResult = null;
+    let lastResult: string | null = null;
     while (typeof result === "string" && result !== lastResult) {
       lastResult = result;
       try {
@@ -633,7 +677,7 @@ function renderUserProfile(): void {
     </div>
   `;
 
-  lucide.createIcons();
+  createIcons({ icons: lucideIcons });
 }
 
 function switchView(view: "project" | "profile"): void {
@@ -733,7 +777,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   startAutoRefresh();
 
-  lucide.createIcons();
+  createIcons({ icons: lucideIcons });
 });
 
 (
