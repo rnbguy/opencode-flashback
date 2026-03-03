@@ -247,6 +247,88 @@ export async function getMemoryById(id: string): Promise<Memory | null> {
   return getMemory(db, id);
 }
 
+export async function exportMemories(
+  containerTag: string,
+  format: "json" | "markdown",
+): Promise<{ data: string; count: number }> {
+  const db = getDb();
+  const all = getAllActiveMemories(db).filter(
+    (memory) =>
+      memory.containerTag === containerTag && memory.evictedAt === null,
+  );
+
+  if (format === "markdown") {
+    const data = all
+      .map((memory) => {
+        const tags =
+          memory.tags.length > 0 ? `\nTags: ${memory.tags.join(", ")}` : "";
+        return `## ${memory.type || "note"}\n\n${memory.content}${tags}\n\nCreated: ${new Date(memory.createdAt).toISOString()}`;
+      })
+      .join("\n\n---\n\n");
+    return { data, count: all.length };
+  }
+
+  return {
+    data: JSON.stringify(
+      all.map((memory) => ({
+        id: memory.id,
+        content: memory.content,
+        type: memory.type,
+        tags: memory.tags,
+        createdAt: memory.createdAt,
+        containerTag: memory.containerTag,
+      })),
+      null,
+      2,
+    ),
+    count: all.length,
+  };
+}
+
+export async function findRelatedMemories(
+  query: string,
+  containerTag: string,
+  limit?: number,
+): Promise<SearchResult[]> {
+  return searchMemories(query, containerTag, limit);
+}
+
+export async function suspendMemory(
+  id: string,
+  reason: string | null,
+): Promise<boolean> {
+  const db = getDb();
+  const memory = getMemory(db, id);
+  if (!memory) {
+    return false;
+  }
+
+  db.query(
+    "UPDATE memories SET suspended = 1, suspended_reason = ?, suspended_at = ? WHERE id = ?",
+  ).run(reason, Date.now(), id);
+  return true;
+}
+
+export async function getMemoriesForReview(
+  containerTag: string,
+  limit?: number,
+): Promise<Memory[]> {
+  const db = getDb();
+  const now = Date.now();
+  const memories = getAllActiveMemories(db).filter(
+    (memory) =>
+      memory.containerTag === containerTag &&
+      memory.evictedAt === null &&
+      !memory.suspended &&
+      memory.nextReviewAt !== null &&
+      memory.nextReviewAt <= now,
+  );
+
+  return memories
+    .sort((a, b) => (a.nextReviewAt ?? 0) - (b.nextReviewAt ?? 0))
+    .slice(0, limit ?? 10);
+}
+
 function getRankingWeights(config: PluginConfig): {
   recency: number;
   importance: number;

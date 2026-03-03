@@ -8,12 +8,16 @@ import type {
 } from "./types.ts";
 import {
   addMemory,
+  exportMemories,
+  findRelatedMemories,
   searchMemories,
   recallMemories,
   forgetMemory,
+  getMemoriesForReview,
   listMemories,
   getContext,
   getMemoryById,
+  suspendMemory,
   type AddMemoryOptions,
 } from "./core/memory.ts";
 import { getOrCreateProfile } from "./core/profile.ts";
@@ -49,6 +53,17 @@ export interface MemoryEngine {
   ): Promise<{ memories: Memory[]; total: number }>;
   getContext(containerTag: string, sessionId?: string): Promise<string>;
   getMemoryById(id: string): Promise<Memory | null>;
+  exportMemories(
+    containerTag: string,
+    format: "json" | "markdown",
+  ): Promise<{ data: string; count: number }>;
+  findRelatedMemories(
+    query: string,
+    containerTag: string,
+    limit?: number,
+  ): Promise<SearchResult[]>;
+  suspendMemory(id: string, reason: string | null): Promise<boolean>;
+  getMemoriesForReview(containerTag: string, limit?: number): Promise<Memory[]>;
   getOrCreateProfile(userId: string): UserProfile | null;
   enqueueCapture(request: CaptureRequest): void;
   resolveTag(directory: string): ContainerTagInfo;
@@ -66,6 +81,10 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     listMemories,
     getContext,
     getMemoryById,
+    exportMemories,
+    findRelatedMemories,
+    suspendMemory,
+    getMemoriesForReview,
     getOrCreateProfile,
     enqueueCapture,
     resolveTag: (directory) => resolver.resolve(directory),

@@ -174,23 +174,46 @@ async function handleToolCall(
     }
     case "export": {
       const format = asString(args.format) === "markdown" ? "markdown" : "json";
-      return { mode: "export", data: "[]", format, count: 0 };
+      const result = await engine.exportMemories(containerTag, format);
+      return { mode: "export", data: result.data, format, count: result.count };
     }
     case "related": {
-      return { mode: "related", results: [], count: 0 };
+      const query = asString(args.query);
+      if (query.trim().length === 0) {
+        return { mode: "related", results: [], count: 0 };
+      }
+      const results = await engine.findRelatedMemories(
+        query,
+        containerTag,
+        asNumber(args.limit),
+      );
+      return { mode: "related", results, count: results.length };
     }
     case "review": {
-      return { mode: "review", memories: [], count: 0 };
+      const memories = await engine.getMemoriesForReview(
+        containerTag,
+        asNumber(args.limit),
+      );
+      return { mode: "review", memories, count: memories.length };
     }
     case "suspend": {
-      return { mode: "suspend", success: false, id: asString(args.id) };
+      const id = asString(args.id);
+      if (id.length === 0) {
+        return { error: "Missing memory id" };
+      }
+      const success = await engine.suspendMemory(
+        id,
+        asString(args.reason) || null,
+      );
+      return { mode: "suspend", success, id };
     }
     case "consolidate": {
+      const dryRun = asBoolean(args.dryRun) || true;
       return {
         mode: "consolidate",
         candidates: [],
         merged: 0,
-        dryRun: asBoolean(args.dryRun) || true,
+        dryRun,
       };
     }
     default:
@@ -380,7 +403,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         return;
       }
 
-        const config = getConfig();
+      const config = getConfig();
       try {
         // Save user prompt if text parts present
         const textParts = output.parts.filter(
@@ -392,7 +415,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           .join("\n")
           .trim();
         if (userMessage.length > 0) {
-          storePrompt(sessionID, output.message.id, userMessage, input.directory);
+          storePrompt(
+            sessionID,
+            output.message.id,
+            userMessage,
+            input.directory,
+          );
         }
 
         // Fetch session messages for compaction detection (if client available)
@@ -476,7 +504,9 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
               .map((memory) => {
                 const compact = memory.content.replace(/\s+/g, " ").trim();
                 const summary =
-                  compact.length > 180 ? `${compact.slice(0, 179)}...` : compact;
+                  compact.length > 180
+                    ? `${compact.slice(0, 179)}...`
+                    : compact;
                 const confidencePct = Math.round(
                   memory.epistemicStatus.confidence * 100,
                 );
