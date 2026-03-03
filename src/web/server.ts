@@ -47,6 +47,7 @@ const rateLimiter = {
 // -- Public API -------------------------------------------------------------
 
 export async function startServer(directory: string): Promise<number> {
+  if (server) { stopServer(); }
   const logger = getLogger();
   csrfToken = crypto.randomUUID();
 
