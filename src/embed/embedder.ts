@@ -20,7 +20,9 @@ let modelInitPromise: Promise<FeatureExtractionPipeline> | null = null;
 const cache = new Map<string, number[]>();
 const failureTimestamps: number[] = [];
 let degradedUntil = 0;
-let degradedProbeAvailable = false;
+let degradedProbePromise: Promise<void> | null = null;
+let probeResolve: (() => void) | null = null;
+let probeReject: ((err: Error) => void) | null = null;
 
 type Mode = "query" | "document";
 
@@ -77,7 +79,7 @@ function pruneFailures(now: number): void {
   }
 }
 
-function beforeRequest(): void {
+async function beforeRequest(): Promise<void> {
   if (subsystemState !== "degraded") {
     return;
   }
@@ -87,18 +89,29 @@ function beforeRequest(): void {
     throw new Error("Embedder circuit breaker is open");
   }
 
-  if (!degradedProbeAvailable) {
-    throw new Error("Embedder circuit breaker probe already in progress");
+  if (degradedProbePromise) {
+    // Another probe is running -- wait for its outcome
+    await degradedProbePromise;
+    return;
   }
 
-  degradedProbeAvailable = false;
+  // This caller becomes the probe
+  degradedProbePromise = new Promise<void>((resolve, reject) => {
+    probeResolve = resolve;
+    probeReject = reject;
+  });
 }
 
 function onSuccess(): void {
   failureTimestamps.length = 0;
   degradedUntil = 0;
-  degradedProbeAvailable = false;
   subsystemState = "ready";
+  if (probeResolve) {
+    probeResolve();
+    probeResolve = null;
+    probeReject = null;
+    degradedProbePromise = null;
+  }
 }
 
 function onFailure(): void {
@@ -112,7 +125,12 @@ function onFailure(): void {
   ) {
     subsystemState = "degraded";
     degradedUntil = now + DEGRADED_COOLDOWN_MS;
-    degradedProbeAvailable = true;
+    if (probeReject) {
+      probeReject(new Error("Embedder circuit breaker probe failed"));
+      probeResolve = null;
+      probeReject = null;
+      degradedProbePromise = null;
+    }
     return;
   }
 
@@ -174,13 +192,15 @@ export function resetEmbedder(): void {
   cache.clear();
   failureTimestamps.length = 0;
   degradedUntil = 0;
-  degradedProbeAvailable = false;
+  degradedProbePromise = null;
+  probeResolve = null;
+  probeReject = null;
 }
 
 export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
   const logger = getLogger();
   const start = Date.now();
-  beforeRequest();
+  await beforeRequest();
 
   if (texts.length === 0) {
     logger.debug("embed completed", {
