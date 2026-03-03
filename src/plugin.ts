@@ -2,25 +2,9 @@ import type { Plugin, PluginInput, ToolContext } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
 import { registerCommands } from "./commands.ts";
 import { getConfig } from "./config.ts";
-import { getDb, countMemories, closeDb } from "./db/database.ts";
 import { resolveContainerTag } from "./core/tags.ts";
-import {
-  addMemory,
-  searchMemories,
-  recallMemories,
-  forgetMemory,
-  listMemories,
-  getContext,
-} from "./core/memory.ts";
-import { getOrCreateProfile } from "./core/profile.ts";
-import {
-  enqueueCapture,
-  getCaptureState,
-  resetCapture,
-} from "./core/capture.ts";
-import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
-import { initSearch, getSearchState } from "./search/index.ts";
-import type { DiagnosticsResponse, ToolResult } from "./types.ts";
+import { createEngine } from "./engine.ts";
+import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
 
 type ToolMode =
@@ -42,6 +26,7 @@ type ToolMode =
 const injectedSessionIds = new Set<string>();
 let warmupTimer: ReturnType<typeof setTimeout> | null = null;
 let lifecycleInstalled = false;
+const engine = createEngine({ resolve: resolveContainerTag });
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -69,9 +54,7 @@ async function handleToolCall(
   pluginInput: PluginInput,
   context: ToolContext,
 ): Promise<ToolResult | { error: string }> {
-  const tagInfo = resolveContainerTag(
-    context.directory || pluginInput.directory,
-  );
+  const tagInfo = engine.resolveTag(context.directory || pluginInput.directory);
   const containerTag = tagInfo.tag;
   const mode = asString(args.mode) as ToolMode;
 
@@ -86,7 +69,7 @@ async function handleToolCall(
           message: "Content is required",
         };
       }
-      const result = await addMemory({
+      const result = await engine.addMemory({
         content,
         containerTag,
         tags: asStringArray(args.tags),
@@ -99,7 +82,7 @@ async function handleToolCall(
       };
     }
     case "search": {
-      const results = await searchMemories(
+      const results = await engine.searchMemories(
         asString(args.query),
         containerTag,
         asNumber(args.limit),
@@ -107,7 +90,7 @@ async function handleToolCall(
       return { mode: "search", results, count: results.length };
     }
     case "recall": {
-      const results = await recallMemories(
+      const results = await engine.recallMemories(
         [],
         containerTag,
         asNumber(args.limit),
@@ -119,13 +102,13 @@ async function handleToolCall(
       if (id.length === 0) {
         return { error: "Missing memory id" };
       }
-      await forgetMemory(id);
+      await engine.forgetMemory(id);
       return { mode: "forget", success: true, id };
     }
     case "list": {
       const limit = asNumber(args.limit) ?? 50;
       const offset = asNumber(args.offset) ?? 0;
-      const page = await listMemories(containerTag, limit, offset);
+      const page = await engine.listMemories(containerTag, limit, offset);
       return {
         mode: "list",
         memories: page.memories,
@@ -134,14 +117,20 @@ async function handleToolCall(
       };
     }
     case "profile": {
-      const profile = getOrCreateProfile(tagInfo.userEmail || "default");
+      const profile = engine.getOrCreateProfile(tagInfo.userEmail || "default");
       return { mode: "profile", profile };
     }
     case "stats": {
-      return { mode: "stats", stats: await getDiagnostics(containerTag) };
+      return {
+        mode: "stats",
+        stats: await engine.getDiagnostics(containerTag),
+      };
     }
     case "context": {
-      const contextText = await getContext(containerTag, context.sessionID);
+      const contextText = await engine.getContext(
+        containerTag,
+        context.sessionID,
+      );
       return { mode: "context", injected: contextText.length > 0 ? 1 : 0 };
     }
     case "help": {
@@ -196,36 +185,6 @@ function getHelpText(): string {
   ].join("\n");
 }
 
-async function getDiagnostics(
-  containerTag: string,
-): Promise<DiagnosticsResponse> {
-  const db = getDb();
-  const dbPath = db.filename ?? "";
-  const memoryCount = countMemories(db, containerTag);
-
-  let dbSizeBytes = 0;
-  try {
-    if (dbPath) {
-      dbSizeBytes = Bun.file(dbPath).size;
-    }
-  } catch {
-    // DB file may not exist yet -- use zero size
-  }
-
-  return {
-    memoryCount,
-    dbSizeBytes,
-    dbPath,
-    embeddingModel: "onnx-community/embeddinggemma-300m-ONNX",
-    subsystems: {
-      embedder: getEmbedderState(),
-      search: getSearchState(),
-      capture: getCaptureState(),
-    },
-    version: "0.1.0",
-  };
-}
-
 function scheduleWarmup(): void {
   if (warmupTimer) {
     return;
@@ -233,7 +192,7 @@ function scheduleWarmup(): void {
   warmupTimer = setTimeout(async () => {
     warmupTimer = null;
     try {
-      await Promise.all([initSearch(), embed(["warmup"], "query")]);
+      await engine.warmup();
     } catch {
       // Warmup is best-effort -- lazy init handles failures
     }
@@ -251,9 +210,7 @@ function installLifecycleHooks(): void {
       clearTimeout(warmupTimer);
       warmupTimer = null;
     }
-    resetCapture();
-    resetEmbedder();
-    closeDb();
+    engine.shutdown();
   };
 
   process.on("beforeExit", shutdown);
@@ -325,8 +282,8 @@ const flashback: Plugin = async (input) => {
         injectedSessionIds.add(sessionID);
       }
 
-      const containerTag = resolveContainerTag(input.directory).tag;
-      const contextText = await getContext(containerTag, sessionID);
+      const containerTag = engine.resolveTag(input.directory).tag;
+      const contextText = await engine.getContext(containerTag, sessionID);
       if (contextText.length === 0) {
         return;
       }
@@ -345,8 +302,8 @@ const flashback: Plugin = async (input) => {
         if (!getConfig().memory.autoCapture) {
           return;
         }
-        const tagInfo = resolveContainerTag(input.directory);
-        enqueueCapture({
+        const tagInfo = engine.resolveTag(input.directory);
+        engine.enqueueCapture({
           sessionId: event.properties.sessionID,
           containerTag: tagInfo.tag,
           messages: [],
