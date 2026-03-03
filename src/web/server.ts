@@ -1,5 +1,5 @@
 import { join } from "path";
-import { statSync } from "fs";
+import { readFileSync, statSync } from "fs";
 import { getDb, countMemories } from "../db/database.ts";
 import {
   addMemory,
@@ -25,6 +25,7 @@ import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
 let server: ReturnType<typeof Bun.serve> | null = null;
 let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
+let cspScriptHash = "";
 
 // -- Rate limiter (token bucket) --------------------------------------------
 
@@ -50,6 +51,7 @@ export async function startServer(directory: string): Promise<number> {
   if (server) { stopServer(); }
   const logger = getLogger();
   csrfToken = crypto.randomUUID();
+  cspScriptHash = computeCspHash();
 
   const config = getConfig();
   const basePort = config.web.port;
@@ -327,6 +329,27 @@ function validateCsrf(req: Request): boolean {
   return token === csrfToken;
 }
 
+function computeCspHash(): string {
+  const logger = getLogger();
+  try {
+    const htmlPath = join(import.meta.dir, "web", "index.html");
+    const html = readFileSync(htmlPath, "utf-8");
+    const match = html.match(/<script>([\s\S]*?)<\/script>/);
+    if (!match) {
+      logger.warn("CSP hash: no inline script found in index.html");
+      return "";
+    }
+    const hash = new Bun.CryptoHasher("sha256")
+      .update(match[1])
+      .digest("base64");
+    return `sha256-${hash}`;
+  } catch {
+    // HTML file not readable (e.g. test environment) -- fall back to unsafe-inline
+    logger.warn("CSP hash: failed to read index.html, using unsafe-inline");
+    return "";
+  }
+}
+
 // -- Response helpers -------------------------------------------------------
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -353,8 +376,9 @@ function serveStatic(filePath: string): Response {
   };
   headers["X-Frame-Options"] = "DENY";
   if (filePath.endsWith(".html")) {
-    headers["Content-Security-Policy"] =
-      "script-src 'self' 'sha256-6YqWunyF9B6avn1g4fXCrUMdPPmQylnakcaAKaAyMjk='";
+    headers["Content-Security-Policy"] = cspScriptHash
+      ? `script-src 'self' '${cspScriptHash}'`
+      : "script-src 'self' 'unsafe-inline'";
     headers["Content-Type"] = "text/html; charset=utf-8";
   } else if (filePath.endsWith(".css")) {
     headers["Content-Type"] = "text/css; charset=utf-8";
