@@ -13,6 +13,7 @@ import {
   type LanguageDetectionResult,
 } from "../util/language.ts";
 import { getLogger } from "../util/logger.ts";
+import { z } from "zod";
 
 // -- State ---------------------------------------------------------------------
 
@@ -234,7 +235,7 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   const context = opts.messages
     .slice(-15)
-    .map((m) => `**${m.role}**: ${m.content}`)
+    .map((m) => `**${m.role}**: ${m.content.slice(0, 4000)}`)
     .join("\n\n");
 
   let lastError: string | undefined;
@@ -259,12 +260,31 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   notifier?.("failed", lastError);
 }
 
+const ExtractionResultSchema = z.object({
+  summary: z.string(),
+  type: z.string(),
+  tags: z.array(z.string()).default([]),
+  importance: z.number().optional(),
+  confidence: z.number().optional(),
+  evidenceCount: z.number().optional(),
+});
+
 async function processResult(
   data: Record<string, unknown>,
   promptId: string,
   opts: CaptureRequest,
 ): Promise<void> {
-  const memoryType = data.type as string;
+  const logger = getLogger();
+  const parsed = ExtractionResultSchema.safeParse(data);
+  if (!parsed.success) {
+    logger.warn("Capture skipped: LLM output validation failed", {
+      errors: parsed.error.issues.map((i) => i.message).join(", "),
+    });
+    lastCaptureStatus = "skipped";
+    return;
+  }
+
+  const memoryType = parsed.data.type;
 
   if (memoryType === "skip") {
     deps.markCaptured(promptId, "");
@@ -273,11 +293,11 @@ async function processResult(
   }
 
   const result = await deps.addMemory({
-    content: data.summary as string,
+    content: parsed.data.summary,
     containerTag: opts.containerTag,
-    tags: (data.tags as string[]) ?? [],
+    tags: parsed.data.tags,
     type: memoryType,
-    importance: data.importance as number,
+    importance: parsed.data.importance ?? 5,
     provenance: {
       sessionId: opts.sessionId,
       messageRange: [
@@ -287,8 +307,8 @@ async function processResult(
       toolCallIds: [],
     },
     epistemicStatus: {
-      confidence: (data.confidence as number) ?? 0.7,
-      evidenceCount: (data.evidenceCount as number) ?? 1,
+      confidence: parsed.data.confidence ?? 0.7,
+      evidenceCount: parsed.data.evidenceCount ?? 1,
     },
     displayName: opts.displayName,
     userName: opts.userName,
