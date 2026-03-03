@@ -13,6 +13,7 @@ import { createLogger } from "./util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "./util/privacy.ts";
 import { startServer, stopServer } from "./web/server.ts";
 import { MEMORY_HEADER } from "./consts.ts";
+import ms from "ms";
 
 type ToolMode =
   | "search"
@@ -252,10 +253,19 @@ async function handleToolCall(
     }
     case "clear": {
       const confirmed = asBoolean(args.confirmed);
-      const duration = asNumber(args.duration);
+      const rawDuration = asString(args.duration);
+      const durationMs = rawDuration ? ms(rawDuration as ms.StringValue) : undefined;
+      if (rawDuration && !durationMs) {
+        return {
+          mode: "clear",
+          success: false,
+          message: `Invalid duration format: "${rawDuration}". Examples: "30sec", "2days", "1hour", "5min", "1w".`,
+        };
+      }
+      const durationSecs = durationMs ? Math.round(durationMs / 1000) : undefined;
       if (!confirmed) {
-        const durationNote = typeof duration === "number"
-          ? ` memories older than ${duration} seconds`
+        const durationNote = durationMs
+          ? ` memories older than ${ms(durationMs, { long: true })}`
           : " ALL memories, profiles, and prompts";
         return {
           mode: "clear",
@@ -264,9 +274,9 @@ async function handleToolCall(
             `WARNING: This will permanently delete${durationNote}. This action cannot be undone. To proceed, call again with confirmed: true.`,
         };
       }
-      engine.clearAllData(duration);
-      const message = typeof duration === "number"
-        ? `Cleared memories older than ${duration} seconds.`
+      engine.clearAllData(durationSecs);
+      const message = durationMs
+        ? `Cleared memories older than ${ms(durationMs, { long: true })}.`
         : "All data cleared. Database is now empty.";
       return {
         mode: "clear",
@@ -323,7 +333,7 @@ function getHelpText(): string {
     "| suspend <id> [reason] | Suspend a memory |",
     "| pin <id> | Pin a memory (protected from eviction) |",
     "| unpin <id> | Unpin a memory |",
-    "| clear [duration] | Clear all data or memories older than duration seconds |",
+    "| clear [duration] | Clear all data or memories older than duration (e.g. 30sec, 2days, 1hour) |",
     "| consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
 }
@@ -534,7 +544,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           dryRun: tool.schema.boolean().optional(),
           confirmed: tool.schema.boolean().optional(),
           rating: tool.schema.number().optional(),
-          duration: tool.schema.number().optional(),
+          duration: tool.schema.string().optional(),
         },
         execute: async (args, context) => {
           try {
