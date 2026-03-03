@@ -67,6 +67,7 @@ function loadCheckpoint(db: Database): MigrationCheckpoint | null {
   try {
     return JSON.parse(row.value) as MigrationCheckpoint;
   } catch {
+    // checkpoint JSON is corrupt -- treat as no checkpoint
     return null;
   }
 }
@@ -139,6 +140,7 @@ function parseMetadata(
     }
     return result;
   } catch {
+    // legacy JSON parse failed -- return empty object for safe migration
     return {};
   }
 }
