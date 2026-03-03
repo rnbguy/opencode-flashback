@@ -138,10 +138,12 @@ export async function searchMemories(
     const vectors = await embed([query], "query");
     const vector = vectors[0];
     const results = await hybridSearch(query, vector, containerTag, maxResults);
-    return rerank(results, config);
+    const ranked = rerank(results, config);
+    trackAccess(ranked);
+    return ranked;
   } catch {
     const fallback = searchMemoriesByText(db, query, containerTag, maxResults);
-    return rerank(
+    const ranked = rerank(
       fallback.map((memory) => ({
         memory,
         score: 0,
@@ -149,6 +151,8 @@ export async function searchMemories(
       })),
       config,
     );
+    trackAccess(ranked);
+    return ranked;
   }
 }
 
@@ -517,5 +521,19 @@ function parsePreferenceLines(profileDataRaw: string | null): string[] {
       .map(([key, value]) => `- [${key}] ${String(value)}`);
   } catch {
     return [];
+  }
+}
+
+function trackAccess(results: SearchResult[]): void {
+  if (results.length === 0) return;
+  const db = getDb();
+  const now = Date.now();
+  const stmt = db.query(
+    "UPDATE memories SET access_count = access_count + 1, last_accessed_at = ? WHERE id = ?",
+  );
+  for (const result of results) {
+    stmt.run(now, result.memory.id);
+    result.memory.accessCount += 1;
+    result.memory.lastAccessedAt = now;
   }
 }
