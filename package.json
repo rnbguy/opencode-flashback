@@ -34,14 +34,12 @@
     "url": "https://github.com/rnbguy/opencode-flashback/issues"
   },
   "homepage": "https://github.com/rnbguy/opencode-flashback#readme",
-
   "license": "Apache-2.0",
   "engines": {
     "bun": ">=1.2.0"
   },
   "scripts": {
     "prepublishOnly": "bun run build && bun test",
-
     "prebuild": "mkdir -p dist/web",
     "build": "bun build src/index.ts --outdir dist --target bun && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/",
     "typecheck": "tsc --noEmit",
@@ -52,6 +50,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "@orama/orama": "^3.1.18",
+    "iso-639-1": "^3.1.5",
     "tinyld": "^1.3.4",
     "zod": "^4.3.6"
   },
