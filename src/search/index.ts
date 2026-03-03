@@ -35,6 +35,7 @@ type SearchDoc = {
 let state: SubsystemState = "uninitialized";
 let oramaDb: Orama<typeof schema> | null = null;
 let isStale = false;
+let rebuildPromise: Promise<void> = Promise.resolve();
 
 // -- Init / Rebuild ----------------------------------------------------------
 
@@ -63,6 +64,13 @@ export async function initSearch(): Promise<void> {
 }
 
 export async function rebuildIndex(): Promise<void> {
+  rebuildPromise = rebuildPromise.then(() => doRebuild()).catch(() => {
+    // serialization catch -- individual errors handled inside doRebuild
+  });
+  return rebuildPromise;
+}
+
+async function doRebuild(): Promise<void> {
   const logger = getLogger();
   const start = Date.now();
   try {
