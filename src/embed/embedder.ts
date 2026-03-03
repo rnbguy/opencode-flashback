@@ -129,7 +129,7 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
 
   subsystemState = "initializing";
   modelInitPromise = pipeline("feature-extraction", MODEL_ID, {
-    device: "wasm",
+    device: "cpu",
     dtype: "q4",
   })
     .then((instance) => {

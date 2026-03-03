@@ -60,7 +60,7 @@ describe("embedder", () => {
       expect(mockPipelineInstance).toHaveBeenCalledWith(
         "feature-extraction",
         "onnx-community/embeddinggemma-300m-ONNX",
-        { device: "wasm", dtype: "q4" },
+        { device: "cpu", dtype: "q4" },
       );
     });
 
