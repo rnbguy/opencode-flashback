@@ -62,6 +62,12 @@ const mockGetLastUncaptured = mock(
 
 const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
 const mockMarkAnalyzed = mock((_pid: string) => {});
+const mockDetectLanguage = mock(async (_text: string) => ({
+  mode: "nl" as const,
+  codeRatio: 0,
+  detectedLang: "en",
+}));
+const mockGetLanguageName = mock((_code: string) => "English");
 
 // -- Imports (resolved after mocks) -------------------------------------------
 
@@ -124,6 +130,12 @@ function resetMockDefaults() {
   }));
   mockMarkCaptured.mockImplementation(() => {});
   mockMarkAnalyzed.mockImplementation(() => {});
+  mockDetectLanguage.mockImplementation(async () => ({
+    mode: "nl",
+    codeRatio: 0,
+    detectedLang: "en",
+  }));
+  mockGetLanguageName.mockImplementation(() => "English");
 }
 
 beforeEach(() => {
@@ -136,6 +148,8 @@ beforeEach(() => {
     getLastUncapturedPrompt: mockGetLastUncaptured,
     markCaptured: mockMarkCaptured,
     markAnalyzed: mockMarkAnalyzed,
+    detectLanguage: mockDetectLanguage,
+    getLanguageName: mockGetLanguageName,
   });
   mockAddMemory.mockReset();
   mockCallLLM.mockReset();
@@ -143,6 +157,8 @@ beforeEach(() => {
   mockGetLastUncaptured.mockReset();
   mockMarkCaptured.mockReset();
   mockMarkAnalyzed.mockReset();
+  mockDetectLanguage.mockReset();
+  mockGetLanguageName.mockReset();
   resetMockDefaults();
 });
 
@@ -457,5 +473,32 @@ describe("state management", () => {
 
     resetCapture();
     expect(getCaptureState()).toBe("uninitialized");
+  });
+});
+
+describe("dependency injection", () => {
+  test("uses injected language dependencies", async () => {
+    const detect = mock(
+      async (_text: string) =>
+        ({ mode: "nl", codeRatio: 0, detectedLang: "ja" }) as const,
+    );
+    const getName = mock((_code: string) => "Japanese");
+
+    _setCaptureDepsForTesting({
+      detectLanguage: detect,
+      getLanguageName: getName,
+    });
+
+    enqueueCapture(
+      makeRequest({ messages: [{ role: "user", content: "konnichiwa" }] }),
+    );
+
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(detect).toHaveBeenCalledTimes(1);
+    expect(detect).toHaveBeenCalledWith("konnichiwa");
+    expect(getName).toHaveBeenCalledTimes(1);
+    expect(getName).toHaveBeenCalledWith("ja");
   });
 });

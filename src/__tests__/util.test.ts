@@ -11,6 +11,7 @@ import { tmpdir } from "os";
 import { resolveSecret } from "../util/secrets";
 import { stripPrivate } from "../util/privacy";
 import { createLogger } from "../util/logger";
+import { getLanguageName } from "../util/language";
 
 // -- resolveSecret ------------------------------------------------------------
 
@@ -62,6 +63,22 @@ describe("resolveSecret", () => {
 
   test("returns value with special characters", async () => {
     expect(await resolveSecret("p@ss=w0rd!#$%")).toBe("p@ss=w0rd!#$%");
+  });
+});
+
+describe("getLanguageName", () => {
+  test("returns known language names", () => {
+    expect(getLanguageName("en")).toBe("English");
+    expect(getLanguageName("fr")).toBe("French");
+    expect(getLanguageName("ja")).toBe("Japanese");
+  });
+
+  test("falls back to English for unknown code", () => {
+    expect(getLanguageName("xx")).toBe("English");
+  });
+
+  test("falls back to English for empty string", () => {
+    expect(getLanguageName("")).toBe("English");
   });
 });
 
