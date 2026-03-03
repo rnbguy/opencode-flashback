@@ -49,6 +49,11 @@ const profileToolSchema = {
               type: "number",
               description: "Confidence 0.0-1.0",
             },
+            evidence: {
+              type: "array",
+              items: { type: "string" },
+              description: "Supporting evidence for this preference",
+            },
           },
           required: ["category", "description", "confidence"],
         },
