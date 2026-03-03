@@ -145,6 +145,11 @@ function ensureStaticMirror(): () => void {
     mkdirSync(mirrorDir, { recursive: true });
     copyFileSync(join(sourceDir, "index.html"), join(mirrorDir, "index.html"));
     copyFileSync(join(sourceDir, "styles.css"), join(mirrorDir, "styles.css"));
+    // Copy built app.js from dist so the server can serve it
+    const distAppJs = join(process.cwd(), "dist", "web", "app.js");
+    if (existsSync(distAppJs)) {
+      copyFileSync(distAppJs, join(mirrorDir, "app.js"));
+    }
   }
 
   return () => {
@@ -462,8 +467,15 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
     const listRes = await httpFetch(`${baseUrl}/api/memories`);
     expect(listRes.status).toBe(200);
-    const listed = (await listRes.json()) as { memories: unknown[] };
+    const listed = (await listRes.json()) as {
+      memories: unknown[];
+      total: number;
+    };
     expect(Array.isArray(listed.memories)).toBe(true);
+    expect(typeof listed.total).toBe("number");
+
+    // Regression: list response must not be a bare array
+    expect(Array.isArray(listed)).toBe(false);
 
     const createRes = await httpFetch(`${baseUrl}/api/memories`, {
       method: "POST",
@@ -486,15 +498,29 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     expect(searchRes.status).toBe(200);
     const searchData = (await searchRes.json()) as { results: unknown[] };
     expect(Array.isArray(searchData.results)).toBe(true);
+    expect(typeof searchData.results).toBe("object");
+    expect(searchData).toHaveProperty("count");
 
     const deleteRes = await httpFetch(`${baseUrl}/api/memories/${created.id}`, {
       method: "DELETE",
       headers: { "X-CSRF-Token": csrf.token },
     });
     expect(deleteRes.status).toBe(200);
+    const deleteData = (await deleteRes.json()) as {
+      success: boolean;
+      id: string;
+    };
+    expect(deleteData.success).toBe(true);
+    expect(deleteData.id).toBe(created.id);
 
     const profileRes = await httpFetch(`${baseUrl}/api/profile`);
     expect(profileRes.status).toBe(200);
+    const profileData = (await profileRes.json()) as {
+      profileData?: unknown;
+      id?: string;
+    };
+    expect(profileData).toHaveProperty("profileData");
+    expect(profileData).toHaveProperty("id");
 
     const indexRes = await httpFetch(`${baseUrl}/`);
     expect(indexRes.status).toBe(200);
@@ -503,6 +529,28 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     const stylesRes = await httpFetch(`${baseUrl}/styles.css`);
     expect(stylesRes.status).toBe(200);
     expect(stylesRes.headers.get("content-type") ?? "").toContain("text/css");
+
+    // Regression: CSP header must include hash for inline theme script
+    const csp = indexRes.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("script-src");
+    expect(csp).toContain("sha256-");
+
+    // Regression: app.js must not contain inline event handlers (CSP blocks them)
+    const appJsRes = await httpFetch(`${baseUrl}/app.js`);
+    expect(appJsRes.status).toBe(200);
+    const appJs = await appJsRes.text();
+    expect(appJs).not.toContain('onclick="');
+    expect(appJs).not.toContain("onclick='");
+    expect(appJs).not.toContain('onsubmit="');
+
+    // Regression: GitHub link must point to correct owner (rnbguy, not ranadeep)
+    const indexHtml = await (await httpFetch(`${baseUrl}/`)).text();
+    expect(indexHtml).toContain('github.com/rnbguy/opencode-flashback');
+    expect(indexHtml).not.toContain('github.com/ranadeep/');
+
+    // Regression: styles.css must have overflow:hidden on memory-card to prevent hover overflow
+    const stylesCss = await (await httpFetch(`${baseUrl}/styles.css`)).text();
+    expect(stylesCss).toContain('overflow');
 
     stopServer();
   });

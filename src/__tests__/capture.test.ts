@@ -75,7 +75,9 @@ import {
   enqueueCapture,
   getCaptureState,
   getLastCaptureStatus,
+  initCapture,
   resetCapture,
+  setCaptureNotifier,
   _setCaptureDepsForTesting,
   _resetCaptureDepsForTesting,
   type CaptureRequest,
@@ -454,6 +456,20 @@ describe("state management", () => {
     expect(getCaptureState()).toBe("uninitialized");
   });
 
+  // Regression: capture must be ready after initCapture()
+  test("initCapture transitions to ready", () => {
+    expect(getCaptureState()).toBe("uninitialized");
+    initCapture();
+    expect(getCaptureState()).toBe("ready");
+  });
+
+  // Regression: initCapture is idempotent
+  test("initCapture is idempotent", () => {
+    initCapture();
+    initCapture();
+    expect(getCaptureState()).toBe("ready");
+  });
+
   test("transitions to ready on first capture", async () => {
     enqueueCapture(makeRequest());
 
@@ -473,6 +489,43 @@ describe("state management", () => {
 
     resetCapture();
     expect(getCaptureState()).toBe("uninitialized");
+  });
+
+  // Regression: capture notifier fires on failure
+  test("notifier fires on capture failure", async () => {
+    const notifications: Array<{ status: string; error?: string }> = [];
+    setCaptureNotifier((status, error) => {
+      notifications.push({ status, error });
+    });
+
+    mockCallLLM.mockResolvedValue({
+      success: false as const,
+      error: "LLM unavailable",
+      code: "parse_error" as const,
+    });
+
+    enqueueCapture(makeRequest());
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(notifications.length).toBe(1);
+    expect(notifications[0].status).toBe("failed");
+    expect(notifications[0].error).toBe("LLM unavailable");
+  });
+
+  // Regression: capture notifier fires on success
+  test("notifier fires on stored capture", async () => {
+    const notifications: Array<{ status: string; error?: string }> = [];
+    setCaptureNotifier((status, error) => {
+      notifications.push({ status, error });
+    });
+
+    enqueueCapture(makeRequest());
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(notifications.length).toBe(1);
+    expect(notifications[0].status).toBe("stored");
   });
 });
 
