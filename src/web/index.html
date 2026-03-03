@@ -46,117 +46,112 @@
         </div>
       </header>
 
-      <div class="scope-tabs">
-        <button id="tab-project" class="tab-btn active">
-          <i data-lucide="folder" class="icon"></i>
-          PROJECT MEMORIES
-        </button>
-        <button id="tab-profile" class="tab-btn">
-          <i data-lucide="user" class="icon"></i>
-          USER PROFILE
-        </button>
-      </div>
-
-      <div class="controls">
-        <div class="search-group">
-          <input
-            type="text"
-            id="search-input"
-            placeholder="Search memories..."
-          />
-          <button id="search-btn">
-            <i data-lucide="search" class="icon"></i>
-          </button>
-          <button id="clear-search-btn" class="hidden">
-            <i data-lucide="x" class="icon"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="memories-section" id="project-section">
-        <div class="section-header">
-          <h2 id="section-title">PROJECT MEMORIES (0)</h2>
-          <div class="pagination" id="pagination-top">
-            <button id="prev-page-top" disabled>
-              <i data-lucide="chevron-left" class="icon"></i>
-            </button>
-            <span id="page-info-top">Page 1 of 1</span>
-            <button id="next-page-top" disabled>
-              <i data-lucide="chevron-right" class="icon"></i>
-            </button>
-          </div>
-        </div>
-
-        <div id="memories-list" class="memories-list">
-          <div class="loading">Initializing...</div>
-        </div>
-
-        <div class="pagination" id="pagination-bottom">
-          <button id="prev-page-bottom" disabled>
-            <i data-lucide="chevron-left" class="icon"></i>
-          </button>
-          <span id="page-info-bottom">Page 1 of 1</span>
-          <button id="next-page-bottom" disabled>
-            <i data-lucide="chevron-right" class="icon"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="profile-section hidden" id="profile-section">
-        <div class="section-header">
-          <h2>USER PROFILE</h2>
-        </div>
-
-        <div id="profile-content" class="profile-content">
-          <div class="loading">Loading profile...</div>
-        </div>
-      </div>
-
-      <div class="add-section">
-        <h2>ADD NEW MEMORY</h2>
-        <form id="add-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Type:</label>
-              <select id="add-type">
-                <option value="">other</option>
-                <option value="feature">feature</option>
-                <option value="bug-fix">bug-fix</option>
-                <option value="refactor">refactor</option>
-                <option value="architecture">architecture</option>
-                <option value="rule">rule</option>
-                <option value="documentation">documentation</option>
-                <option value="discussion">discussion</option>
-                <option value="analysis">analysis</option>
-                <option value="configuration">configuration</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Tags:</label>
+      <main class="split-view">
+        <section class="memories-pane">
+          <div class="controls">
+            <div class="search-group">
               <input
                 type="text"
-                id="add-tags"
-                placeholder="react, hooks, auth (comma separated)"
+                id="search-input"
+                placeholder="Search memories..."
               />
+              <button id="search-btn">
+                <i data-lucide="search" class="icon"></i>
+              </button>
+              <button id="clear-search-btn" class="hidden">
+                <i data-lucide="x" class="icon"></i>
+              </button>
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Content:</label>
-            <textarea
-              id="add-content"
-              rows="4"
-              placeholder="Enter memory content..."
-              required
-            ></textarea>
+          <div class="memories-section" id="project-section">
+            <div class="section-header">
+              <h2 id="section-title">PROJECT MEMORIES (0)</h2>
+              <div class="pagination" id="pagination-top">
+                <button id="prev-page-top" disabled>
+                  <i data-lucide="chevron-left" class="icon"></i>
+                </button>
+                <span id="page-info-top">Page 1 of 1</span>
+                <button id="next-page-top" disabled>
+                  <i data-lucide="chevron-right" class="icon"></i>
+                </button>
+              </div>
+            </div>
+
+            <div id="memories-list" class="memories-list">
+              <div class="loading">Initializing...</div>
+            </div>
+
+            <div class="pagination" id="pagination-bottom">
+              <button id="prev-page-bottom" disabled>
+                <i data-lucide="chevron-left" class="icon"></i>
+              </button>
+              <span id="page-info-bottom">Page 1 of 1</span>
+              <button id="next-page-bottom" disabled>
+                <i data-lucide="chevron-right" class="icon"></i>
+              </button>
+            </div>
           </div>
 
-          <button type="submit" class="btn-primary" style="margin-top: 15px">
-            <i data-lucide="plus" class="icon"></i> Add Memory
-          </button>
-        </form>
-      </div>
+          <div class="add-section">
+            <h2>ADD NEW MEMORY</h2>
+            <form id="add-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Type:</label>
+                  <select id="add-type">
+                    <option value="">other</option>
+                    <option value="feature">feature</option>
+                    <option value="bug-fix">bug-fix</option>
+                    <option value="refactor">refactor</option>
+                    <option value="architecture">architecture</option>
+                    <option value="rule">rule</option>
+                    <option value="documentation">documentation</option>
+                    <option value="discussion">discussion</option>
+                    <option value="analysis">analysis</option>
+                    <option value="configuration">configuration</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Tags:</label>
+                  <input
+                    type="text"
+                    id="add-tags"
+                    placeholder="react, hooks, auth (comma separated)"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Content:</label>
+                <textarea
+                  id="add-content"
+                  rows="4"
+                  placeholder="Enter memory content..."
+                  required
+                ></textarea>
+              </div>
+
+              <button type="submit" class="btn-primary" style="margin-top: 15px">
+                <i data-lucide="plus" class="icon"></i> Add Memory
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section class="profile-pane">
+          <div class="profile-section" id="profile-section">
+            <div class="section-header">
+              <h2>USER PROFILE</h2>
+            </div>
+
+            <div id="profile-content" class="profile-content">
+              <div class="loading">Loading profile...</div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
 
     <div id="toast" class="toast hidden"></div>

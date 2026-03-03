@@ -59,7 +59,6 @@ type State = {
   limit: number;
   offset: number;
   totalItems: number;
-  currentView: "project" | "profile";
   searchQuery: string;
   isSearching: boolean;
   autoRefreshInterval: ReturnType<typeof setInterval> | null;
@@ -71,7 +70,6 @@ const state: State = {
   limit: 20,
   offset: 0,
   totalItems: 0,
-  currentView: "project",
   searchQuery: "",
   isSearching: false,
   autoRefreshInterval: null,
@@ -680,48 +678,6 @@ function renderUserProfile(): void {
   createIcons({ icons: lucideIcons });
 }
 
-function switchView(view: "project" | "profile"): void {
-  state.currentView = view;
-
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    (btn as HTMLButtonElement).classList.remove("active");
-  });
-
-  if (view === "project") {
-    (document.getElementById("tab-project") as HTMLButtonElement).classList.add(
-      "active",
-    );
-    (
-      document.getElementById("project-section") as HTMLDivElement
-    ).classList.remove("hidden");
-    (
-      document.getElementById("profile-section") as HTMLDivElement
-    ).classList.add("hidden");
-    (document.querySelector(".controls") as HTMLDivElement).classList.remove(
-      "hidden",
-    );
-    (document.querySelector(".add-section") as HTMLDivElement).classList.remove(
-      "hidden",
-    );
-  } else if (view === "profile") {
-    (document.getElementById("tab-profile") as HTMLButtonElement).classList.add(
-      "active",
-    );
-    (
-      document.getElementById("project-section") as HTMLDivElement
-    ).classList.add("hidden");
-    (
-      document.getElementById("profile-section") as HTMLDivElement
-    ).classList.remove("hidden");
-    (document.querySelector(".controls") as HTMLDivElement).classList.add(
-      "hidden",
-    );
-    (document.querySelector(".add-section") as HTMLDivElement).classList.add(
-      "hidden",
-    );
-    loadUserProfile();
-  }
-}
 
 function escapeHtml(text: string): string {
   if (!text) return "";
@@ -734,12 +690,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   await loadCsrfToken();
 
-  (
-    document.getElementById("tab-project") as HTMLButtonElement
-  ).addEventListener("click", () => switchView("project"));
-  (
-    document.getElementById("tab-profile") as HTMLButtonElement
-  ).addEventListener("click", () => switchView("profile"));
 
   (document.getElementById("search-btn") as HTMLButtonElement).addEventListener(
     "click",
@@ -774,6 +724,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadStats();
   await loadMemories();
+  await loadUserProfile();
 
   startAutoRefresh();
 

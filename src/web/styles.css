@@ -66,7 +66,7 @@ body {
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -637,50 +637,22 @@ button:only-child .icon,
   }
 }
 
-.scope-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 20px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  box-shadow: var(--shadow);
+.split-view {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 20px;
+  min-height: calc(100vh - 120px);
 }
 
-.tab-btn {
-  flex: 1;
-  padding: 15px 20px;
-  background: var(--bg-primary);
-  border: none;
-  border-right: 1px solid var(--border-color);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s;
-  cursor: pointer;
+.memories-pane,
+.profile-pane {
+  overflow-y: auto;
 }
 
-.tab-btn:last-child {
-  border-right: none;
-}
-
-.tab-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.tab-btn.active {
-  background: var(--accent-green);
-  color: var(--bg-primary);
-  border-color: var(--accent-green);
-}
-
-.tab-btn .icon {
-  width: 18px;
-  height: 18px;
+@media (max-width: 768px) {
+  .split-view {
+    grid-template-columns: 1fr;
+  }
 }
 
 .markdown-content {
