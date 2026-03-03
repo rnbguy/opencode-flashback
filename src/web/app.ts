@@ -29,7 +29,7 @@ let csrfToken = "";
 type Memory = {
   id: string;
   content: string;
-  createdAt?: string;
+  createdAt?: number;
   type?: string;
   tags?: string[];
 };
@@ -338,7 +338,7 @@ async function loadMemories(): Promise<void> {
   }
 
   const result = await fetchAPI<
-    Memory[] | { results: SearchResult[]; count: number }
+    { memories: Memory[]; total: number } | { results: SearchResult[]; count: number }
   >(endpoint);
 
   showRefreshIndicator(false);
@@ -352,17 +352,9 @@ async function loadMemories(): Promise<void> {
       state.memories = searchData.results.map((r) => r.memory);
       state.totalItems = searchData.count;
     } else {
-      state.memories = result.data as Memory[];
-      // If not searching, we don't get a total count from the memories endpoint directly,
-      // so we rely on the stats endpoint to update totalItems if we are on the first page
-      if (state.offset === 0) {
-        const statsResult = await fetchAPI<{ memoryCount: number }>(
-          "/api/diagnostics",
-        );
-        if (statsResult.success && statsResult.data) {
-          state.totalItems = statsResult.data.memoryCount;
-        }
-      }
+      const listData = result.data as { memories: Memory[]; total: number };
+      state.memories = listData.memories;
+      state.totalItems = listData.total;
     }
 
     renderMemories();
@@ -458,9 +450,9 @@ function showRefreshIndicator(show: boolean): void {
   }
 }
 
-function formatDate(isoString?: string): string {
-  if (!isoString) return "Unknown";
-  const date = new Date(isoString);
+function formatDate(timestamp?: string | number): string {
+  if (timestamp === undefined || timestamp === null) return "Unknown";
+  const date = new Date(timestamp);
   return date.toLocaleString("en-US", {
     year: "numeric",
     month: "short",
@@ -499,7 +491,7 @@ function renderUserProfile(): void {
   ) as HTMLDivElement;
   const profile = state.userProfile;
 
-  if (!profile || !profile.exists) {
+  if (!profile || !profile.profileData) {
     container.innerHTML = `
       <div class="empty-state">
         <i data-lucide="user-x" class="icon-large"></i>

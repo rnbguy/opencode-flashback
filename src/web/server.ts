@@ -330,7 +330,7 @@ function serveStatic(filePath: string): Response {
     "X-Content-Type-Options": "nosniff",
   };
   if (filePath.endsWith(".html")) {
-    headers["Content-Security-Policy"] = "script-src 'self'";
+    headers["Content-Security-Policy"] = "script-src 'self' 'sha256-6YqWunyF9B6avn1g4fXCrUMdPPmQylnakcaAKaAyMjk='";
     headers["Content-Type"] = "text/html; charset=utf-8";
   } else if (filePath.endsWith(".css")) {
     headers["Content-Type"] = "text/css; charset=utf-8";
