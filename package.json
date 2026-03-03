@@ -41,7 +41,7 @@
   "scripts": {
     "prepublishOnly": "bun run build && bun test",
     "prebuild": "mkdir -p dist/web",
-    "build": "bun build src/index.ts --outdir dist --target bun && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/",
+    "build": "bun build src/index.ts --outdir dist --target bun --external onnxruntime-node && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/",
     "typecheck": "tsc --noEmit",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "generate:schema": "bun run scripts/generate-schema.ts",
