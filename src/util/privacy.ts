@@ -17,3 +17,10 @@ export function stripPrivate(text: string): string {
 
   return result;
 }
+
+export function isFullyPrivate(text: string): boolean {
+  const stripped = stripPrivate(text).trim();
+  // If stripping secrets leaves only [REDACTED] placeholders and whitespace,
+  // the entire content is private
+  return stripped.replace(/\[REDACTED\]/g, "").trim().length === 0;
+}
