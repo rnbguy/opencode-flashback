@@ -162,7 +162,7 @@ describe("search", () => {
     expect(results).toEqual([]);
   });
 
-  test("increments access_count in database", async () => {
+  test("does not increment access_count (pure read operation)", async () => {
     addMemory("mem-access", "Node.js best practices", "project-1", 50);
     await rebuildIndex();
 
@@ -172,7 +172,7 @@ describe("search", () => {
       .query("SELECT access_count FROM memories WHERE id = ?")
       .get("mem-access") as { access_count: number } | null;
     expect(row).not.toBeNull();
-    expect(row!.access_count).toBe(1);
+    expect(row!.access_count).toBe(0);
   });
 
   test("markStale triggers rebuild on next search", async () => {

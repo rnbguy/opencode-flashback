@@ -152,14 +152,6 @@ export async function hybridSearch(
       });
     }
 
-    // Fire-and-forget access tracking
-    const ids = searchResults.map((r) => r.memory.id);
-    if (ids.length > 0) {
-      const placeholders = ids.map(() => "?").join(",");
-      db.query(
-        `UPDATE memories SET last_accessed_at = ?, access_count = access_count + 1 WHERE id IN (${placeholders})`,
-      ).run(Date.now(), ...ids);
-    }
 
     logger.debug("hybridSearch completed", {
       query,
