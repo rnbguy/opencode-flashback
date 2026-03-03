@@ -11,6 +11,7 @@ import type {
   ToastsConfig,
   WebConfig,
 } from "./types";
+import { getLogger } from "./util/logger.ts";
 
 // -- JSONC comment stripping --------------------------------------------------
 
@@ -141,6 +142,7 @@ export const ConfigSchema = z
         path: z.string(),
       })
       .strict(),
+    logLevel: z.enum(["debug", "info", "warn", "error"]).optional(),
     memory: z
       .object({
         maxResults: z.number(),
@@ -198,24 +200,27 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
   const lines = [
     "{",
     "  // JSON Schema for validation and editor autocompletion",
-    "  \"$schema\": \"https://raw.githubusercontent.com/rnbguy/opencode-flashback/main/schema.json\",",
+    '  "$schema": "https://raw.githubusercontent.com/rnbguy/opencode-flashback/main/schema.json",',
     "",
     "  // LLM provider for auto-capture and summarization",
-    "  \"llm\": {",
+    '  "llm": {',
     `    \"provider\": \"${defaults.llm.provider}\",`,
     `    \"model\": \"${defaults.llm.model}\",`,
     `    \"apiUrl\": \"${defaults.llm.apiUrl}\",`,
-    "    // Use \"env://OPENAI_API_KEY\" or \"file://~/.secrets/openai.txt\"",
+    '    // Use "env://OPENAI_API_KEY" or "file://~/.secrets/openai.txt"',
     `    \"apiKey\": \"${defaults.llm.apiKey}\"`,
     "  },",
     "",
     "  // Local storage path for memories and database",
-    "  \"storage\": {",
-    "    \"path\": \"~/.local/share/opencode-flashback\"",
+    '  "storage": {',
+    '    "path": "~/.local/share/opencode-flashback"',
     "  },",
     "",
+    "  // Logging level: debug, info, warn, error",
+    `  \"logLevel\": \"${defaults.logLevel}\",`,
+    "",
     "  // Memory retrieval settings",
-    "  \"memory\": {",
+    '  "memory": {',
     `    \"maxResults\": ${defaults.memory.maxResults},`,
     `    \"autoCapture\": ${defaults.memory.autoCapture},`,
     `    \"injection\": \"${defaults.memory.injection}\",`,
@@ -223,29 +228,29 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "  },",
     "",
     "  // Web UI settings",
-    "  \"web\": {",
+    '  "web": {',
     `    \"port\": ${defaults.web.port},`,
     `    \"enabled\": ${defaults.web.enabled}`,
     "  },",
     "",
     "  // Search quality preset: fast, balanced, thorough, custom",
-    "  \"search\": {",
+    '  "search": {',
     `    \"retrievalQuality\": \"${defaults.search.retrievalQuality}\"`,
     "  },",
     "",
     "  // Toast notification toggles",
-    "  \"toasts\": {",
+    '  "toasts": {',
     `    \"autoCapture\": ${defaults.toasts.autoCapture},`,
     `    \"userProfile\": ${defaults.toasts.userProfile},`,
     `    \"errors\": ${defaults.toasts.errors}`,
     "  },",
     "",
     "  // Post-compaction memory re-injection",
-    "  \"compaction\": {",
+    '  "compaction": {',
     `    \"enabled\": ${defaults.compaction.enabled},`,
     `    \"memoryLimit\": ${defaults.compaction.memoryLimit}`,
     "  }",
-    "}"
+    "}",
   ];
 
   try {
@@ -256,7 +261,14 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
   }
 }
 
+let _configErrors: string[] = [];
+
+export function getConfigErrors(): string[] {
+  return _configErrors;
+}
+
 function loadConfigFile(): PluginConfig {
+  const logger = getLogger();
   const configDir = getConfigDir();
   const jsonPath = join(configDir, "opencode-flashback.json");
   const jsoncPath = join(configDir, "opencode-flashback.jsonc");
@@ -271,6 +283,7 @@ function loadConfigFile(): PluginConfig {
     storage: {
       path: getDataDir(),
     },
+    logLevel: "info",
     memory: {
       maxResults: 10,
       autoCapture: true,
@@ -297,25 +310,31 @@ function loadConfigFile(): PluginConfig {
 
   const jsonExists = existsSync(jsonPath);
   const jsoncExists = existsSync(jsoncPath);
+  const loadedConfigFiles: string[] = [];
 
   if (!jsonExists && !jsoncExists) {
     generateDefaultConfig(jsoncPath, defaults);
+    logger.debug("loadConfigFile using defaults", { source: "using defaults" });
     return defaults;
   }
 
   let config = { ...defaults };
 
+  _configErrors = [];
+
   if (jsonExists && jsoncExists) {
-    console.warn(
-      "Both opencode-flashback.json and .jsonc found. Using .jsonc values where they overlap.",
-    );
+    _configErrors.push("Both opencode-flashback.json and .jsonc found. Using .jsonc values where they overlap.");
+    logger.warn("Both opencode-flashback.json and .jsonc found");
 
     try {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
       config = deepMerge(config, jsonData);
+      loadedConfigFiles.push("opencode-flashback.json");
     } catch (err) {
-      console.error("Failed to parse opencode-flashback.json:", err);
+      const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
+      _configErrors.push(msg);
+      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.json" });
     }
 
     try {
@@ -323,8 +342,11 @@ function loadConfigFile(): PluginConfig {
       const cleanedContent = stripJsoncComments(jsoncContent);
       const jsoncData = JSON.parse(cleanedContent);
       config = deepMerge(config, jsoncData);
+      loadedConfigFiles.push("opencode-flashback.jsonc");
     } catch (err) {
-      console.error("Failed to parse opencode-flashback.jsonc:", err);
+      const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
+      _configErrors.push(msg);
+      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.jsonc" });
     }
   } else if (jsoncExists) {
     try {
@@ -332,29 +354,46 @@ function loadConfigFile(): PluginConfig {
       const cleanedContent = stripJsoncComments(jsoncContent);
       const jsoncData = JSON.parse(cleanedContent);
       config = deepMerge(config, jsoncData);
+      loadedConfigFiles.push("opencode-flashback.jsonc");
     } catch (err) {
-      console.error("Failed to parse opencode-flashback.jsonc:", err);
+      const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
+      _configErrors.push(msg);
+      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.jsonc" });
     }
   } else if (jsonExists) {
     try {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
       config = deepMerge(config, jsonData);
+      loadedConfigFiles.push("opencode-flashback.json");
     } catch (err) {
-      console.error("Failed to parse opencode-flashback.json:", err);
+      const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
+      _configErrors.push(msg);
+      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.json" });
     }
+  }
+
+  if (loadedConfigFiles.length > 0) {
+    logger.debug("loadConfigFile loaded config", { source: loadedConfigFiles.join(", ") });
+  } else {
+    logger.debug("loadConfigFile using defaults", { source: "using defaults" });
   }
 
   // Expand storage path
   config.storage.path = expandPath(config.storage.path);
 
   // Strip $schema key before validation (schema uses .strict())
-  const { $schema: _, ...configWithoutSchema } = config as Record<string, unknown> & { $schema?: string };
+  const { $schema: _, ...configWithoutSchema } = config as Record<
+    string,
+    unknown
+  > & { $schema?: string };
 
   // Validate against schema
   const result = ConfigSchema.safeParse(configWithoutSchema);
   if (!result.success) {
-    console.error("Config validation failed:", result.error.issues);
+    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    _configErrors.push(`Config validation failed: ${issues}`);
+    logger.error("loadConfigFile validation failed", { issues });
     return defaults;
   }
 

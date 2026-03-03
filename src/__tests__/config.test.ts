@@ -8,6 +8,7 @@ import {
   getHybridWeights,
   _resetConfigForTesting,
 } from "../config";
+import { getConfigErrors } from "../config";
 import type { PluginConfig } from "../config";
 
 // -- ConfigSchema validation -------------------------------------------------
@@ -384,31 +385,25 @@ describe("getConfig", () => {
   });
 
   test("prefers JSONC values over JSON and warns when both exist", () => {
-    const warnSpy = mock(() => {});
-    const warnOriginal = console.warn;
-    console.warn = warnSpy;
+    writeConfigFiles(
+      JSON.stringify({
+        llm: { model: "json-model", apiKey: "json-key" },
+        web: { port: 4001 },
+      }),
+      JSON.stringify({
+        llm: { model: "jsonc-model" },
+        web: { enabled: false },
+      }),
+    );
 
-    try {
-      writeConfigFiles(
-        JSON.stringify({
-          llm: { model: "json-model", apiKey: "json-key" },
-          web: { port: 4001 },
-        }),
-        JSON.stringify({
-          llm: { model: "jsonc-model" },
-          web: { enabled: false },
-        }),
-      );
-
-      const config = getConfig();
-      expect(config.llm.model).toBe("jsonc-model");
-      expect(config.llm.apiKey).toBe("json-key");
-      expect(config.web.port).toBe(4001);
-      expect(config.web.enabled).toBe(false);
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-    } finally {
-      console.warn = warnOriginal;
-    }
+    const config = getConfig();
+    expect(config.llm.model).toBe("jsonc-model");
+    expect(config.llm.apiKey).toBe("json-key");
+    expect(config.web.port).toBe(4001);
+    expect(config.web.enabled).toBe(false);
+    const errors = getConfigErrors();
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors.some((e) => e.includes("Both"))).toBe(true);
   });
 
   test("falls back to defaults on invalid JSON", () => {
@@ -431,25 +426,19 @@ describe("getConfig", () => {
   });
 
   test("falls back to defaults for unknown keys because schema is strict", () => {
-    const errorSpy = mock(() => {});
-    const errorOriginal = console.error;
-    console.error = errorSpy;
+    writeConfigFiles(
+      JSON.stringify({
+        llm: { apiKey: "ok" },
+        unexpected: true,
+      }),
+    );
 
-    try {
-      writeConfigFiles(
-        JSON.stringify({
-          llm: { apiKey: "ok" },
-          unexpected: true,
-        }),
-      );
-
-      const config = getConfig();
-      expect(config.llm.apiKey).toBe("");
-      expect(config.search.retrievalQuality).toBe("balanced");
-      expect(errorSpy).toHaveBeenCalledTimes(1);
-    } finally {
-      console.error = errorOriginal;
-    }
+    const config = getConfig();
+    expect(config.llm.apiKey).toBe("");
+    expect(config.search.retrievalQuality).toBe("balanced");
+    const errors = getConfigErrors();
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors.some((e) => e.includes("validation failed") || e.includes("Config validation failed"))).toBe(true);
   });
 
   test("deep merges nested objects for partial overrides", () => {

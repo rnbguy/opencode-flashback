@@ -2,7 +2,7 @@ import type { Plugin, PluginInput, ToolContext } from "@opencode-ai/plugin";
 import type { Part } from "@opencode-ai/sdk";
 import { tool } from "@opencode-ai/plugin";
 import { registerCommands } from "./commands.ts";
-import { getConfig, isConfigured } from "./config.ts";
+import { getConfig, getConfigErrors, isConfigured } from "./config.ts";
 import { resolveContainerTag } from "./core/tags.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
@@ -284,7 +284,25 @@ function installLifecycleHooks(): void {
 
 export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   const config = getConfig();
-  logger = createLogger(config.storage.path, "plugin");
+  logger = createLogger(
+    config.storage.path,
+    "plugin",
+    config.logLevel ?? "info",
+  );
+
+  const configErrors = getConfigErrors();
+  if (configErrors.length > 0 && input.client?.tui) {
+    input.client.tui
+      .showToast({
+        body: {
+          title: "Flashback Config Error",
+          message: configErrors.join(" | "),
+          variant: "error",
+          duration: 10000,
+        },
+      })
+      .catch(() => undefined);
+  }
 
   scheduleWarmup();
   installLifecycleHooks();
