@@ -209,7 +209,7 @@ async function handleToolCall(
       return { mode: "suspend", success, id };
     }
     case "consolidate": {
-      const dryRun = asBoolean(args.dryRun) || true;
+      const dryRun = asBoolean(args.dryRun) ?? true;
       return {
         mode: "consolidate",
         candidates: [],
