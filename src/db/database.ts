@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import type { Memory, UserProfile, UserPrompt } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
 import { DB_FILENAME } from "../consts.ts";
+import { getConfig } from "../config.ts";
 
 // -- DB row shapes (internal) ------------------------------------------------
 
@@ -68,19 +69,28 @@ interface PromptRow {
 
 let _db: Database | null = null;
 
-const DEFAULT_DB_PATH = join(
-  homedir(),
-  ".local",
-  "share",
-  "opencode-flashback",
-  DB_FILENAME,
-);
+function getDefaultDbPath(): string {
+  return join(getConfig().storage.path, DB_FILENAME);
+}
 
 export function getDb(dbPath?: string): Database {
   const logger = getLogger();
   if (_db) return _db;
 
-  const path = dbPath ?? DEFAULT_DB_PATH;
+  const path = dbPath ?? getDefaultDbPath();
+  const oldDefaultPath = join(
+    homedir(),
+    ".local",
+    "share",
+    "opencode-flashback",
+    DB_FILENAME,
+  );
+  if (!dbPath && path !== oldDefaultPath && existsSync(oldDefaultPath)) {
+    const dir = getConfig().storage.path;
+    logger.warn(
+      `Database exists at default path but config.storage.path points to ${dir}. Move manually if needed.`,
+    );
+  }
   const dir = dirname(path);
   mkdirSync(dir, { recursive: true });
 
