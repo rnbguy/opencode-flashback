@@ -12,6 +12,7 @@ import {
   getLanguageName,
   type LanguageDetectionResult,
 } from "../util/language.ts";
+import { getLogger } from "../util/logger.ts";
 
 // -- State ---------------------------------------------------------------------
 
@@ -23,6 +24,9 @@ const RETRY_BACKOFF = [30_000, 60_000, 120_000, 300_000] as const;
 
 type CaptureStatus = "stored" | "duplicate" | "skipped" | "failed";
 let lastCaptureStatus: CaptureStatus = "skipped";
+
+type CaptureNotifier = (status: CaptureStatus, error?: string) => void;
+let notifier: CaptureNotifier | null = null;
 
 type CaptureDeps = {
   addMemory: typeof addMemory;
@@ -137,15 +141,37 @@ CAPTURE if: code changed, bug fixed, feature added, decision made`;
 
 // -- Core exports --------------------------------------------------------------
 
+export function initCapture(): void {
+  if (state === "uninitialized") {
+    state = "ready";
+    getLogger().debug("Capture subsystem initialized");
+  }
+}
+
+export function setCaptureNotifier(fn: CaptureNotifier): void {
+  notifier = fn;
+}
+
 export function enqueueCapture(opts: CaptureRequest): void {
   const existing = debounceTimers.get(opts.sessionId);
   if (existing) {
     clearTimeout(existing);
   }
 
+  if (state === "uninitialized") {
+    state = "ready";
+  }
+
+  const logger = getLogger();
+  logger.debug("Capture enqueued", { sessionId: opts.sessionId });
+
   const timer = setTimeout(() => {
     debounceTimers.delete(opts.sessionId);
-    queuePromise = queuePromise.then(() => runCapture(opts)).catch(() => {});
+    queuePromise = queuePromise.then(() => runCapture(opts)).catch((err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error("Capture pipeline error (unhandled)", { error: msg, sessionId: opts.sessionId });
+      notifier?.("failed", msg);
+    });
   }, DEBOUNCE_MS);
 
   debounceTimers.set(opts.sessionId, timer);
@@ -165,6 +191,7 @@ export function resetCapture(): void {
   }
   debounceTimers.clear();
   state = "uninitialized";
+  notifier = null;
 }
 
 export function _setCaptureDepsForTesting(
@@ -180,6 +207,8 @@ export function _resetCaptureDepsForTesting(): void {
 // -- Internal pipeline ---------------------------------------------------------
 
 async function runCapture(opts: CaptureRequest): Promise<void> {
+  const logger = getLogger();
+
   if (state === "uninitialized") {
     state = "ready";
   }
@@ -187,6 +216,7 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   const lastUserMessage = findLastUserMessage(opts.messages);
   if (!lastUserMessage) {
     lastCaptureStatus = "skipped";
+    logger.debug("Capture skipped: no user message", { sessionId: opts.sessionId });
     return;
   }
 
@@ -199,6 +229,7 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   const uncaptured = deps.getLastUncapturedPrompt(opts.sessionId);
   if (!uncaptured) {
     lastCaptureStatus = "skipped";
+    logger.debug("Capture skipped: no uncaptured prompt", { sessionId: opts.sessionId });
     return;
   }
 
@@ -209,6 +240,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   let lastError: string | undefined;
   for (let attempt = 0; attempt < RETRY_BACKOFF.length; attempt++) {
+    if (attempt > 0) {
+      logger.warn("Capture retrying", { attempt, sessionId: opts.sessionId, lastError });
+    }
     const result = await deps.callLLMWithTool({
       systemPrompt: getSystemPrompt(langName),
       userPrompt: context,
@@ -217,17 +251,23 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
     if (result.success) {
       await processResult(result.data, uncaptured.id, opts);
+      logger.debug("Capture completed", { sessionId: opts.sessionId, status: lastCaptureStatus });
+      notifier?.(lastCaptureStatus);
       return;
     }
 
     lastError = result.error;
-    if (result.code === "parse_error") break;
+    if (result.code === "parse_error") {
+      logger.error("Capture LLM parse error (non-retryable)", { error: lastError, sessionId: opts.sessionId });
+      break;
+    }
     await sleep(RETRY_BACKOFF[attempt]);
   }
 
-  void lastError;
+  logger.error("Capture failed after retries", { error: lastError, sessionId: opts.sessionId });
   state = "degraded";
   lastCaptureStatus = "failed";
+  notifier?.("failed", lastError);
 }
 
 async function processResult(

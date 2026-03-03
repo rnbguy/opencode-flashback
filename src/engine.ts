@@ -24,7 +24,9 @@ import { getOrCreateProfile } from "./core/profile.ts";
 import {
   enqueueCapture,
   getCaptureState,
+  initCapture,
   resetCapture,
+  setCaptureNotifier,
   type CaptureRequest,
 } from "./core/capture.ts";
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
@@ -66,6 +68,7 @@ export interface MemoryEngine {
   getMemoriesForReview(containerTag: string, limit?: number): Promise<Memory[]>;
   getOrCreateProfile(userId: string): UserProfile | null;
   enqueueCapture(request: CaptureRequest): void;
+  setCaptureNotifier(fn: (status: string, error?: string) => void): void;
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
   warmup(): Promise<void>;
@@ -87,6 +90,7 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     getMemoriesForReview,
     getOrCreateProfile,
     enqueueCapture,
+    setCaptureNotifier,
     resolveTag: (directory) => resolver.resolve(directory),
     getDiagnostics: async (containerTag) => {
       const db = getDb();
@@ -114,7 +118,7 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
       };
     },
     warmup: async () => {
-      await Promise.all([initSearch(), embed(["warmup"], "query")]);
+      await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);
     },
     shutdown: () => {
       resetCapture();

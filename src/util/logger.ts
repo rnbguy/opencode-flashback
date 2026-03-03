@@ -10,6 +10,15 @@ export interface Logger {
   error(msg: string, data?: Record<string, unknown>): void;
 }
 
+const noopLogger: Logger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
+
+let singleton: Logger = noopLogger;
+
 export function createLogger(storagePath: string, sessionId: string): Logger {
   const logPath = join(
     storagePath.startsWith("~")
@@ -49,10 +58,17 @@ export function createLogger(storagePath: string, sessionId: string): Logger {
       });
   };
 
-  return {
+  const loggerInstance: Logger = {
     debug: (msg, data) => write("DEBUG", msg, data),
     info: (msg, data) => write("INFO", msg, data),
     warn: (msg, data) => write("WARN", msg, data),
     error: (msg, data) => write("ERROR", msg, data),
   };
+
+  singleton = loggerInstance;
+  return loggerInstance;
+}
+
+export function getLogger(): Logger {
+  return singleton;
 }

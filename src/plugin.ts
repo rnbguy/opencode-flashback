@@ -289,6 +289,32 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   scheduleWarmup();
   installLifecycleHooks();
 
+  engine.setCaptureNotifier((status, error) => {
+    if (status === "failed" && input.client?.tui && config.toasts.errors) {
+      input.client.tui
+        .showToast({
+          body: {
+            title: "Flashback Error",
+            message: `Auto-capture failed: ${error || "unknown error"}`,
+            variant: "error",
+            duration: 5000,
+          },
+        })
+        .catch(() => undefined);
+    }
+    if (status === "stored" && input.client?.tui && config.toasts.autoCapture) {
+      input.client.tui
+        .showToast({
+          body: {
+            title: "Flashback",
+            message: "Memory auto-captured",
+            variant: "success",
+            duration: 3000,
+          },
+        })
+        .catch(() => undefined);
+    }
+  });
   if (!isConfigured()) {
     logger.warn("Plugin is not fully configured");
   }
