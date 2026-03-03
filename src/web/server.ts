@@ -18,6 +18,7 @@ import { getConfig } from "../config.ts";
 import type { SubsystemState, DiagnosticsResponse } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
 import { DB_FILENAME } from "../consts.ts";
+import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
 
 // -- State ------------------------------------------------------------------
 
@@ -246,9 +247,14 @@ async function handleAddMemory(
     return jsonResponse({ error: "Missing required field: content" }, 400);
   }
 
+  if (isFullyPrivate(body.content)) {
+    return jsonResponse({ error: "Private content blocked" }, 400);
+  }
+  const sanitizedContent = stripPrivate(body.content);
+
   const containerTag = getContainerTag(directory);
   const result = await addMemory({
-    content: body.content,
+    content: sanitizedContent,
     containerTag,
     tags: body.tags,
     type: body.type,
