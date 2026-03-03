@@ -5,7 +5,7 @@ dist/
 *.db-shm
 .DS_Store
 coverage/
-.sisyphus/evidence/
+.sisyphus/
 scripts/*.d.ts
 scripts/*.d.ts.map
 schema.json
