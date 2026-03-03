@@ -149,4 +149,31 @@ describe("regression: audit fixes", () => {
     expect(Array.isArray(profile.profileData.patterns)).toBe(true);
     expect(Array.isArray(profile.profileData.workflows)).toBe(true);
   });
+
+  test("T8: database.ts uses getConfig().storage.path for db location", () => {
+    const src = readFileSync(join(SRC_DIR, "db", "database.ts"), "utf-8");
+    expect(src).toContain("getConfig().storage.path");
+  });
+
+  test("T9: search index does not increment access_count", () => {
+    const src = readFileSync(join(SRC_DIR, "search", "index.ts"), "utf-8");
+    expect(src).not.toContain("access_count");
+  });
+
+  test("T10: capture.ts has no outer retry loop (RETRY_BACKOFF removed)", () => {
+    const src = readFileSync(join(SRC_DIR, "core", "capture.ts"), "utf-8");
+    expect(src).not.toContain("RETRY_BACKOFF");
+  });
+
+  test("T13: embedder device fallback preserves original error", () => {
+    const src = readFileSync(join(SRC_DIR, "embed", "embedder.ts"), "utf-8");
+    expect(src).toContain("Embedder device cpu failed, retrying with auto-detect");
+    expect(src).toContain("propagate original error");
+  });
+
+  test("T19: server.ts has no hardcoded CSP sha256 hash", () => {
+    const src = readFileSync(join(SRC_DIR, "web", "server.ts"), "utf-8");
+    expect(src).not.toContain("sha256-6YqWunyF");
+    expect(src).toContain("computeCspHash");
+  });
 });
