@@ -428,9 +428,9 @@ describe("advanced tags/prompts/profile behavior", () => {
       callLLMWithTool: async (): Promise<LLMCallResult> => ({
         success: true,
         data: {
-          preferences: { language: "Rust" },
-          patterns: {},
-          workflows: {},
+          preferences: [{ category: "language", description: "Rust", confidence: 0.9 }],
+          patterns: [],
+          workflows: [],
         },
       }),
     });
@@ -444,9 +444,9 @@ describe("advanced tags/prompts/profile behavior", () => {
       callLLMWithTool: async (): Promise<LLMCallResult> => ({
         success: true,
         data: {
-          preferences: { editor: "helix" },
-          patterns: { review_style: "strict" },
-          workflows: {},
+          preferences: [{ category: "editor", description: "helix", confidence: 0.8 }],
+          patterns: [{ category: "review_style", description: "strict" }],
+          workflows: [],
         },
       }),
     });
@@ -457,9 +457,12 @@ describe("advanced tags/prompts/profile behavior", () => {
     expect(r2.version).toBe(3);
 
     const profile = getProfile(getDb(), userId)!;
-    expect(profile.profileData.preferences.language).toBe("Rust");
-    expect(profile.profileData.preferences.editor).toBe("helix");
-    expect(profile.profileData.patterns.review_style).toBe("strict");
+    const langPref = profile.profileData.preferences.find((p) => p.category === "language");
+    expect(langPref?.description).toBe("Rust");
+    const editorPref = profile.profileData.preferences.find((p) => p.category === "editor");
+    expect(editorPref?.description).toBe("helix");
+    const reviewPat = profile.profileData.patterns.find((p) => p.category === "review_style");
+    expect(reviewPat?.description).toBe("strict");
   });
 
   test("decayConfidence is monotonic for numeric values and preserves non-numeric", () => {
@@ -468,9 +471,12 @@ describe("advanced tags/prompts/profile behavior", () => {
     const db = getDb();
     db.query("UPDATE user_profiles SET profile_data = ? WHERE id = ?").run(
       JSON.stringify({
-        preferences: { score: 0.9, language: "Rust", active: true },
-        patterns: { frequency: 10 },
-        workflows: { count: 4, note: null },
+        preferences: [
+          { category: "score", description: "high", confidence: 0.9 },
+          { category: "language", description: "Rust", confidence: 0.7 },
+        ],
+        patterns: [{ category: "frequency", description: "often" }],
+        workflows: [{ description: "deploy", steps: ["build", "test"] }],
       }),
       created.id,
     );
@@ -479,19 +485,18 @@ describe("advanced tags/prompts/profile behavior", () => {
     decayConfidence(userId, 0.5);
     const after = getProfile(db, userId)!;
 
-    expect(after.profileData.preferences.score as number).toBeLessThanOrEqual(
-      before.profileData.preferences.score as number,
-    );
-    expect(after.profileData.patterns.frequency as number).toBeLessThanOrEqual(
-      before.profileData.patterns.frequency as number,
-    );
-    expect(after.profileData.preferences.language).toBe(
-      before.profileData.preferences.language,
-    );
-    expect(after.profileData.preferences.active).toBe(
-      before.profileData.preferences.active,
-    );
-    expect(after.profileData.workflows.note).toBeNull();
+    const beforeScore = before.profileData.preferences.find((p) => p.category === "score");
+    const afterScore = after.profileData.preferences.find((p) => p.category === "score");
+    expect(afterScore!.confidence).toBeLessThanOrEqual(beforeScore!.confidence);
+
+    // patterns and workflows are unchanged by decay
+    expect(after.profileData.patterns).toEqual(before.profileData.patterns);
+    expect(after.profileData.workflows).toEqual(before.profileData.workflows);
+
+    // description is preserved
+    const afterLang = after.profileData.preferences.find((p) => p.category === "language");
+    const beforeLang = before.profileData.preferences.find((p) => p.category === "language");
+    expect(afterLang!.description).toBe(beforeLang!.description);
   });
 
   test("analyzeAndUpdateProfile always creates changelog on real update", async () => {

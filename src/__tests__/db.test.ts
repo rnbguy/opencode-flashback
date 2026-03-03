@@ -140,7 +140,7 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: "prof_001",
     userId: "user_001",
-    profileData: { preferences: {}, patterns: {}, workflows: {} },
+    profileData: { preferences: [], patterns: [], workflows: [] },
     version: 1,
     createdAt: now,
     lastAnalyzedAt: now,
@@ -449,9 +449,9 @@ describe("profile CRUD", () => {
   test("insert and retrieve profile", () => {
     const prof = makeProfile({
       profileData: {
-        preferences: { lang: "en" },
-        patterns: {},
-        workflows: {},
+        preferences: [{ category: "lang", description: "en", confidence: 0.7 }],
+        patterns: [],
+        workflows: [],
       },
     });
     insertProfile(db, prof);
@@ -459,7 +459,7 @@ describe("profile CRUD", () => {
     const retrieved = getProfile(db, "user_001");
     expect(retrieved).not.toBeNull();
     expect(retrieved!.userId).toBe("user_001");
-    expect(retrieved!.profileData.preferences).toEqual({ lang: "en" });
+    expect(retrieved!.profileData.preferences).toEqual([{ category: "lang", description: "en", confidence: 0.7 }]);
   });
 
   test("getProfile returns null for missing user", () => {
@@ -475,9 +475,9 @@ describe("profile CRUD", () => {
       version: 2,
       totalPromptsAnalyzed: 5,
       profileData: {
-        preferences: { theme: "dark" },
-        patterns: { freq: "daily" },
-        workflows: {},
+        preferences: [{ category: "theme", description: "dark", confidence: 0.8 }],
+        patterns: [{ category: "freq", description: "daily" }],
+        workflows: [],
       },
     };
     updateProfile(db, updated);
@@ -485,7 +485,7 @@ describe("profile CRUD", () => {
     const retrieved = getProfile(db, "user_001")!;
     expect(retrieved.version).toBe(2);
     expect(retrieved.totalPromptsAnalyzed).toBe(5);
-    expect(retrieved.profileData.preferences).toEqual({ theme: "dark" });
+    expect(retrieved.profileData.preferences).toEqual([{ category: "theme", description: "dark", confidence: 0.8 }]);
   });
 
   test("insertProfile upserts on same id", () => {

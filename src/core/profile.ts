@@ -7,7 +7,13 @@ import {
 } from "../db/database.ts";
 import { getLogger } from "../util/logger.ts";
 import { callLLMWithTool } from "./llm.ts";
-import type { UserProfile, UserProfileChangelog } from "../types.ts";
+import type {
+  ProfilePattern,
+  ProfilePreference,
+  ProfileWorkflow,
+  UserProfile,
+  UserProfileChangelog,
+} from "../types.ts";
 
 // -- Constants ----------------------------------------------------------------
 
@@ -16,7 +22,7 @@ const ANALYSIS_THRESHOLD = 10;
 const PROFILE_SYSTEM_PROMPT = `You are analyzing user conversation prompts to learn about their preferences, patterns, and workflows.
 Extract ONLY factual observations. Do NOT infer personality traits.
 Focus on: programming languages, tools, frameworks, coding style, project patterns, common workflows.
-If a prompt contains no learnable information, return empty objects.`;
+If a prompt contains no learnable information, return empty arrays.`;
 
 const profileToolSchema = {
   name: "update_profile",
@@ -26,19 +32,60 @@ const profileToolSchema = {
     type: "object",
     properties: {
       preferences: {
-        type: "object",
+        type: "array",
         description: "User preferences like coding style, tools, languages",
-        additionalProperties: { type: "string" },
+        items: {
+          type: "object",
+          properties: {
+            category: {
+              type: "string",
+              description: "Category name (e.g. Language, Editor, Testing)",
+            },
+            description: {
+              type: "string",
+              description: "What the user prefers",
+            },
+            confidence: {
+              type: "number",
+              description: "Confidence 0.0-1.0",
+            },
+          },
+          required: ["category", "description", "confidence"],
+        },
       },
       patterns: {
-        type: "object",
+        type: "array",
         description: "Recurring patterns in user behavior",
-        additionalProperties: { type: "string" },
+        items: {
+          type: "object",
+          properties: {
+            category: { type: "string", description: "Pattern category" },
+            description: {
+              type: "string",
+              description: "What the pattern is",
+            },
+          },
+          required: ["category", "description"],
+        },
       },
       workflows: {
-        type: "object",
+        type: "array",
         description: "Common workflows and processes the user follows",
-        additionalProperties: { type: "string" },
+        items: {
+          type: "object",
+          properties: {
+            description: {
+              type: "string",
+              description: "Workflow description",
+            },
+            steps: {
+              type: "array",
+              items: { type: "string" },
+              description: "Ordered steps",
+            },
+          },
+          required: ["description", "steps"],
+        },
       },
     },
     required: ["preferences", "patterns", "workflows"],
@@ -47,6 +94,12 @@ const profileToolSchema = {
 
 type ProfileDeps = {
   callLLMWithTool: typeof callLLMWithTool;
+};
+
+type NormalizedProfileData = {
+  preferences: ProfilePreference[];
+  patterns: ProfilePattern[];
+  workflows: ProfileWorkflow[];
 };
 
 const defaultDeps: ProfileDeps = {
@@ -62,14 +115,15 @@ export function getOrCreateProfile(userId: string): UserProfile {
   const db = getDb();
   const existing = getProfile(db, userId);
   if (existing) {
+    const normalized = normalizeProfileData(existing.profileData);
     logger.debug("getOrCreateProfile completed", { userId, status: "found" });
-    return existing;
+    return { ...existing, profileData: normalized };
   }
 
   const profile: UserProfile = {
     id: crypto.randomUUID(),
     userId,
-    profileData: { preferences: {}, patterns: {}, workflows: {} },
+    profileData: { preferences: [], patterns: [], workflows: [] },
     version: 1,
     createdAt: Date.now(),
     lastAnalyzedAt: Date.now(),
@@ -118,7 +172,8 @@ export async function analyzeAndUpdateProfile(
   try {
     // Re-read profile inside transaction (prevents TOCTOU)
     const current = getProfile(db, userId)!;
-    const merged = mergeProfileData(current.profileData, extracted);
+    const currentData = normalizeProfileData(current.profileData);
+    const merged = mergeProfileData(currentData, extracted);
 
     const newVersion = current.version + 1;
     const updated: UserProfile = {
@@ -135,7 +190,7 @@ export async function analyzeAndUpdateProfile(
       id: crypto.randomUUID(),
       profileId: current.id,
       version: newVersion,
-      changeSummary: summarizeChanges(current.profileData, merged),
+      changeSummary: summarizeChanges(currentData, merged),
       profileDataSnapshot: merged,
     };
     insertChangelog(db, changelog);
@@ -170,11 +225,15 @@ export function decayConfidence(userId: string, decayFactor = 0.95): void {
   const db = getDb();
   const profile = getProfile(db, userId);
   if (!profile) return;
+  const normalized = normalizeProfileData(profile.profileData);
 
   const decayed = {
-    preferences: decaySection(profile.profileData.preferences, decayFactor),
-    patterns: decaySection(profile.profileData.patterns, decayFactor),
-    workflows: decaySection(profile.profileData.workflows, decayFactor),
+    preferences: normalized.preferences.map((preference) => ({
+      ...preference,
+      confidence: preference.confidence * decayFactor,
+    })),
+    patterns: normalized.patterns,
+    workflows: normalized.workflows,
   };
 
   updateProfile(db, { ...profile, profileData: decayed });
@@ -184,74 +243,197 @@ export function decayConfidence(userId: string, decayFactor = 0.95): void {
 
 function extractProfileData(
   data: Record<string, unknown>,
-): UserProfile["profileData"] {
+): NormalizedProfileData {
   return {
-    preferences: toSectionRecord(data.preferences),
-    patterns: toSectionRecord(data.patterns),
-    workflows: toSectionRecord(data.workflows),
+    preferences: toPreferenceArray(data.preferences),
+    patterns: toPatternArray(data.patterns),
+    workflows: toWorkflowArray(data.workflows),
   };
 }
 
-function toSectionRecord(
-  value: unknown,
-): Record<string, string | number | boolean | null> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return {};
+function normalizeProfileData(
+  profileData: UserProfile["profileData"],
+): NormalizedProfileData {
+  const data = profileData as unknown as Record<string, unknown>;
+  return {
+    preferences: toPreferenceArray(data.preferences),
+    patterns: toPatternArray(data.patterns),
+    workflows: toWorkflowArray(data.workflows),
+  };
+}
+
+function toPreferenceArray(value: unknown): ProfilePreference[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null,
+      )
+      .map((item) => ({
+        category: String(item.category ?? "General"),
+        description: String(item.description ?? ""),
+        confidence: typeof item.confidence === "number" ? item.confidence : 0.7,
+        ...(Array.isArray(item.evidence)
+          ? { evidence: item.evidence.map(String) }
+          : {}),
+      }));
   }
-  const result: Record<string, string | number | boolean | null> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (
-      typeof v === "string" ||
-      typeof v === "number" ||
-      typeof v === "boolean" ||
-      v === null
-    ) {
-      result[k] = v;
-    }
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
+      category: k,
+      description: String(v ?? ""),
+      confidence: typeof v === "number" ? v : 0.7,
+    }));
   }
-  return result;
+  return [];
+}
+
+function toPatternArray(value: unknown): ProfilePattern[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null,
+      )
+      .map((item) => ({
+        category: String(item.category ?? "General"),
+        description: String(item.description ?? ""),
+      }));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
+      category: k,
+      description: String(v ?? ""),
+    }));
+  }
+  return [];
+}
+
+function toWorkflowArray(value: unknown): ProfileWorkflow[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null,
+      )
+      .map((item) => ({
+        description: String(item.description ?? ""),
+        steps: Array.isArray(item.steps) ? item.steps.map(String) : [],
+      }));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
+      description: k,
+      steps: typeof v === "string" ? [v] : [],
+    }));
+  }
+  return [];
 }
 
 function mergeProfileData(
-  existing: UserProfile["profileData"],
-  extracted: UserProfile["profileData"],
-): UserProfile["profileData"] {
+  existing: NormalizedProfileData,
+  extracted: NormalizedProfileData,
+): NormalizedProfileData {
   return {
-    preferences: mergeSection(existing.preferences, extracted.preferences),
-    patterns: mergeSection(existing.patterns, extracted.patterns),
-    workflows: mergeSection(existing.workflows, extracted.workflows),
+    preferences: mergePreferences(existing.preferences, extracted.preferences),
+    patterns: mergePatterns(existing.patterns, extracted.patterns),
+    workflows: mergeWorkflows(existing.workflows, extracted.workflows),
   };
 }
 
-function mergeSection(
-  existing: Record<string, string | number | boolean | null>,
-  extracted: Record<string, string | number | boolean | null>,
-): Record<string, string | number | boolean | null> {
-  const merged = { ...existing };
-  for (const [key, value] of Object.entries(extracted)) {
-    if (value !== null && value !== undefined && value !== "") {
-      merged[key] = value;
+function mergePreferences(
+  existing: ProfilePreference[],
+  extracted: ProfilePreference[],
+): ProfilePreference[] {
+  const merged = [...existing];
+  for (const item of extracted) {
+    const index = merged.findIndex((entry) => entry.category === item.category);
+    if (index >= 0) {
+      merged[index] = item;
+    } else {
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+function mergePatterns(
+  existing: ProfilePattern[],
+  extracted: ProfilePattern[],
+): ProfilePattern[] {
+  const merged = [...existing];
+  for (const item of extracted) {
+    const index = merged.findIndex((entry) => entry.category === item.category);
+    if (index >= 0) {
+      merged[index] = item;
+    } else {
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+function mergeWorkflows(
+  existing: ProfileWorkflow[],
+  extracted: ProfileWorkflow[],
+): ProfileWorkflow[] {
+  const merged = [...existing];
+  for (const item of extracted) {
+    const index = merged.findIndex(
+      (entry) => entry.description === item.description,
+    );
+    if (index >= 0) {
+      merged[index] = item;
+    } else {
+      merged.push(item);
     }
   }
   return merged;
 }
 
 function summarizeChanges(
-  old: UserProfile["profileData"],
-  updated: UserProfile["profileData"],
+  old: NormalizedProfileData,
+  updated: NormalizedProfileData,
 ): string {
   const changes: string[] = [];
-  for (const section of ["preferences", "patterns", "workflows"] as const) {
-    const oldKeys = Object.keys(old[section]);
-    const newKeys = Object.keys(updated[section]);
-    const added = newKeys.filter((k) => !oldKeys.includes(k));
-    const modified = newKeys.filter(
-      (k) => oldKeys.includes(k) && old[section][k] !== updated[section][k],
-    );
-    if (added.length > 0) changes.push(`${section}: added ${added.join(", ")}`);
-    if (modified.length > 0)
-      changes.push(`${section}: updated ${modified.join(", ")}`);
+
+  const oldPreferenceCategories = new Set(old.preferences.map((item) => item.category));
+  const newPreferenceCategories = updated.preferences.map((item) => item.category);
+  const addedPreferences = newPreferenceCategories.filter(
+    (category) => !oldPreferenceCategories.has(category),
+  );
+  const updatedPreferences = newPreferenceCategories.filter((category) =>
+    oldPreferenceCategories.has(category),
+  );
+  if (addedPreferences.length > 0) {
+    changes.push(`preferences: added ${addedPreferences.join(", ")}`);
   }
+  if (updatedPreferences.length > 0) {
+    changes.push(`preferences: updated ${updatedPreferences.join(", ")}`);
+  }
+
+  const oldPatternCategories = new Set(old.patterns.map((item) => item.category));
+  const newPatternCategories = updated.patterns.map((item) => item.category);
+  const addedPatterns = newPatternCategories.filter(
+    (category) => !oldPatternCategories.has(category),
+  );
+  if (addedPatterns.length > 0) {
+    changes.push(`patterns: added ${addedPatterns.join(", ")}`);
+  }
+
+  const oldWorkflowDescriptions = new Set(
+    old.workflows.map((item) => item.description),
+  );
+  const newWorkflowDescriptions = updated.workflows.map(
+    (item) => item.description,
+  );
+  const addedWorkflows = newWorkflowDescriptions.filter(
+    (description) => !oldWorkflowDescriptions.has(description),
+  );
+  if (addedWorkflows.length > 0) {
+    changes.push(`workflows: added ${addedWorkflows.join(", ")}`);
+  }
+
   return changes.length > 0 ? changes.join("; ") : "no changes";
 }
 
@@ -267,17 +449,4 @@ function insertChangelog(db: Database, changelog: UserProfileChangelog): void {
     JSON.stringify(changelog.profileDataSnapshot),
     Date.now(),
   );
-}
-
-function decaySection(
-  section: Record<string, string | number | boolean | null>,
-  factor: number,
-): Record<string, string | number | boolean | null> {
-  const result = { ...section };
-  for (const [key, value] of Object.entries(result)) {
-    if (typeof value === "number") {
-      result[key] = value * factor;
-    }
-  }
-  return result;
 }

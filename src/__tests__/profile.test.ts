@@ -10,9 +10,16 @@ const mockCallLLM = mock(
   async (_opts: unknown): Promise<LLMCallResult> => ({
     success: true,
     data: {
-      preferences: { language: "Rust" },
-      patterns: { commit_style: "conventional" },
-      workflows: { review: "PR-based" },
+      preferences: [
+        { category: "language", description: "Rust", confidence: 0.9 },
+      ],
+      patterns: [{ category: "commit_style", description: "conventional" }],
+      workflows: [
+        {
+          description: "PR-based",
+          steps: ["create PR", "review", "merge"],
+        },
+      ],
     },
   }),
 );
@@ -42,9 +49,16 @@ beforeEach(() => {
   mockCallLLM.mockImplementation(async () => ({
     success: true,
     data: {
-      preferences: { language: "Rust" },
-      patterns: { commit_style: "conventional" },
-      workflows: { review: "PR-based" },
+      preferences: [
+        { category: "language", description: "Rust", confidence: 0.9 },
+      ],
+      patterns: [{ category: "commit_style", description: "conventional" }],
+      workflows: [
+        {
+          description: "PR-based",
+          steps: ["create PR", "review", "merge"],
+        },
+      ],
     },
   }));
 });
@@ -65,9 +79,9 @@ describe("getOrCreateProfile", () => {
     expect(profile.version).toBe(1);
     expect(profile.totalPromptsAnalyzed).toBe(0);
     expect(profile.profileData).toEqual({
-      preferences: {},
-      patterns: {},
-      workflows: {},
+      preferences: [],
+      patterns: [],
+      workflows: [],
     });
   });
 
@@ -117,9 +131,24 @@ describe("analyzeAndUpdateProfile", () => {
 
     const db = getDb();
     const profile = getProfile(db, "user-analyze");
-    expect(profile!.profileData.preferences.language).toBe("Rust");
-    expect(profile!.profileData.patterns.commit_style).toBe("conventional");
-    expect(profile!.profileData.workflows.review).toBe("PR-based");
+    expect(profile!.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "language", description: "Rust" }),
+      ]),
+    );
+    expect(profile!.profileData.patterns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "commit_style",
+          description: "conventional",
+        }),
+      ]),
+    );
+    expect(profile!.profileData.workflows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ description: "PR-based" }),
+      ]),
+    );
     expect(profile!.totalPromptsAnalyzed).toBe(10);
   });
 
@@ -130,9 +159,11 @@ describe("analyzeAndUpdateProfile", () => {
     mockCallLLM.mockImplementation(async () => ({
       success: true,
       data: {
-        preferences: { language: "Rust" },
-        patterns: {},
-        workflows: {},
+        preferences: [
+          { category: "language", description: "Rust", confidence: 0.9 },
+        ],
+        patterns: [],
+        workflows: [],
       },
     }));
     await analyzeAndUpdateProfile(
@@ -143,9 +174,11 @@ describe("analyzeAndUpdateProfile", () => {
     mockCallLLM.mockImplementation(async () => ({
       success: true,
       data: {
-        preferences: { editor: "neovim" },
-        patterns: { testing: "TDD" },
-        workflows: {},
+        preferences: [
+          { category: "editor", description: "neovim", confidence: 0.8 },
+        ],
+        patterns: [{ category: "testing", description: "TDD" }],
+        workflows: [],
       },
     }));
     const result = await analyzeAndUpdateProfile(
@@ -157,9 +190,17 @@ describe("analyzeAndUpdateProfile", () => {
 
     const db = getDb();
     const profile = getProfile(db, userId);
-    expect(profile!.profileData.preferences.language).toBe("Rust");
-    expect(profile!.profileData.preferences.editor).toBe("neovim");
-    expect(profile!.profileData.patterns.testing).toBe("TDD");
+    expect(profile!.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "language", description: "Rust" }),
+        expect.objectContaining({ category: "editor", description: "neovim" }),
+      ]),
+    );
+    expect(profile!.profileData.patterns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "testing", description: "TDD" }),
+      ]),
+    );
     expect(profile!.totalPromptsAnalyzed).toBe(20);
   });
 
@@ -191,7 +232,11 @@ describe("analyzeAndUpdateProfile", () => {
     const db = getDb();
     const profile = getProfile(db, userId);
     expect(profile!.version).toBe(2);
-    expect(profile!.profileData.preferences.language).toBe("Rust");
+    expect(profile!.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "language", description: "Rust" }),
+      ]),
+    );
 
     const changelog = db
       .query("SELECT * FROM user_profile_changelogs WHERE profile_id = ?")
@@ -237,9 +282,11 @@ describe("changelog", () => {
     mockCallLLM.mockImplementation(async () => ({
       success: true,
       data: {
-        preferences: { language: "Rust" },
-        patterns: {},
-        workflows: {},
+        preferences: [
+          { category: "language", description: "Rust", confidence: 0.9 },
+        ],
+        patterns: [],
+        workflows: [],
       },
     }));
     await analyzeAndUpdateProfile(
@@ -250,9 +297,11 @@ describe("changelog", () => {
     mockCallLLM.mockImplementation(async () => ({
       success: true,
       data: {
-        preferences: { language: "Go" },
-        patterns: {},
-        workflows: {},
+        preferences: [
+          { category: "language", description: "Go", confidence: 0.9 },
+        ],
+        patterns: [],
+        workflows: [],
       },
     }));
     await analyzeAndUpdateProfile(
@@ -291,14 +340,18 @@ describe("changelog", () => {
       .get(profile!.id) as { profile_data_snapshot: string } | null;
 
     const snapshot = JSON.parse(changelog!.profile_data_snapshot);
-    expect(snapshot.preferences.language).toBe("Rust");
+    expect(snapshot.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "language", description: "Rust" }),
+      ]),
+    );
   });
 });
 
 // -- decayConfidence ----------------------------------------------------------
 
 describe("decayConfidence", () => {
-  test("reduces numeric values by decay factor", () => {
+  test("reduces preference confidence by decay factor", () => {
     const userId = "user-decay";
     getOrCreateProfile(userId);
 
@@ -307,19 +360,36 @@ describe("decayConfidence", () => {
     updateProfile(db, {
       ...profile,
       profileData: {
-        preferences: { score: 0.8, name: "test" },
-        patterns: { frequency: 5 },
-        workflows: { count: 10 },
+        preferences: [
+          { category: "confidence", description: "test", confidence: 0.8 },
+        ],
+        patterns: [{ category: "frequency", description: "often" }],
+        workflows: [{ description: "count", steps: ["one", "two"] }],
       },
     });
 
     decayConfidence(userId, 0.5);
 
     const decayed = getProfile(db, userId)!;
-    expect(decayed.profileData.preferences.score).toBe(0.4);
-    expect(decayed.profileData.preferences.name).toBe("test");
-    expect(decayed.profileData.patterns.frequency).toBe(2.5);
-    expect(decayed.profileData.workflows.count).toBe(5);
+    expect(decayed.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "confidence",
+          description: "test",
+          confidence: 0.4,
+        }),
+      ]),
+    );
+    expect(decayed.profileData.patterns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "frequency", description: "often" }),
+      ]),
+    );
+    expect(decayed.profileData.workflows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ description: "count" }),
+      ]),
+    );
   });
 
   test("uses default decay factor of 0.95", () => {
@@ -331,23 +401,31 @@ describe("decayConfidence", () => {
     updateProfile(db, {
       ...profile,
       profileData: {
-        preferences: { score: 1.0 },
-        patterns: {},
-        workflows: {},
+        preferences: [{ category: "score", description: "high", confidence: 1.0 }],
+        patterns: [],
+        workflows: [],
       },
     });
 
     decayConfidence(userId);
 
     const decayed = getProfile(db, userId)!;
-    expect(decayed.profileData.preferences.score).toBeCloseTo(0.95, 10);
+    expect(decayed.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "score",
+          description: "high",
+          confidence: 0.95,
+        }),
+      ]),
+    );
   });
 
   test("no-ops for nonexistent user", () => {
     decayConfidence("nonexistent-user");
   });
 
-  test("preserves non-numeric values", () => {
+  test("only decays confidence and preserves other preference fields", () => {
     const userId = "user-decay-preserve";
     getOrCreateProfile(userId);
 
@@ -356,18 +434,26 @@ describe("decayConfidence", () => {
     updateProfile(db, {
       ...profile,
       profileData: {
-        preferences: { lang: "Rust", active: true, note: null },
-        patterns: {},
-        workflows: {},
+        preferences: [
+          { category: "lang", description: "Rust", confidence: 0.9 },
+        ],
+        patterns: [],
+        workflows: [],
       },
     });
 
     decayConfidence(userId, 0.5);
 
     const decayed = getProfile(db, userId)!;
-    expect(decayed.profileData.preferences.lang).toBe("Rust");
-    expect(decayed.profileData.preferences.active).toBe(true);
-    expect(decayed.profileData.preferences.note).toBeNull();
+    expect(decayed.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "lang",
+          description: "Rust",
+          confidence: 0.45,
+        }),
+      ]),
+    );
   });
 
   test("applies decay multiple times cumulatively", () => {
@@ -379,9 +465,11 @@ describe("decayConfidence", () => {
     updateProfile(db, {
       ...profile,
       profileData: {
-        preferences: { score: 100 },
-        patterns: {},
-        workflows: {},
+        preferences: [
+          { category: "score", description: "value", confidence: 100 },
+        ],
+        patterns: [],
+        workflows: [],
       },
     });
 
@@ -390,6 +478,14 @@ describe("decayConfidence", () => {
     decayConfidence(userId, 0.5);
 
     const decayed = getProfile(db, userId)!;
-    expect(decayed.profileData.preferences.score).toBeCloseTo(12.5, 10);
+    expect(decayed.profileData.preferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "score",
+          description: "value",
+          confidence: 12.5,
+        }),
+      ]),
+    );
   });
 });

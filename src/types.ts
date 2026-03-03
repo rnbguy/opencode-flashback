@@ -46,13 +46,31 @@ export interface SearchResult {
   _debug?: Record<string, string | number | boolean | null>;
 }
 
+export interface ProfilePreference {
+  category: string;
+  description: string;
+  confidence: number;
+  evidence?: string[];
+}
+
+export interface ProfilePattern {
+  category: string;
+  description: string;
+}
+
+export interface ProfileWorkflow {
+  description: string;
+  steps: string[];
+}
+
+
 export interface UserProfile {
   id: string;
   userId: string;
   profileData: {
-    preferences: Record<string, string | number | boolean | null>;
-    patterns: Record<string, string | number | boolean | null>;
-    workflows: Record<string, string | number | boolean | null>;
+    preferences: ProfilePreference[];
+    patterns: ProfilePattern[];
+    workflows: ProfileWorkflow[];
   };
   version: number;
   createdAt: number;

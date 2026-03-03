@@ -233,6 +233,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
   }
 }
 
+
 function rowToMemory(row: MemoryRow): Memory {
   const bytes = new Uint8Array(row.embedding);
   return {
@@ -281,14 +282,15 @@ function rowToMemory(row: MemoryRow): Memory {
 }
 
 function rowToProfile(row: ProfileRow): UserProfile {
+  const profileData = parseJson<UserProfile["profileData"]>(row.profile_data, {
+    preferences: [],
+    patterns: [],
+    workflows: [],
+  });
   return {
     id: row.id,
     userId: row.user_id,
-    profileData: parseJson<UserProfile["profileData"]>(row.profile_data, {
-      preferences: {},
-      patterns: {},
-      workflows: {},
-    }),
+    profileData,
     version: row.version,
     createdAt: row.created_at,
     lastAnalyzedAt: row.last_analyzed_at,
