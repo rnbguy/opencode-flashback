@@ -216,6 +216,12 @@ function renderMemories(): void {
   }
 
   container.innerHTML = state.memories.map(renderMemoryCard).join("");
+  container.querySelectorAll(".btn-delete[data-delete-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = (btn as HTMLElement).dataset.deleteId;
+      if (id) deleteMemory(id);
+    });
+  });
   createIcons({ icons: lucideIcons });
 }
 
@@ -235,7 +241,7 @@ function renderMemoryCard(memory: Memory): string {
           <span class="memory-display-name">Memory</span>
         </div>
         <div class="memory-actions">
-          <button class="btn-delete" onclick="deleteMemory('${memory.id}')">
+          <button class="btn-delete" data-delete-id="${memory.id}">
             <i data-lucide="trash-2" class="icon"></i> Delete
           </button>
         </div>
@@ -275,8 +281,8 @@ function updatePagination(): void {
 
 function updateSectionTitle(): void {
   const title = state.isSearching
-    ? `+- SEARCH RESULTS (${state.totalItems}) --`
-    : `+- PROJECT MEMORIES (${state.totalItems}) --`;
+    ? `SEARCH RESULTS (${state.totalItems})`
+    : `PROJECT MEMORIES (${state.totalItems})`;
   (document.getElementById("section-title") as HTMLHeadingElement).textContent =
     title;
 }
@@ -771,7 +777,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   createIcons({ icons: lucideIcons });
 });
-
-(
-  window as Window & { deleteMemory: (id: string) => Promise<void> }
-).deleteMemory = deleteMemory;
