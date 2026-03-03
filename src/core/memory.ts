@@ -76,6 +76,8 @@ export async function addMemory(
     try {
       resolvedTagInfo = resolveContainerTag(opts.projectPath);
     } catch {
+      // resolveContainerTag fails in non-git directories -- treat as untagged
+      resolvedTagInfo = null;
       resolvedTagInfo = null;
     }
   }
@@ -157,6 +159,8 @@ export async function searchMemories(
     });
     return ranked;
   } catch {
+    // hybrid search failed -- fall back to text-only search below
+    logger.warn("searchMemories using text fallback", { query, containerTag });
     logger.warn("searchMemories using text fallback", { query, containerTag });
     const fallback = searchMemoriesByText(db, query, containerTag, maxResults);
     const ranked = rerank(
@@ -595,8 +599,10 @@ function parsePreferenceLines(profileDataRaw: string | null): string[] {
       .slice(0, 10)
       .map(([key, value]) => `- [${key}] ${String(value)}`);
   } catch {
+    // JSON parse failed on preference data -- skip malformed entries
     return [];
   }
+
 }
 
 function trackAccess(results: SearchResult[]): void {

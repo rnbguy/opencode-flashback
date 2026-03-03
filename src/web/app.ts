@@ -528,6 +528,8 @@ function renderUserProfile(): void {
           typeof jsonrepair === "function" ? jsonrepair(result) : result,
         );
       } catch {
+        // JSON parse failed on profile field -- stop parsing this section
+        break;
         break;
       }
     }

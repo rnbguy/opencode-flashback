@@ -217,6 +217,8 @@ function parseJson<T>(value: string | null, fallback: T): T {
   try {
     return JSON.parse(value) as T;
   } catch {
+    // JSON parse failed -- return the provided default value
+    return fallback;
     return fallback;
   }
 }

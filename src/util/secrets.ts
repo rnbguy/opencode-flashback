@@ -35,6 +35,8 @@ export async function resolveSecret(value: string): Promise<string> {
       secretCache.set(value, result);
       return result;
     } catch {
+      // file read failed -- secret is unavailable, return empty string
+      return "";
       return "";
     }
   }

@@ -8,3 +8,5 @@ coverage/
 .sisyphus/
 scripts/*.d.ts
 scripts/*.d.ts.map
+.cache/
+.config/

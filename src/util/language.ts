@@ -37,6 +37,8 @@ export async function detectLanguage(
         detectedLang: detectedLang || "en",
       };
     } catch {
+      // language detection failed -- fall back to English defaults
+      return { mode: "nl", codeRatio, detectedLang: "en" };
       return { mode: "nl", codeRatio, detectedLang: "en" };
     }
   }
