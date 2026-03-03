@@ -263,6 +263,13 @@ function normalizeProfileData(
 }
 
 function toPreferenceArray(value: unknown): ProfilePreference[] {
+  const isCorruptedPreference = (item: ProfilePreference): boolean => {
+    const hasNumericCategory = /^\d+$/.test(item.category);
+    const hasCorruptedDescription =
+      item.description === "[object Object]" || item.description.trim() === "";
+    return hasNumericCategory && hasCorruptedDescription;
+  };
+
   if (Array.isArray(value)) {
     return value
       .filter(
@@ -276,19 +283,40 @@ function toPreferenceArray(value: unknown): ProfilePreference[] {
         ...(Array.isArray(item.evidence)
           ? { evidence: item.evidence.map(String) }
           : {}),
-      }));
+      }))
+      .filter((item) => !isCorruptedPreference(item));
   }
   if (typeof value === "object" && value !== null) {
-    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
-      category: k,
-      description: String(v ?? ""),
-      confidence: typeof v === "number" ? v : 0.7,
-    }));
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => {
+        if (typeof v === "object" && v !== null) {
+          const obj = v as Record<string, unknown>;
+          return {
+            category: String(obj.category ?? k),
+            description: String(obj.description ?? ""),
+            confidence: typeof obj.confidence === "number" ? obj.confidence : 0.7,
+          };
+        }
+
+        return {
+          category: k,
+          description: String(v ?? ""),
+          confidence: typeof v === "number" ? v : 0.7,
+        };
+      })
+      .filter((item) => !isCorruptedPreference(item));
   }
   return [];
 }
 
 function toPatternArray(value: unknown): ProfilePattern[] {
+  const isCorruptedPattern = (item: ProfilePattern): boolean => {
+    const hasNumericCategory = /^\d+$/.test(item.category);
+    const hasCorruptedDescription =
+      item.description === "[object Object]" || item.description.trim() === "";
+    return hasNumericCategory && hasCorruptedDescription;
+  };
+
   if (Array.isArray(value)) {
     return value
       .filter(
@@ -298,18 +326,35 @@ function toPatternArray(value: unknown): ProfilePattern[] {
       .map((item) => ({
         category: String(item.category ?? "General"),
         description: String(item.description ?? ""),
-      }));
+      }))
+      .filter((item) => !isCorruptedPattern(item));
   }
   if (typeof value === "object" && value !== null) {
-    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
-      category: k,
-      description: String(v ?? ""),
-    }));
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => {
+        if (typeof v === "object" && v !== null) {
+          const obj = v as Record<string, unknown>;
+          return {
+            category: String(obj.category ?? k),
+            description: String(obj.description ?? ""),
+          };
+        }
+
+        return {
+          category: k,
+          description: String(v ?? ""),
+        };
+      })
+      .filter((item) => !isCorruptedPattern(item));
   }
   return [];
 }
 
 function toWorkflowArray(value: unknown): ProfileWorkflow[] {
+  const isCorruptedWorkflow = (item: ProfileWorkflow): boolean => {
+    return /^\d+$/.test(item.description);
+  };
+
   if (Array.isArray(value)) {
     return value
       .filter(
@@ -319,13 +364,26 @@ function toWorkflowArray(value: unknown): ProfileWorkflow[] {
       .map((item) => ({
         description: String(item.description ?? ""),
         steps: Array.isArray(item.steps) ? item.steps.map(String) : [],
-      }));
+      }))
+      .filter((item) => !isCorruptedWorkflow(item));
   }
   if (typeof value === "object" && value !== null) {
-    return Object.entries(value as Record<string, unknown>).map(([k, v]) => ({
-      description: k,
-      steps: typeof v === "string" ? [v] : [],
-    }));
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => {
+        if (typeof v === "object" && v !== null) {
+          const obj = v as Record<string, unknown>;
+          return {
+            description: String(obj.description ?? k),
+            steps: Array.isArray(obj.steps) ? obj.steps.map(String) : [],
+          };
+        }
+
+        return {
+          description: k,
+          steps: typeof v === "string" ? [v] : [],
+        };
+      })
+      .filter((item) => !isCorruptedWorkflow(item));
   }
   return [];
 }

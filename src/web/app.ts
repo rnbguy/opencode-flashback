@@ -25,6 +25,14 @@ import { marked } from "marked";
 
 const API_BASE = "";
 let csrfToken = "";
+let preferencePage = 0;
+let patternPage = 0;
+let workflowPage = 0;
+let preferenceTotalPages = 1;
+let patternTotalPages = 1;
+let workflowTotalPages = 1;
+
+const PROFILE_PAGE_SIZE = 6;
 
 type Memory = {
   id: string;
@@ -489,6 +497,10 @@ async function loadUserProfile(): Promise<void> {
   }
 }
 
+async function loadProfile(): Promise<void> {
+  await loadUserProfile();
+}
+
 function renderUserProfile(): void {
   const container = document.getElementById(
     "profile-content",
@@ -528,7 +540,6 @@ function renderUserProfile(): void {
       } catch {
         // JSON parse failed on profile field -- stop parsing this section
         break;
-        break;
       }
     }
     if (!Array.isArray(result)) return [];
@@ -545,9 +556,30 @@ function renderUserProfile(): void {
 
   const profileData =
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const preferences = parseField(profileData.preferences);
+  const preferences = parseField(profileData.preferences).sort(
+    (a, b) => (Number(b.confidence ?? 0) || 0) - (Number(a.confidence ?? 0) || 0),
+  );
   const patterns = parseField(profileData.patterns);
   const workflows = parseField(profileData.workflows);
+
+  preferenceTotalPages = Math.max(1, Math.ceil(preferences.length / PROFILE_PAGE_SIZE));
+  patternTotalPages = Math.max(1, Math.ceil(patterns.length / PROFILE_PAGE_SIZE));
+  workflowTotalPages = Math.max(1, Math.ceil(workflows.length / PROFILE_PAGE_SIZE));
+
+  preferencePage = Math.max(0, Math.min(preferencePage, preferenceTotalPages - 1));
+  patternPage = Math.max(0, Math.min(patternPage, patternTotalPages - 1));
+  workflowPage = Math.max(0, Math.min(workflowPage, workflowTotalPages - 1));
+
+  const prefStart = preferencePage * PROFILE_PAGE_SIZE;
+  const patternStart = patternPage * PROFILE_PAGE_SIZE;
+  const workflowStart = workflowPage * PROFILE_PAGE_SIZE;
+
+  const prefSlice = preferences.slice(prefStart, prefStart + PROFILE_PAGE_SIZE);
+  const patternSlice = patterns.slice(patternStart, patternStart + PROFILE_PAGE_SIZE);
+  const workflowSlice = workflows.slice(
+    workflowStart,
+    workflowStart + PROFILE_PAGE_SIZE,
+  );
 
   container.innerHTML = `
     <div class="profile-header">
@@ -568,18 +600,28 @@ function renderUserProfile(): void {
 
     <div class="dashboard-grid">
       <div class="dashboard-section preferences-section">
-        <h4><i data-lucide="heart" class="icon"></i> PREFERENCES <span class="count">${preferences.length}</span></h4>
+        <div class="dashboard-section-header">
+          <h4><i data-lucide="heart" class="icon"></i> PREFERENCES <span class="count">${preferences.length}</span></h4>
+          ${
+            preferences.length > 0 && preferenceTotalPages > 1
+              ? `<div class="pagination profile-pagination">
+                  <button class="btn-icon" data-profile-action="prev-preference" ${preferencePage === 0 ? "disabled" : ""}>
+                    <i data-lucide="chevron-left" class="icon"></i>
+                  </button>
+                  <span>Page ${preferencePage + 1} of ${preferenceTotalPages}</span>
+                  <button class="btn-icon" data-profile-action="next-preference" ${preferencePage >= preferenceTotalPages - 1 ? "disabled" : ""}>
+                    <i data-lucide="chevron-right" class="icon"></i>
+                  </button>
+                </div>`
+              : ""
+          }
+        </div>
         ${
           preferences.length === 0
             ? '<p class="empty-text">No preferences learned yet</p>'
             : `
           <div class="cards-grid">
-            ${preferences
-              .sort(
-                (a, b) =>
-                  (Number(b.confidence ?? 0) || 0) -
-                  (Number(a.confidence ?? 0) || 0),
-              )
+            ${prefSlice
               .map(
                 (p) => `
               <div class="compact-card preference-card">
@@ -614,13 +656,28 @@ function renderUserProfile(): void {
       </div>
 
       <div class="dashboard-section patterns-section">
-        <h4><i data-lucide="activity" class="icon"></i> PATTERNS <span class="count">${patterns.length}</span></h4>
+        <div class="dashboard-section-header">
+          <h4><i data-lucide="activity" class="icon"></i> PATTERNS <span class="count">${patterns.length}</span></h4>
+          ${
+            patterns.length > 0 && patternTotalPages > 1
+              ? `<div class="pagination profile-pagination">
+                  <button class="btn-icon" data-profile-action="prev-pattern" ${patternPage === 0 ? "disabled" : ""}>
+                    <i data-lucide="chevron-left" class="icon"></i>
+                  </button>
+                  <span>Page ${patternPage + 1} of ${patternTotalPages}</span>
+                  <button class="btn-icon" data-profile-action="next-pattern" ${patternPage >= patternTotalPages - 1 ? "disabled" : ""}>
+                    <i data-lucide="chevron-right" class="icon"></i>
+                  </button>
+                </div>`
+              : ""
+          }
+        </div>
         ${
           patterns.length === 0
             ? '<p class="empty-text">No patterns detected yet</p>'
             : `
           <div class="cards-grid">
-            ${patterns
+            ${patternSlice
               .map(
                 (p) => `
               <div class="compact-card pattern-card">
@@ -640,13 +697,28 @@ function renderUserProfile(): void {
       </div>
 
       <div class="dashboard-section workflows-section full-width">
-        <h4><i data-lucide="workflow" class="icon"></i> WORKFLOWS <span class="count">${workflows.length}</span></h4>
+        <div class="dashboard-section-header">
+          <h4><i data-lucide="workflow" class="icon"></i> WORKFLOWS <span class="count">${workflows.length}</span></h4>
+          ${
+            workflows.length > 0 && workflowTotalPages > 1
+              ? `<div class="pagination profile-pagination">
+                  <button class="btn-icon" data-profile-action="prev-workflow" ${workflowPage === 0 ? "disabled" : ""}>
+                    <i data-lucide="chevron-left" class="icon"></i>
+                  </button>
+                  <span>Page ${workflowPage + 1} of ${workflowTotalPages}</span>
+                  <button class="btn-icon" data-profile-action="next-workflow" ${workflowPage >= workflowTotalPages - 1 ? "disabled" : ""}>
+                    <i data-lucide="chevron-right" class="icon"></i>
+                  </button>
+                </div>`
+              : ""
+          }
+        </div>
         ${
           workflows.length === 0
             ? '<p class="empty-text">No workflows identified yet</p>'
             : `
           <div class="workflows-grid">
-            ${workflows
+            ${workflowSlice
               .map(
                 (w) => `
               <div class="workflow-row">
@@ -675,9 +747,31 @@ function renderUserProfile(): void {
     </div>
   `;
 
+  container.querySelectorAll("button[data-profile-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = (button as HTMLButtonElement).dataset.profileAction;
+      if (!action) return;
+
+      if (action === "prev-preference") {
+        preferencePage = Math.max(0, preferencePage - 1);
+      } else if (action === "next-preference") {
+        preferencePage = Math.min(preferenceTotalPages - 1, preferencePage + 1);
+      } else if (action === "prev-pattern") {
+        patternPage = Math.max(0, patternPage - 1);
+      } else if (action === "next-pattern") {
+        patternPage = Math.min(patternTotalPages - 1, patternPage + 1);
+      } else if (action === "prev-workflow") {
+        workflowPage = Math.max(0, workflowPage - 1);
+      } else if (action === "next-workflow") {
+        workflowPage = Math.min(workflowTotalPages - 1, workflowPage + 1);
+      }
+
+      void loadProfile();
+    });
+  });
+
   createIcons({ icons: lucideIcons });
 }
-
 
 function escapeHtml(text: string): string {
   if (!text) return "";
@@ -724,7 +818,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadStats();
   await loadMemories();
-  await loadUserProfile();
+  await loadProfile();
 
   startAutoRefresh();
 
