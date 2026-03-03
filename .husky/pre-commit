@@ -1,3 +1,5 @@
 LC_ALL=C grep -rPn '[^\x00-\x7F]' src/ scripts/ --include='*.ts' --include='*.html' --include='*.css' && echo "ERROR: non-ASCII characters found" && exit 1
 bun run typecheck
 bun test
+bun run generate:schema
+git diff --quiet schema.json || git add schema.json
