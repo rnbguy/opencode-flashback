@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
@@ -178,6 +178,55 @@ export type PluginConfig = z.infer<typeof ConfigSchema>;
 
 // -- Config loader -----------------------------------------------------------
 
+function generateDefaultConfig(path: string, defaults: PluginConfig): void {
+  const lines = [
+    "{",
+    "  // JSON Schema for validation and editor autocompletion",
+    "  \"$schema\": \"https://raw.githubusercontent.com/rnbguy/opencode-flashback/main/schema.json\",",
+    "",
+    "  // LLM provider for auto-capture and summarization",
+    "  \"llm\": {",
+    `    \"provider\": \"${defaults.llm.provider}\",`,
+    `    \"model\": \"${defaults.llm.model}\",`,
+    `    \"apiUrl\": \"${defaults.llm.apiUrl}\",`,
+    "    // Use \"env://OPENAI_API_KEY\" or \"file://~/.secrets/openai.txt\"",
+    `    \"apiKey\": \"${defaults.llm.apiKey}\"`,
+    "  },",
+    "",
+    "  // Local storage path for memories and database",
+    "  \"storage\": {",
+    "    \"path\": \"~/.local/share/opencode-flashback\"",
+    "  },",
+    "",
+    "  // Memory retrieval settings",
+    "  \"memory\": {",
+    `    \"maxResults\": ${defaults.memory.maxResults},`,
+    `    \"autoCapture\": ${defaults.memory.autoCapture},`,
+    `    \"injection\": \"${defaults.memory.injection}\",`,
+    `    \"excludeCurrentSession\": ${defaults.memory.excludeCurrentSession}`,
+    "  },",
+    "",
+    "  // Web UI settings",
+    "  \"web\": {",
+    `    \"port\": ${defaults.web.port},`,
+    `    \"enabled\": ${defaults.web.enabled}`,
+    "  },",
+    "",
+    "  // Search quality preset: fast, balanced, thorough, custom",
+    "  \"search\": {",
+    `    \"retrievalQuality\": \"${defaults.search.retrievalQuality}\"`,
+    "  }",
+    "}",
+  ];
+
+  try {
+    mkdirSync(path.replace(/\/[^\/]+$/, ""), { recursive: true });
+    writeFileSync(path, lines.join("\n") + "\n", "utf-8");
+  } catch {
+    // Best-effort -- read-only filesystem or permissions issue
+  }
+}
+
 function loadConfigFile(): PluginConfig {
   const configDir = getConfigDir();
   const jsonPath = join(configDir, "opencode-flashback.json");
@@ -212,6 +261,7 @@ function loadConfigFile(): PluginConfig {
   const jsoncExists = existsSync(jsoncPath);
 
   if (!jsonExists && !jsoncExists) {
+    generateDefaultConfig(jsoncPath, defaults);
     return defaults;
   }
 
@@ -226,8 +276,8 @@ function loadConfigFile(): PluginConfig {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
       config = deepMerge(config, jsonData);
-    } catch {
-      // Ignore JSON parse errors, use defaults
+    } catch (err) {
+      console.error("Failed to parse opencode-flashback.json:", err);
     }
 
     try {
@@ -235,8 +285,8 @@ function loadConfigFile(): PluginConfig {
       const cleanedContent = stripJsoncComments(jsoncContent);
       const jsoncData = JSON.parse(cleanedContent);
       config = deepMerge(config, jsoncData);
-    } catch {
-      // Ignore JSONC parse errors, use merged config
+    } catch (err) {
+      console.error("Failed to parse opencode-flashback.jsonc:", err);
     }
   } else if (jsoncExists) {
     try {
@@ -244,16 +294,16 @@ function loadConfigFile(): PluginConfig {
       const cleanedContent = stripJsoncComments(jsoncContent);
       const jsoncData = JSON.parse(cleanedContent);
       config = deepMerge(config, jsoncData);
-    } catch {
-      // Ignore JSONC parse errors, use defaults
+    } catch (err) {
+      console.error("Failed to parse opencode-flashback.jsonc:", err);
     }
   } else if (jsonExists) {
     try {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
       config = deepMerge(config, jsonData);
-    } catch {
-      // Ignore JSON parse errors, use defaults
+    } catch (err) {
+      console.error("Failed to parse opencode-flashback.json:", err);
     }
   }
 
