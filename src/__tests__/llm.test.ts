@@ -34,7 +34,7 @@ const defaultConfig: PluginConfig = {
   },
 };
 
-import { callLLMWithTool } from "../core/llm.ts";
+import { callLLMWithTool, validateLLMEndpoint } from "../core/llm.ts";
 import type { LLMCallOptions, LLMCallResult, ToolSchema } from "../core/llm.ts";
 
 // -- Speed up retries: make setTimeout instant -------------------------------
@@ -638,5 +638,262 @@ describe("llm", () => {
         expect(result.error).toContain("[redacted:1234]");
       }
     });
+  });
+});
+
+// -- validateLLMEndpoint -----------------------------------------------------
+
+describe("validateLLMEndpoint", () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    _resetConfigForTesting();
+  });
+
+  test("returns ok for valid openai-chat endpoint", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "openai-chat",
+        model: "gpt-4o-mini",
+        apiUrl: "https://api.openai.com/v1",
+        apiKey: "sk-test",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "gpt-4o-mini", object: "model" }), {
+        status: 200,
+      }),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    const call = mockFetch.mock.calls[0];
+    expect(call[0]).toBe("https://api.openai.com/v1/models/gpt-4o-mini");
+    const init = call[1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer sk-test",
+    );
+  });
+
+  test("returns error for 401 unauthorized", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "openai-chat",
+        apiKey: "bad-key",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { message: "Invalid API key" } }),
+        { status: 401 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("Invalid or unauthorized API key");
+  });
+
+  test("returns error for 404 model not found", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "openai-chat",
+        model: "nonexistent-model",
+        apiKey: "sk-test",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { message: "Model not found" } }),
+        { status: 404 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("Model not found");
+  });
+
+  test("returns error when apiKey is empty", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: { ...defaultConfig.llm, apiKey: "" },
+    });
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("not configured");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test("returns error on network failure", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        apiKey: "sk-test",
+        apiUrl: "http://localhost:1",
+      },
+    });
+
+    mockFetch.mockRejectedValueOnce(new Error("Connection refused"));
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("unreachable");
+  });
+
+  test("validates anthropic with model list check", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-20241022",
+        apiUrl: "https://api.anthropic.com/v1",
+        apiKey: "sk-ant-test",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "claude-3-5-sonnet-20241022" },
+            { id: "claude-3-opus-20240229" },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(true);
+
+    const call = mockFetch.mock.calls[0];
+    expect(call[0]).toBe("https://api.anthropic.com/v1/models");
+    const init = call[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("sk-ant-test");
+    expect(headers["anthropic-version"]).toBe("2023-06-01");
+  });
+
+  test("returns error when anthropic model not in list", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "anthropic",
+        model: "nonexistent-model",
+        apiUrl: "https://api.anthropic.com/v1",
+        apiKey: "sk-ant-test",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [{ id: "claude-3-5-sonnet-20241022" }],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("not found");
+  });
+
+  test("validates gemini with key as query param", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "gemini",
+        model: "gemini-1.5-pro",
+        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
+        apiKey: "gemini-key-5678",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ name: "models/gemini-1.5-pro" }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(true);
+
+    const call = mockFetch.mock.calls[0];
+    const url = call[0] as string;
+    expect(url).toContain("/models/gemini-1.5-pro");
+    expect(url).toContain("key=gemini-key-5678");
+    // gemini does not use Authorization header
+    const init = call[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  test("validates generic provider like openai-compatible", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "generic",
+        model: "llama3",
+        apiUrl: "http://localhost:11434/v1",
+        apiKey: "ollama",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "llama3" }), { status: 200 }),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(true);
+
+    const call = mockFetch.mock.calls[0];
+    expect(call[0]).toBe("http://localhost:11434/v1/models/llama3");
+  });
+
+  test("redacts api key in error messages", async () => {
+    _setConfigForTesting({
+      ...defaultConfig,
+      llm: {
+        ...defaultConfig.llm,
+        provider: "openai-chat",
+        apiKey: "test-invalid-key",
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { message: "Invalid key: test-invalid-key" },
+        }),
+        { status: 401 },
+      ),
+    );
+
+    const result = await validateLLMEndpoint();
+    expect(result.ok).toBe(false);
+    expect(result.error).not.toContain("test-invalid-key");
   });
 });

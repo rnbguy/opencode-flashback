@@ -7,6 +7,7 @@ import { resolveContainerTag } from "./core/tags.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
 import { createEngine } from "./engine.ts";
+import { validateLLMEndpoint } from "./core/llm.ts";
 import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
 import { createLogger } from "./util/logger.ts";
@@ -304,7 +305,32 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
       .catch(() => undefined);
   }
 
-  scheduleWarmup();
+  if (isConfigured()) {
+    validateLLMEndpoint()
+      .then((result) => {
+        if (!result.ok) {
+          logger?.error("LLM endpoint validation failed", {
+            error: result.error,
+          });
+          if (input.client?.tui && config.toasts.errors) {
+            input.client.tui
+              .showToast({
+                body: {
+                  title: "Flashback LLM Error",
+                  message: result.error ?? "LLM endpoint unreachable",
+                  variant: "error",
+                  duration: 10000,
+                },
+              })
+              .catch(() => undefined);
+          }
+        } else {
+          logger?.debug("LLM endpoint validated");
+        }
+      })
+      .catch(() => undefined);
+  }
+
   installLifecycleHooks();
 
   engine.setCaptureNotifier((status, error) => {

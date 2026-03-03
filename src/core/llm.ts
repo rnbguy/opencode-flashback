@@ -727,3 +727,205 @@ interface GeminiResponse {
     };
   }>;
 }
+
+const VALIDATE_TIMEOUT_MS = 5000;
+
+export async function validateLLMEndpoint(): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  const config = getConfig();
+  const { provider, model, apiUrl } = config.llm;
+  const apiKey = await resolveSecret(config.llm.apiKey);
+
+  if (!apiKey) {
+    return { ok: false, error: "LLM API key is not configured" };
+  }
+
+  try {
+    const result = await validateProvider(provider, model, apiUrl, apiKey);
+    return result;
+  } catch (error) {
+    return {
+      ok: false,
+      error: `LLM validation failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+async function validateProvider(
+  provider: LLMProvider,
+  model: string,
+  apiUrl: string,
+  apiKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+  switch (provider) {
+    case "openai-chat":
+    case "openai-responses":
+    case "generic":
+      return validateOpenAICompatible(apiUrl, apiKey, model);
+    case "anthropic":
+      return validateAnthropic(apiUrl, apiKey, model);
+    case "gemini":
+      return validateGemini(apiUrl, apiKey, model);
+  }
+}
+
+async function validateOpenAICompatible(
+  apiUrl: string,
+  apiKey: string,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const url = buildApiUrl(apiUrl, `/models/${encodeURIComponent(model)}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: controller.signal,
+    });
+
+    if (response.ok) {
+      return { ok: true };
+    }
+
+    const text = await response.text().catch(() => "");
+    return {
+      ok: false,
+      error: formatValidationError(response.status, text, apiKey),
+    };
+  } catch (error) {
+    return catchValidationError(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function validateAnthropic(
+  apiUrl: string,
+  apiKey: string,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const url = buildApiUrl(apiUrl, "/models");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      return {
+        ok: false,
+        error: formatValidationError(response.status, text, apiKey),
+      };
+    }
+
+    const json = (await response.json()) as {
+      data?: Array<{ id?: string }>;
+    };
+    const models = json.data ?? [];
+    const found = models.some((m) => m.id === model);
+    if (!found) {
+      return {
+        ok: false,
+        error: `Model "${model}" not found in Anthropic models list`,
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return catchValidationError(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function validateGemini(
+  apiUrl: string,
+  apiKey: string,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const apiBase = stripTrailingSlash(apiUrl);
+  const url = `${apiBase}/models/${encodeURIComponent(model)}?key=${encodeURIComponent(apiKey)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+
+    if (response.ok) {
+      return { ok: true };
+    }
+
+    const text = await response.text().catch(() => "");
+    return {
+      ok: false,
+      error: formatValidationError(response.status, text, apiKey),
+    };
+  } catch (error) {
+    return catchValidationError(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function formatValidationError(
+  status: number,
+  text: string,
+  apiKey: string,
+): string {
+  let message = "";
+  try {
+    const json = JSON.parse(text) as Record<string, unknown>;
+    const errObj = json.error;
+    if (typeof errObj === "object" && errObj !== null && "message" in errObj) {
+      message = String((errObj as Record<string, unknown>).message);
+    } else if (typeof json.message === "string") {
+      message = json.message;
+    }
+  } catch {
+    // not JSON -- use raw text
+    if (text.length > 0) {
+      message = text.slice(0, 200);
+    }
+  }
+
+  const base =
+    status === 401 || status === 403
+      ? "Invalid or unauthorized API key"
+      : status === 404
+        ? "Model not found"
+        : `HTTP ${status}`;
+
+  const detail = message ? `: ${sanitizeError(message, apiKey)}` : "";
+  return `${base}${detail}`;
+}
+
+function catchValidationError(error: unknown): {
+  ok: false;
+  error: string;
+} {
+  if (error instanceof Error && error.name === "AbortError") {
+    return { ok: false, error: "LLM endpoint validation timed out" };
+  }
+  return {
+    ok: false,
+    error: `LLM endpoint unreachable: ${error instanceof Error ? error.message : String(error)}`,
+  };
+}
