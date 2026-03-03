@@ -204,17 +204,11 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     }
   });
 
-  test("plugin factory returns hooks and config with no commands", async () => {
+  test("plugin factory returns hooks with tool, chat.message, and event", async () => {
     const hooks = await createHooks(tmpDir);
-    expect(typeof hooks.config).toBe("function");
     expect(typeof hooks.tool.flashback.execute).toBe("function");
     expect(typeof hooks["chat.message"]).toBe("function");
     expect(typeof hooks.event).toBe("function");
-
-    const cfg: { command?: Record<string, unknown> } = { command: {} };
-    await hooks.config(cfg);
-    expect(cfg.command).toBeDefined();
-    expect(Object.keys(cfg.command ?? {}).length).toBe(0);
   });
 
   test("tool execution handles all 14 modes and validation errors", async () => {

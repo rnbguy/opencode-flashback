@@ -435,9 +435,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   }
 
   return {
-    config: async () => {
-      // no-op: commands removed, tool calls only
-    },
     tool: {
       flashback: tool({
         description: `Manage and query project memory (MATCH USER LANGUAGE: ${getLanguageName("en")}). Use 'search' with keywords, 'add' to store, 'profile' for preferences.`,
