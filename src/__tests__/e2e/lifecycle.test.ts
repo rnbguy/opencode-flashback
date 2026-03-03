@@ -34,7 +34,7 @@ if (isDirectLifecycleRun) {
   }));
 }
 
-import flashback from "../../plugin.ts";
+import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
 import {
   getDb,
   closeDb,
@@ -113,7 +113,7 @@ function makeTestConfig(
 }
 
 async function createHooks(directory: string): Promise<Hooks> {
-  const hooks = await flashback({ directory } as unknown as never);
+  const hooks = await OpenCodeFlashbackPlugin({ directory } as unknown as never);
   return hooks as unknown as Hooks;
 }
 

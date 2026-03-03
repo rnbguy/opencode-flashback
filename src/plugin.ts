@@ -217,7 +217,7 @@ function installLifecycleHooks(): void {
   process.on("exit", shutdown);
 }
 
-const flashback: Plugin = async (input) => {
+export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   scheduleWarmup();
   installLifecycleHooks();
 
@@ -319,5 +319,3 @@ const flashback: Plugin = async (input) => {
     },
   };
 };
-
-export default flashback;
