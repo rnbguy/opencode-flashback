@@ -157,7 +157,11 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
       const msg = error instanceof Error ? error.message : "";
       if (msg.includes("device") || msg.includes("unsupported")) {
         logger.warn("Embedder device cpu failed, retrying with auto-detect");
-        return pipeline("feature-extraction", MODEL_ID, { dtype: "q4" });
+        return pipeline("feature-extraction", MODEL_ID, { dtype: "q4" }).catch(
+          () => {
+            throw error; // propagate original error, not fallback error
+          },
+        );
       }
       throw error;
     })
