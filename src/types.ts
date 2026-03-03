@@ -89,6 +89,10 @@ export interface ContainerTagInfo {
   gitRepoUrl: string;
 }
 
+export interface ContainerTagResolver {
+  resolve(directory: string): ContainerTagInfo;
+}
+
 // -- Config types (derived from Zod schema in config.ts) ------------------
 
 // NOTE: PluginConfig is z.infer<typeof ConfigSchema> -- defined in config.ts
