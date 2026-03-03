@@ -277,7 +277,6 @@ function installLifecycleHooks(): void {
     }
     stopServer();
     engine.shutdown();
-    process.exit(0);
   };
 
   process.on("SIGINT", shutdown);
