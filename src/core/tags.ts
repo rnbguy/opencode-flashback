@@ -135,7 +135,6 @@ export function resolveContainerTag(directory: string): ContainerTagInfo {
 
   const result = {
     tag: projectTag,
-    displayName: projectRoot,
     userName,
     userEmail,
     projectPath: projectRoot,
@@ -163,7 +162,6 @@ export function resolveUserTag(): ContainerTagInfo {
 
   const result = {
     tag: userTag,
-    displayName: userName || userEmail || userIdentity,
     userName,
     userEmail,
     projectPath: "",

@@ -32,7 +32,6 @@ export interface AddMemoryOptions {
   provenance?: Memory["provenance"];
   epistemicStatus?: Memory["epistemicStatus"];
   metadata?: Record<string, string | number | boolean | null>;
-  displayName?: string;
   userName?: string;
   userEmail?: string;
   projectPath?: string;
@@ -92,7 +91,6 @@ export async function addMemory(
     createdAt: now,
     updatedAt: now,
     metadata,
-    displayName: opts.displayName ?? resolvedTagInfo?.displayName ?? "",
     userName: opts.userName ?? resolvedTagInfo?.userName ?? "",
     userEmail: opts.userEmail ?? resolvedTagInfo?.userEmail ?? "",
     projectPath: opts.projectPath ?? resolvedTagInfo?.projectPath ?? "",

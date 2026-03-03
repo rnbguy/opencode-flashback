@@ -70,7 +70,6 @@ function makeMemory(
     createdAt: now,
     updatedAt: now,
     metadata: {},
-    displayName: "",
     userName: "",
     userEmail: "",
     projectPath: "",

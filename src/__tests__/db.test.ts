@@ -37,7 +37,6 @@ function createInMemoryDb(): Database {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       metadata TEXT,
-      display_name TEXT,
       user_name TEXT,
       user_email TEXT,
       project_path TEXT,
@@ -64,19 +63,9 @@ function createInMemoryDb(): Database {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL UNIQUE,
       profile_data TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       last_analyzed_at INTEGER NOT NULL,
       total_prompts_analyzed INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS user_profile_changelogs (
-      id TEXT PRIMARY KEY,
-      profile_id TEXT NOT NULL,
-      version INTEGER NOT NULL,
-      change_summary TEXT NOT NULL,
-      profile_data_snapshot TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS user_prompts (
       id TEXT PRIMARY KEY,
@@ -111,7 +100,6 @@ function makeMemory(overrides: Partial<Memory> = {}): Memory {
     createdAt: now,
     updatedAt: now,
     metadata: {},
-    displayName: "test-project",
     userName: "tester",
     userEmail: "test@example.com",
     projectPath: "/tmp/test",
@@ -141,7 +129,6 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     id: "prof_001",
     userId: "user_001",
     profileData: { preferences: [], patterns: [], workflows: [] },
-    version: 1,
     createdAt: now,
     lastAnalyzedAt: now,
     totalPromptsAnalyzed: 0,
@@ -472,7 +459,6 @@ describe("profile CRUD", () => {
 
     const updated: UserProfile = {
       ...prof,
-      version: 2,
       totalPromptsAnalyzed: 5,
       profileData: {
         preferences: [{ category: "theme", description: "dark", confidence: 0.8 }],
@@ -483,7 +469,6 @@ describe("profile CRUD", () => {
     updateProfile(db, updated);
 
     const retrieved = getProfile(db, "user_001")!;
-    expect(retrieved.version).toBe(2);
     expect(retrieved.totalPromptsAnalyzed).toBe(5);
     expect(retrieved.profileData.preferences).toEqual([{ category: "theme", description: "dark", confidence: 0.8 }]);
   });
@@ -610,21 +595,8 @@ describe("schema", () => {
 
     expect(names).toContain("memories");
     expect(names).toContain("user_profiles");
-    expect(names).toContain("user_profile_changelogs");
     expect(names).toContain("user_prompts");
     expect(names).toContain("meta");
-    db.close();
-  });
-
-  test("foreign keys are enforced", () => {
-    const db = createInMemoryDb();
-    // user_profile_changelogs has FK to user_profiles
-    expect(() => {
-      db.exec(`
-        INSERT INTO user_profile_changelogs (id, profile_id, version, change_summary, profile_data_snapshot, created_at)
-        VALUES ('cl_1', 'nonexistent', 1, 'test', '{}', ${Date.now()})
-      `);
-    }).toThrow();
     db.close();
   });
 });

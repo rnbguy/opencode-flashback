@@ -18,7 +18,6 @@ CREATE TABLE memories (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   metadata TEXT,
-  display_name TEXT,
   user_name TEXT,
   user_email TEXT,
   project_path TEXT,
@@ -52,9 +51,9 @@ function createOldDb(path: string, rowCount: number): void {
   const stmt = db.query(
     `INSERT INTO memories (
       id, content, vector, tags_vector, container_tag, tags, type,
-      created_at, updated_at, metadata, display_name, user_name, user_email,
+      created_at, updated_at, metadata, user_name, user_email,
       project_path, project_name, git_repo_url, is_pinned
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
 
   const base = Date.now() - rowCount * 1000;
@@ -71,7 +70,6 @@ function createOldDb(path: string, rowCount: number): void {
       base + i,
       base + i,
       JSON.stringify({ source: "old" }),
-      "display",
       "user",
       "user@example.com",
       "/tmp/project",
@@ -163,14 +161,13 @@ describe("migration", () => {
 
     const row = db
       .query(
-        "SELECT content, container_tag, tags, type, display_name, user_email FROM memories WHERE id = ?",
+        "SELECT content, container_tag, tags, type, user_email FROM memories WHERE id = ?",
       )
       .get("old-0003") as {
       content: string;
       container_tag: string;
       tags: string;
       type: string;
-      display_name: string;
       user_email: string;
     };
 
@@ -178,7 +175,6 @@ describe("migration", () => {
     expect(row.container_tag).toBe("test-container");
     expect(JSON.parse(row.tags)).toEqual(["rust", "sqlite"]);
     expect(row.type).toBe("note");
-    expect(row.display_name).toBe("display");
     expect(row.user_email).toBe("user@example.com");
   });
 

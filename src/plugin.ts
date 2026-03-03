@@ -216,7 +216,7 @@ async function handleToolCall(
           mode: "clear",
           success: false,
           message:
-            "WARNING: This will permanently delete ALL memories, profiles, prompts, and changelogs. This action cannot be undone. To proceed, call again with confirmed: true.",
+            "WARNING: This will permanently delete ALL memories, profiles, and prompts. This action cannot be undone. To proceed, call again with confirmed: true.",
         };
       }
       engine.clearAllData();
@@ -711,7 +711,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           containerTag: tagInfo.tag,
           messages: extractedMessages,
           directory: input.directory,
-          displayName: tagInfo.displayName,
           userName: tagInfo.userName,
           userEmail: tagInfo.userEmail,
           projectPath: tagInfo.projectPath,
@@ -737,7 +736,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
                   .showToast({
                     body: {
                       title: "Flashback",
-                      message: `Profile updated to v${profileResult.version}`,
+                      message: "Profile updated",
                       variant: "success",
                       duration: 3000,
                     },

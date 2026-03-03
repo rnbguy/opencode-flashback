@@ -76,7 +76,6 @@ describe("getOrCreateProfile", () => {
     const profile = getOrCreateProfile("user-1");
 
     expect(profile.userId).toBe("user-1");
-    expect(profile.version).toBe(1);
     expect(profile.totalPromptsAnalyzed).toBe(0);
     expect(profile.profileData).toEqual({
       preferences: [],
@@ -90,7 +89,6 @@ describe("getOrCreateProfile", () => {
     const second = getOrCreateProfile("user-2");
 
     expect(first.id).toBe(second.id);
-    expect(first.version).toBe(second.version);
   });
 
   test("creates separate profiles for different users", () => {
@@ -115,7 +113,6 @@ describe("analyzeAndUpdateProfile", () => {
     ]);
 
     expect(result.updated).toBe(false);
-    expect(result.version).toBe(1);
     expect(mockCallLLM).not.toHaveBeenCalled();
   });
 
@@ -126,7 +123,6 @@ describe("analyzeAndUpdateProfile", () => {
     const result = await analyzeAndUpdateProfile("user-analyze", prompts);
 
     expect(result.updated).toBe(true);
-    expect(result.version).toBe(2);
     expect(mockCallLLM).toHaveBeenCalledTimes(1);
 
     const db = getDb();
@@ -186,7 +182,7 @@ describe("analyzeAndUpdateProfile", () => {
       Array.from({ length: 10 }, (_, i) => `batch2-${i}`),
     );
 
-    expect(result.version).toBe(3);
+    expect(result.updated).toBe(true);
 
     const db = getDb();
     const profile = getProfile(db, userId);
@@ -219,10 +215,10 @@ describe("analyzeAndUpdateProfile", () => {
     );
 
     expect(result.updated).toBe(false);
-    expect(result.version).toBe(1);
+    expect(result.updated).toBe(false);
   });
 
-  test("performs atomic transaction with changelog", async () => {
+  test("performs atomic profile transaction", async () => {
     const userId = "user-atomic";
     getOrCreateProfile(userId);
 
@@ -231,116 +227,8 @@ describe("analyzeAndUpdateProfile", () => {
 
     const db = getDb();
     const profile = getProfile(db, userId);
-    expect(profile!.version).toBe(2);
+    expect(profile).not.toBeNull();
     expect(profile!.profileData.preferences).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ category: "language", description: "Rust" }),
-      ]),
-    );
-
-    const changelog = db
-      .query("SELECT * FROM user_profile_changelogs WHERE profile_id = ?")
-      .get(profile!.id) as {
-      version: number;
-      change_summary: string;
-      profile_data_snapshot: string;
-    } | null;
-
-    expect(changelog).not.toBeNull();
-    expect(changelog!.version).toBe(2);
-  });
-});
-
-// -- Changelog ----------------------------------------------------------------
-
-describe("changelog", () => {
-  test("records added preferences in change summary", async () => {
-    const userId = "user-changelog";
-    getOrCreateProfile(userId);
-
-    await analyzeAndUpdateProfile(
-      userId,
-      Array.from({ length: 10 }, (_, i) => `prompt-${i}`),
-    );
-
-    const db = getDb();
-    const profile = getProfile(db, userId);
-    const changelog = db
-      .query(
-        "SELECT change_summary FROM user_profile_changelogs WHERE profile_id = ? ORDER BY version DESC LIMIT 1",
-      )
-      .get(profile!.id) as { change_summary: string } | null;
-
-    expect(changelog).not.toBeNull();
-    expect(changelog!.change_summary).toContain("preferences: added language");
-  });
-
-  test("records updated preferences in change summary", async () => {
-    const userId = "user-changelog-update";
-    getOrCreateProfile(userId);
-
-    mockCallLLM.mockImplementation(async () => ({
-      success: true,
-      data: {
-        preferences: [
-          { category: "language", description: "Rust", confidence: 0.9 },
-        ],
-        patterns: [],
-        workflows: [],
-      },
-    }));
-    await analyzeAndUpdateProfile(
-      userId,
-      Array.from({ length: 10 }, (_, i) => `a-${i}`),
-    );
-
-    mockCallLLM.mockImplementation(async () => ({
-      success: true,
-      data: {
-        preferences: [
-          { category: "language", description: "Go", confidence: 0.9 },
-        ],
-        patterns: [],
-        workflows: [],
-      },
-    }));
-    await analyzeAndUpdateProfile(
-      userId,
-      Array.from({ length: 10 }, (_, i) => `b-${i}`),
-    );
-
-    const db = getDb();
-    const profile = getProfile(db, userId);
-    const changelog = db
-      .query(
-        "SELECT change_summary FROM user_profile_changelogs WHERE profile_id = ? ORDER BY version DESC LIMIT 1",
-      )
-      .get(profile!.id) as { change_summary: string } | null;
-
-    expect(changelog!.change_summary).toContain(
-      "preferences: updated language",
-    );
-  });
-
-  test("stores profile data snapshot in changelog", async () => {
-    const userId = "user-snapshot";
-    getOrCreateProfile(userId);
-
-    await analyzeAndUpdateProfile(
-      userId,
-      Array.from({ length: 10 }, (_, i) => `prompt-${i}`),
-    );
-
-    const db = getDb();
-    const profile = getProfile(db, userId);
-    const changelog = db
-      .query(
-        "SELECT profile_data_snapshot FROM user_profile_changelogs WHERE profile_id = ?",
-      )
-      .get(profile!.id) as { profile_data_snapshot: string } | null;
-
-    const snapshot = JSON.parse(changelog!.profile_data_snapshot);
-    expect(snapshot.preferences).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ category: "language", description: "Rust" }),
       ]),

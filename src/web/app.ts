@@ -68,11 +68,10 @@ type SearchResult = {
 
 type UserProfile = {
   exists?: boolean;
-  displayName?: string;
   userId?: string;
-  version?: number;
   lastAnalyzedAt?: string;
   updatedAt?: string;
+  totalPromptsAnalyzed?: number;
   profileData?: Record<string, unknown> | string;
 };
 
@@ -606,11 +605,11 @@ function renderUserProfile(): void {
   container.innerHTML = `
     <div class="profile-header">
       <div class="profile-info">
-        <h3>${escapeHtml(profile.displayName || profile.userId || "User")}</h3>
+        <h3>${escapeHtml(profile.userId || "User")}</h3>
         <div class="profile-stats">
           <div class="stat-pill">
-            <span class="label">VERSION</span>
-            <span class="value">${profile.version || 1}</span>
+            <span class="label">PROMPTS ANALYZED</span>
+            <span class="value">${profile.totalPromptsAnalyzed || 0}</span>
           </div>
           <div class="stat-pill">
             <span class="label">LAST UPDATED</span>

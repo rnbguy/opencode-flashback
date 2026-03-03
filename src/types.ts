@@ -11,7 +11,6 @@ export interface Memory {
   createdAt: number; // Unix ms
   updatedAt: number;
   metadata: Record<string, string | number | boolean | null>;
-  displayName: string;
   userName: string;
   userEmail: string;
   projectPath: string;
@@ -72,18 +71,9 @@ export interface UserProfile {
     patterns: ProfilePattern[];
     workflows: ProfileWorkflow[];
   };
-  version: number;
   createdAt: number;
   lastAnalyzedAt: number;
   totalPromptsAnalyzed: number;
-}
-
-export interface UserProfileChangelog {
-  id: string;
-  profileId: string;
-  version: number;
-  changeSummary: string;
-  profileDataSnapshot: UserProfile["profileData"];
 }
 
 export interface UserPrompt {
@@ -99,7 +89,6 @@ export interface UserPrompt {
 
 export interface ContainerTagInfo {
   tag: string;
-  displayName: string;
   userName: string;
   userEmail: string;
   projectPath: string;

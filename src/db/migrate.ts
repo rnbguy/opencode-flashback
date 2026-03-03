@@ -30,7 +30,6 @@ interface OldMemoryRow {
   created_at: number;
   updated_at: number;
   metadata: string | null;
-  display_name: string | null;
   user_name: string | null;
   user_email: string | null;
   project_path: string | null;
@@ -92,7 +91,6 @@ function oldRowToNewMemory(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     metadata: parseMetadata(row.metadata),
-    displayName: row.display_name ?? "",
     userName: row.user_name ?? "",
     userEmail: row.user_email ?? "",
     projectPath: row.project_path ?? "",
@@ -247,7 +245,7 @@ export async function runMigration(
       while (checkpoint.count < checkpoint.total) {
         const rows = oldDb
           .query(
-            "SELECT id, content, vector, tags_vector, container_tag, tags, type, created_at, updated_at, metadata, display_name, user_name, user_email, project_path, project_name, git_repo_url, is_pinned FROM memories ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?",
+            "SELECT id, content, vector, tags_vector, container_tag, tags, type, created_at, updated_at, metadata, user_name, user_email, project_path, project_name, git_repo_url, is_pinned FROM memories ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?",
           )
           .all(BATCH_SIZE, checkpoint.count) as OldMemoryRow[];
 

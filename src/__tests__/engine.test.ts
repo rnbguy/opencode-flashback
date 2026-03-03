@@ -89,7 +89,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -117,7 +116,6 @@ describe("engine facade", () => {
     const resolver = {
       resolve: mock((directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -137,7 +135,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -160,7 +157,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -182,7 +178,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -208,7 +203,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -231,7 +225,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -258,7 +251,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -281,7 +273,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -298,7 +289,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -316,7 +306,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -338,7 +327,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -367,7 +355,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,
@@ -383,7 +370,6 @@ describe("engine facade", () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
-        displayName: "Test",
         userName: "test",
         userEmail: "test@test.com",
         projectPath: directory,

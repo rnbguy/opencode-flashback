@@ -278,7 +278,6 @@ function makeMemory(entry: GoldenDatasetEntry): Memory {
     createdAt: now,
     updatedAt: now,
     metadata: { importance: entry.category === "code" ? 7 : 5 },
-    displayName: "",
     userName: "",
     userEmail: "",
     projectPath: "",

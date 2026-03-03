@@ -118,7 +118,6 @@ function makeTestMemory(
     createdAt: now,
     updatedAt: now,
     metadata: { importance: 5 },
-    displayName: "",
     userName: "",
     userEmail: "",
     projectPath: "",
@@ -440,13 +439,12 @@ describe("getContext", () => {
     insertMemory(db, makeTestMemory("ctx-pref", "test-tag"));
 
     db.query(
-      `INSERT INTO user_profiles (id, user_id, profile_data, version, created_at, last_analyzed_at, total_prompts_analyzed)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO user_profiles (id, user_id, profile_data, created_at, last_analyzed_at, total_prompts_analyzed)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(
       "prof-1",
       "user-1",
       JSON.stringify({ preferences: { language: "Rust", editor: "neovim" } }),
-      1,
       Date.now(),
       Date.now(),
       0,

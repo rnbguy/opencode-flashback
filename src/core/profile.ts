@@ -1,4 +1,3 @@
-import type { Database } from "bun:sqlite";
 import {
   getDb,
   getProfile,
@@ -12,7 +11,6 @@ import type {
   ProfilePreference,
   ProfileWorkflow,
   UserProfile,
-  UserProfileChangelog,
 } from "../types.ts";
 
 // -- Constants ----------------------------------------------------------------
@@ -129,7 +127,6 @@ export function getOrCreateProfile(userId: string): UserProfile {
     id: crypto.randomUUID(),
     userId,
     profileData: { preferences: [], patterns: [], workflows: [] },
-    version: 1,
     createdAt: Date.now(),
     lastAnalyzedAt: Date.now(),
     totalPromptsAnalyzed: 0,
@@ -142,7 +139,7 @@ export function getOrCreateProfile(userId: string): UserProfile {
 export async function analyzeAndUpdateProfile(
   userId: string,
   prompts: string[],
-): Promise<{ updated: boolean; version: number }> {
+): Promise<{ updated: boolean }> {
   const logger = getLogger();
   const profile = getOrCreateProfile(userId);
 
@@ -152,7 +149,7 @@ export async function analyzeAndUpdateProfile(
       promptCount: prompts.length,
       status: "skipped",
     });
-    return { updated: false, version: profile.version };
+    return { updated: false };
   }
 
   const result = await deps.callLLMWithTool({
@@ -167,7 +164,7 @@ export async function analyzeAndUpdateProfile(
       promptCount: prompts.length,
       status: "skipped",
     });
-    return { updated: false, version: profile.version };
+    return { updated: false };
   }
 
   const extracted = extractProfileData(result.data);
@@ -180,25 +177,14 @@ export async function analyzeAndUpdateProfile(
     const currentData = normalizeProfileData(current.profileData);
     const merged = mergeProfileData(currentData, extracted);
 
-    const newVersion = current.version + 1;
     const updated: UserProfile = {
       ...current,
       profileData: merged,
-      version: newVersion,
       lastAnalyzedAt: Date.now(),
       totalPromptsAnalyzed: current.totalPromptsAnalyzed + prompts.length,
     };
 
     updateProfile(db, updated);
-
-    const changelog: UserProfileChangelog = {
-      id: crypto.randomUUID(),
-      profileId: current.id,
-      version: newVersion,
-      changeSummary: summarizeChanges(currentData, merged),
-      profileDataSnapshot: merged,
-    };
-    insertChangelog(db, changelog);
 
     db.exec("COMMIT");
     logger.debug("analyzeAndUpdateProfile completed", {
@@ -206,7 +192,7 @@ export async function analyzeAndUpdateProfile(
       promptCount: prompts.length,
       status: "updated",
     });
-    return { updated: true, version: newVersion };
+    return { updated: true };
   } catch (error) {
     db.exec("ROLLBACK");
     logger.error("analyzeAndUpdateProfile failed", { userId });
@@ -452,64 +438,4 @@ function mergeWorkflows(
     }
   }
   return merged;
-}
-
-function summarizeChanges(
-  old: NormalizedProfileData,
-  updated: NormalizedProfileData,
-): string {
-  const changes: string[] = [];
-
-  const oldPreferenceCategories = new Set(old.preferences.map((item) => item.category));
-  const newPreferenceCategories = updated.preferences.map((item) => item.category);
-  const addedPreferences = newPreferenceCategories.filter(
-    (category) => !oldPreferenceCategories.has(category),
-  );
-  const updatedPreferences = newPreferenceCategories.filter((category) =>
-    oldPreferenceCategories.has(category),
-  );
-  if (addedPreferences.length > 0) {
-    changes.push(`preferences: added ${addedPreferences.join(", ")}`);
-  }
-  if (updatedPreferences.length > 0) {
-    changes.push(`preferences: updated ${updatedPreferences.join(", ")}`);
-  }
-
-  const oldPatternCategories = new Set(old.patterns.map((item) => item.category));
-  const newPatternCategories = updated.patterns.map((item) => item.category);
-  const addedPatterns = newPatternCategories.filter(
-    (category) => !oldPatternCategories.has(category),
-  );
-  if (addedPatterns.length > 0) {
-    changes.push(`patterns: added ${addedPatterns.join(", ")}`);
-  }
-
-  const oldWorkflowDescriptions = new Set(
-    old.workflows.map((item) => item.description),
-  );
-  const newWorkflowDescriptions = updated.workflows.map(
-    (item) => item.description,
-  );
-  const addedWorkflows = newWorkflowDescriptions.filter(
-    (description) => !oldWorkflowDescriptions.has(description),
-  );
-  if (addedWorkflows.length > 0) {
-    changes.push(`workflows: added ${addedWorkflows.join(", ")}`);
-  }
-
-  return changes.length > 0 ? changes.join("; ") : "no changes";
-}
-
-function insertChangelog(db: Database, changelog: UserProfileChangelog): void {
-  db.query(
-    `INSERT INTO user_profile_changelogs (id, profile_id, version, change_summary, profile_data_snapshot, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(
-    changelog.id,
-    changelog.profileId,
-    changelog.version,
-    changelog.changeSummary,
-    JSON.stringify(changelog.profileDataSnapshot),
-    Date.now(),
-  );
 }

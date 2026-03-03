@@ -59,7 +59,6 @@ export interface CaptureRequest {
   containerTag: string;
   messages: Array<{ role: string; content: string }>;
   directory: string;
-  displayName?: string;
   userName?: string;
   userEmail?: string;
   projectPath?: string;
@@ -310,7 +309,6 @@ async function processResult(
       confidence: parsed.data.confidence ?? 0.7,
       evidenceCount: parsed.data.evidenceCount ?? 1,
     },
-    displayName: opts.displayName,
     userName: opts.userName,
     userEmail: opts.userEmail,
     projectPath: opts.projectPath,

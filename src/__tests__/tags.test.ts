@@ -29,11 +29,6 @@ describe("resolveContainerTag", () => {
     expect(typeof result.userEmail).toBe("string");
   });
 
-  test("displayName is the project root path", () => {
-    const result = resolveContainerTag(process.cwd());
-    // displayName is set to projectRoot, which is an absolute path
-    expect(result.displayName).toMatch(/^\//);
-  });
 
   test("gitRepoUrl is a string", () => {
     const result = resolveContainerTag(process.cwd());
@@ -65,11 +60,6 @@ describe("resolveUserTag", () => {
     expect(a.tag).toBe(b.tag);
   });
 
-  test("displayName is non-empty", () => {
-    const result = resolveUserTag();
-    // Should resolve to git name, git email, USER env, or "anonymous"
-    expect(result.displayName.length).toBeGreaterThan(0);
-  });
 
   test("projectPath and projectName are empty for user tag", () => {
     const result = resolveUserTag();

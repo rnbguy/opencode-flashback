@@ -95,7 +95,6 @@ function makeDbMemory(
     createdAt: now,
     updatedAt: now,
     metadata: { importance: 5 },
-    displayName: "",
     userName: "",
     userEmail: "",
     projectPath: "",

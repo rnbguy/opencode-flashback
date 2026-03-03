@@ -20,7 +20,6 @@ interface MemoryRow {
   created_at: number;
   updated_at: number;
   metadata: string | null;
-  display_name: string | null;
   user_name: string | null;
   user_email: string | null;
   project_path: string | null;
@@ -47,7 +46,6 @@ interface ProfileRow {
   id: string;
   user_id: string;
   profile_data: string;
-  version: number;
   created_at: number;
   last_analyzed_at: number;
   total_prompts_analyzed: number;
@@ -130,7 +128,6 @@ CREATE TABLE IF NOT EXISTS memories (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   metadata TEXT,
-  display_name TEXT,
   user_name TEXT,
   user_email TEXT,
   project_path TEXT,
@@ -164,19 +161,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL UNIQUE,
   profile_data TEXT NOT NULL,
-  version INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   last_analyzed_at INTEGER NOT NULL,
   total_prompts_analyzed INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS user_profile_changelogs (
-  id TEXT PRIMARY KEY,
-  profile_id TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  change_summary TEXT NOT NULL,
-  profile_data_snapshot TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  FOREIGN KEY (profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS user_prompts (
   id TEXT PRIMARY KEY,
@@ -229,7 +216,6 @@ function parseJson<T>(value: string | null, fallback: T): T {
   } catch {
     // JSON parse failed -- return the provided default value
     return fallback;
-    return fallback;
   }
 }
 
@@ -250,7 +236,6 @@ function rowToMemory(row: MemoryRow): Memory {
       row.metadata,
       {},
     ),
-    displayName: row.display_name ?? "",
     userName: row.user_name ?? "",
     userEmail: row.user_email ?? "",
     projectPath: row.project_path ?? "",
@@ -291,7 +276,6 @@ function rowToProfile(row: ProfileRow): UserProfile {
     id: row.id,
     userId: row.user_id,
     profileData,
-    version: row.version,
     createdAt: row.created_at,
     lastAnalyzedAt: row.last_analyzed_at,
     totalPromptsAnalyzed: row.total_prompts_analyzed,
@@ -315,14 +299,14 @@ function rowToPrompt(row: PromptRow): UserPrompt {
 
 const MEMORY_INSERT_SQL = `INSERT OR REPLACE INTO memories (
   id, content, embedding, container_tag, tags, type, is_pinned,
-  created_at, updated_at, metadata, display_name, user_name, user_email,
+  created_at, updated_at, metadata, user_name, user_email,
   project_path, project_name, git_repo_url, source_file, source_line,
   provenance_session_id, provenance_message_range, provenance_tool_call_ids,
   last_accessed_at, access_count, epistemic_confidence, epistemic_evidence_count,
   evicted_at, suspended, suspended_reason, suspended_at, stability, next_review_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?,
-  ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?,
   ?, ?, ?,
   ?, ?, ?, ?,
@@ -347,7 +331,6 @@ export function insertMemory(db: Database, memory: Memory): void {
     memory.createdAt,
     memory.updatedAt,
     JSON.stringify(memory.metadata),
-    memory.displayName,
     memory.userName,
     memory.userEmail,
     memory.projectPath,
@@ -431,13 +414,12 @@ export function getAllActiveMemories(db: Database): Memory[] {
 export function insertProfile(db: Database, profile: UserProfile): void {
   db.query(
     `INSERT OR REPLACE INTO user_profiles (
-      id, user_id, profile_data, version, created_at, last_analyzed_at, total_prompts_analyzed
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id, user_id, profile_data, created_at, last_analyzed_at, total_prompts_analyzed
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(
     profile.id,
     profile.userId,
     JSON.stringify(profile.profileData),
-    profile.version,
     profile.createdAt,
     profile.lastAnalyzedAt,
     profile.totalPromptsAnalyzed,
@@ -454,11 +436,10 @@ export function getProfile(db: Database, userId: string): UserProfile | null {
 export function updateProfile(db: Database, profile: UserProfile): void {
   db.query(
     `UPDATE user_profiles SET
-      profile_data = ?, version = ?, last_analyzed_at = ?, total_prompts_analyzed = ?
+      profile_data = ?, last_analyzed_at = ?, total_prompts_analyzed = ?
     WHERE id = ?`,
   ).run(
     JSON.stringify(profile.profileData),
-    profile.version,
     profile.lastAnalyzedAt,
     profile.totalPromptsAnalyzed,
     profile.id,
@@ -470,7 +451,6 @@ export function clearAllData(db: Database): void {
   try {
     db.exec("DELETE FROM memories");
     db.exec("DELETE FROM user_profiles");
-    db.exec("DELETE FROM user_profile_changelogs");
     db.exec("DELETE FROM user_prompts");
     db.exec("COMMIT");
   } catch (error) {
