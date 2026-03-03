@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync, mkdirSync, copyFileSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { PluginConfig } from "../../config.ts";
+import { DB_FILENAME } from "../../consts.ts";
 
 const isDirectLifecycleRun =
   process.argv.some(
@@ -178,7 +179,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     });
     _setConfigForTesting(config);
 
-    const db = getDb(join(tmpDir, "flashback.db"));
+    const db = getDb(join(tmpDir, DB_FILENAME));
     _setDbForTesting(db);
     await initSearch();
   });

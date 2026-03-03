@@ -13,6 +13,7 @@ import { getLanguageName } from "./util/language.ts";
 import { createLogger } from "./util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "./util/privacy.ts";
 import { startServer, stopServer } from "./web/server.ts";
+import { MEMORY_HEADER } from "./consts.ts";
 
 type ToolMode =
   | "search"
@@ -583,7 +584,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
                 return `- [${confidencePct}%] ${summary}`;
               });
             contextText = [
-              "[MEMORY]",
+              MEMORY_HEADER,
               "",
               "User Preferences:",
               "- see stored profile",

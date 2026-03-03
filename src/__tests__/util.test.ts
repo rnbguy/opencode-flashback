@@ -12,6 +12,7 @@ import { resolveSecret } from "../util/secrets";
 import { stripPrivate } from "../util/privacy";
 import { createLogger } from "../util/logger";
 import { getLanguageName } from "../util/language";
+import { LOG_FILENAME } from "../consts.ts";
 
 // -- resolveSecret ------------------------------------------------------------
 
@@ -204,7 +205,7 @@ describe("createLogger", () => {
     logger.info("hello");
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     expect(existsSync(logPath)).toBe(true);
   });
 
@@ -213,7 +214,7 @@ describe("createLogger", () => {
     logger.info("test message");
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const content = readFileSync(logPath, "utf-8").trim();
     const entry = JSON.parse(content);
 
@@ -232,7 +233,7 @@ describe("createLogger", () => {
     logger.error("e");
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
     expect(lines).toHaveLength(4);
 
@@ -245,7 +246,7 @@ describe("createLogger", () => {
     logger.info("with data", { count: 42, tag: "test" });
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
     expect(entry.count).toBe(42);
     expect(entry.tag).toBe("test");
@@ -256,7 +257,7 @@ describe("createLogger", () => {
     logger.info("no data", {});
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
     // Should not spread empty object keys
     expect(Object.keys(entry).sort()).toEqual(
@@ -271,7 +272,7 @@ describe("createLogger", () => {
     logger.info("third");
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
     expect(lines).toHaveLength(3);
     expect(JSON.parse(lines[0]).msg).toBe("first");
@@ -285,7 +286,7 @@ describe("createLogger", () => {
     logger.error("msg3", { err: "boom" });
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
     for (const line of lines) {
       expect(() => JSON.parse(line)).not.toThrow();
@@ -297,7 +298,7 @@ describe("createLogger", () => {
     logger.info("no extra");
     await waitForLogFlush();
 
-    const logPath = join(tmpDir, "flashback.log");
+    const logPath = join(tmpDir, LOG_FILENAME);
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
     expect(entry.msg).toBe("no extra");
   });

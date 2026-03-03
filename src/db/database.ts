@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import type { Memory, UserProfile, UserPrompt } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
+import { DB_FILENAME } from "../consts.ts";
 
 // -- DB row shapes (internal) ------------------------------------------------
 
@@ -72,7 +73,7 @@ const DEFAULT_DB_PATH = join(
   ".local",
   "share",
   "opencode-flashback",
-  "flashback.db",
+  DB_FILENAME,
 );
 
 export function getDb(dbPath?: string): Database {

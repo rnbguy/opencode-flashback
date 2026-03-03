@@ -17,6 +17,7 @@ import { getCaptureState } from "../core/capture.ts";
 import { getConfig } from "../config.ts";
 import type { SubsystemState, DiagnosticsResponse } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
+import { DB_FILENAME } from "../consts.ts";
 
 // -- State ------------------------------------------------------------------
 
@@ -187,7 +188,7 @@ function handleDiagnostics(directory: string): Response {
   const memCount = countMemories(db, containerTag);
 
   const config = getConfig();
-  const dbPath = join(config.storage.path, "flashback.db");
+  const dbPath = join(config.storage.path, DB_FILENAME);
 
   let dbSizeBytes = 0;
   try {

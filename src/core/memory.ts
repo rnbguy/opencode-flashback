@@ -13,6 +13,7 @@ import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search/index.ts";
 import { resolveContainerTag } from "./tags.ts";
 import type { ContainerTagInfo, Memory, SearchResult } from "../types.ts";
+import { MEMORY_HEADER } from "../consts.ts";
 import { getLogger } from "../util/logger.ts";
 
 const DEDUP_SIMILARITY_THRESHOLD = 0.9;
@@ -268,7 +269,7 @@ export async function getContext(
 
   const metadataSessionSuffix = sessionId ? ` (session ${sessionId})` : "";
 
-  const lines = ["[MEMORY]", "", "User Preferences:"];
+  const lines = [MEMORY_HEADER, "", "User Preferences:"];
   if (preferenceLines.length === 0) {
     lines.push("- none");
   } else {

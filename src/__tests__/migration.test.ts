@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { getDb, closeDb } from "../db/database.ts";
+import { DB_FILENAME } from "../consts.ts";
 
 const OLD_SCHEMA_SQL = `
 CREATE TABLE memories (
@@ -40,7 +41,7 @@ function oldDbPath(): string {
 }
 
 function newDbPath(): string {
-  return join(tmpHome, "new", "flashback.db");
+  return join(tmpHome, "new", DB_FILENAME);
 }
 
 function createOldDb(path: string, rowCount: number): void {
