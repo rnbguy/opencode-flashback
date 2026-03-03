@@ -12,6 +12,7 @@ import { embed } from "../embed/embedder.ts";
 import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search/index.ts";
 import { resolveContainerTag } from "./tags.ts";
+import { initialSchedule, updateAfterRating } from "./fsrs.ts";
 import type { ContainerTagInfo, Memory, SearchResult } from "../types.ts";
 import { MEMORY_HEADER } from "../consts.ts";
 import { getLogger } from "../util/logger.ts";
@@ -64,6 +65,7 @@ export async function addMemory(
 
   const now = Date.now();
   const id = crypto.randomUUID();
+  const schedule = initialSchedule(now, opts.epistemicStatus?.confidence ?? 0.7);
   const importance = clampImportance(opts.importance);
   const metadata = {
     ...(opts.metadata ?? {}),
@@ -113,8 +115,9 @@ export async function addMemory(
     suspended: false,
     suspendedReason: null,
     suspendedAt: null,
-    stability: 0,
-    nextReviewAt: null,
+    stability: schedule.stability,
+    difficulty: schedule.difficulty,
+    nextReviewAt: schedule.nextReviewAt,
   };
 
   insertMemory(db, memory);
@@ -408,6 +411,42 @@ export async function unpinMemory(id: string): Promise<boolean> {
   db.query("UPDATE memories SET is_pinned = 0 WHERE id = ?").run(id);
   logger.debug("unpinMemory completed", { id, success: true });
   return true;
+}
+
+export async function rateMemory(
+  id: string,
+  rating: 1 | 2 | 3 | 4 | 5,
+): Promise<{ success: boolean; nextReviewAt: number | null }> {
+  const logger = getLogger();
+  const db = getDb();
+  const memory = getMemory(db, id);
+  if (!memory) {
+    logger.debug("rateMemory completed", { id, success: false });
+    return { success: false, nextReviewAt: null };
+  }
+
+  const now = Date.now();
+  const result = updateAfterRating(
+    memory.stability,
+    memory.difficulty,
+    rating,
+    now,
+  );
+
+  db.query(
+    "UPDATE memories SET stability = ?, difficulty = ?, next_review_at = ? WHERE id = ?",
+  ).run(result.stability, result.difficulty, result.nextReviewAt, id);
+
+  logger.debug("rateMemory completed", {
+    id,
+    rating,
+    stability: result.stability,
+    difficulty: result.difficulty,
+    nextReviewAt: result.nextReviewAt,
+    success: true,
+  });
+
+  return { success: true, nextReviewAt: result.nextReviewAt };
 }
 
 export async function getMemoriesForReview(

@@ -4,6 +4,7 @@ import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { getDb, insertMemory } from "./database.ts";
 import { embed } from "../embed/embedder.ts";
+import { initialSchedule } from "../core/fsrs.ts";
 import type { Memory } from "../types.ts";
 
 interface MigrationCheckpoint {
@@ -75,6 +76,7 @@ function oldRowToNewMemory(
   row: OldMemoryRow,
   newEmbedding: Float32Array,
 ): Memory {
+  const schedule = initialSchedule(row.created_at, 0.7);
   return {
     id: row.id,
     content: row.content,
@@ -104,8 +106,9 @@ function oldRowToNewMemory(
     suspended: false,
     suspendedReason: null,
     suspendedAt: null,
-    stability: 0,
-    nextReviewAt: null,
+    stability: schedule.stability,
+    difficulty: schedule.difficulty,
+    nextReviewAt: schedule.nextReviewAt,
   };
 }
 

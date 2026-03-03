@@ -36,6 +36,7 @@ export interface Memory {
   suspendedReason: string | null;
   suspendedAt: number | null;
   stability: number; // FSRS stability score for review scheduling
+  difficulty: number;
   nextReviewAt: number | null; // Unix ms, null = not scheduled
 }
 
@@ -185,6 +186,7 @@ export type ToolResult =
   | { mode: "export"; data: string; format: ExportFormat; count: number }
   | { mode: "related"; results: SearchResult[]; count: number }
   | { mode: "review"; memories: Memory[]; count: number }
+  | { mode: "rate"; success: boolean; id: string; nextReviewAt: number | null }
   | { mode: "suspend"; success: boolean; id: string }
   | { mode: "pin"; success: boolean; id: string }
   | { mode: "unpin"; success: boolean; id: string }

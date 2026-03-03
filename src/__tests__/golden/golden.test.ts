@@ -299,6 +299,7 @@ function makeMemory(entry: GoldenDatasetEntry): Memory {
     suspendedReason: null,
     suspendedAt: null,
     stability: 0,
+    difficulty: 5.0,
     nextReviewAt: null,
   };
 }

@@ -39,6 +39,7 @@ interface MemoryRow {
   suspended_reason: string | null;
   suspended_at: number | null;
   stability: number;
+  difficulty: number;
   next_review_at: number | null;
 }
 
@@ -184,6 +185,25 @@ CREATE TABLE IF NOT EXISTS meta (
   value TEXT NOT NULL
 );`,
   },
+  {
+    version: 2,
+    sql: `
+ALTER TABLE memories ADD COLUMN difficulty REAL NOT NULL DEFAULT 5.0;
+UPDATE memories
+SET
+  stability = CASE
+    WHEN stability <= 0.0 THEN 0.25 + 1.75 * MIN(MAX(COALESCE(epistemic_confidence, 0.7), 0.0), 1.0)
+    ELSE stability
+  END,
+  next_review_at = CASE
+    WHEN next_review_at IS NULL THEN created_at + ROUND((CASE
+      WHEN stability <= 0.0 THEN 0.25 + 1.75 * MIN(MAX(COALESCE(epistemic_confidence, 0.7), 0.0), 1.0)
+      ELSE stability
+    END) * 86400000)
+    ELSE next_review_at
+  END
+WHERE next_review_at IS NULL OR stability <= 0.0;`,
+  },
 ];
 
 function runMigrations(db: Database): void {
@@ -262,6 +282,7 @@ function rowToMemory(row: MemoryRow): Memory {
     suspendedReason: row.suspended_reason,
     suspendedAt: row.suspended_at,
     stability: row.stability,
+    difficulty: row.difficulty,
     nextReviewAt: row.next_review_at,
   };
 }
@@ -303,14 +324,14 @@ const MEMORY_INSERT_SQL = `INSERT OR REPLACE INTO memories (
   project_path, project_name, git_repo_url, source_file, source_line,
   provenance_session_id, provenance_message_range, provenance_tool_call_ids,
   last_accessed_at, access_count, epistemic_confidence, epistemic_evidence_count,
-  evicted_at, suspended, suspended_reason, suspended_at, stability, next_review_at
+  evicted_at, suspended, suspended_reason, suspended_at, stability, difficulty, next_review_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?,
   ?, ?, ?,
   ?, ?, ?, ?,
-  ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?
 )`;
 
 export function insertMemory(db: Database, memory: Memory): void {
@@ -350,6 +371,7 @@ export function insertMemory(db: Database, memory: Memory): void {
     memory.suspendedReason,
     memory.suspendedAt,
     memory.stability,
+    memory.difficulty,
     memory.nextReviewAt,
   );
 }

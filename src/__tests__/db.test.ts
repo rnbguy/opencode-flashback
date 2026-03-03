@@ -56,6 +56,7 @@ function createInMemoryDb(): Database {
       suspended_reason TEXT,
       suspended_at INTEGER,
       stability REAL DEFAULT 0.0,
+      difficulty REAL NOT NULL DEFAULT 5.0,
       next_review_at INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_memories_container_tag ON memories(container_tag);
@@ -82,7 +83,7 @@ function createInMemoryDb(): Database {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
-    INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '1');
+    INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '2');
   `);
   return db;
 }
@@ -118,6 +119,7 @@ function makeMemory(overrides: Partial<Memory> = {}): Memory {
     suspendedReason: null,
     suspendedAt: null,
     stability: 0.0,
+    difficulty: 5.0,
     nextReviewAt: null,
     ...overrides,
   };
@@ -582,7 +584,7 @@ describe("schema", () => {
     const row = db
       .query("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
-    expect(row.value).toBe("1");
+    expect(row.value).toBe("2");
     db.close();
   });
 

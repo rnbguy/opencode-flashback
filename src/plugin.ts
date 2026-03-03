@@ -27,6 +27,7 @@ type ToolMode =
   | "export"
   | "related"
   | "review"
+  | "rate"
   | "suspend"
   | "pin"
   | "unpin"
@@ -200,6 +201,28 @@ async function handleToolCall(
       );
       return { mode: "review", memories, count: memories.length };
     }
+    case "rate": {
+      const id = asString(args.id);
+      if (id.length === 0) {
+        return { error: "Missing memory id" };
+      }
+      const rating = asNumber(args.rating);
+      if (
+        rating === undefined ||
+        rating < 1 ||
+        rating > 5 ||
+        !Number.isInteger(rating)
+      ) {
+        return { error: "Rating must be an integer from 1 to 5" };
+      }
+      const result = await engine.rateMemory(id, rating as 1 | 2 | 3 | 4 | 5);
+      return {
+        mode: "rate",
+        success: result.success,
+        id,
+        nextReviewAt: result.nextReviewAt,
+      };
+    }
     case "suspend": {
       const id = asString(args.id);
       if (id.length === 0) {
@@ -296,6 +319,7 @@ function getHelpText(): string {
     "| export [json|markdown] | Export memories |",
     "| related <topic> | Find related memories |",
     "| review | Review stale memories |",
+    "| rate <id> <rating> | Rate a memory (1-5) to schedule next review |",
     "| suspend <id> [reason] | Suspend a memory |",
     "| pin <id> | Pin a memory (protected from eviction) |",
     "| unpin <id> | Unpin a memory |",
@@ -492,6 +516,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             "export",
             "related",
             "review",
+            "rate",
             "suspend",
             "pin",
             "unpin",
@@ -508,6 +533,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           reason: tool.schema.string().optional(),
           dryRun: tool.schema.boolean().optional(),
           confirmed: tool.schema.boolean().optional(),
+          rating: tool.schema.number().optional(),
           duration: tool.schema.number().optional(),
         },
         execute: async (args, context) => {

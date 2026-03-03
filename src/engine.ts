@@ -20,6 +20,7 @@ import {
   getMemoryById,
   suspendMemory,
   pinMemory,
+  rateMemory,
   unpinMemory,
   type AddMemoryOptions,
 } from "./core/memory.ts";
@@ -71,6 +72,10 @@ export interface MemoryEngine {
   suspendMemory(id: string, reason: string | null): Promise<boolean>;
   pinMemory(id: string): Promise<boolean>;
   unpinMemory(id: string): Promise<boolean>;
+  rateMemory(
+    id: string,
+    rating: 1 | 2 | 3 | 4 | 5,
+  ): Promise<{ success: boolean; nextReviewAt: number | null }>;
   getMemoriesForReview(containerTag: string, limit?: number): Promise<Memory[]>;
   getOrCreateProfile(userId: string): UserProfile | null;
   enqueueCapture(request: CaptureRequest): void;
@@ -100,6 +105,7 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     suspendMemory,
     pinMemory,
     unpinMemory,
+    rateMemory,
     getMemoriesForReview,
     getOrCreateProfile,
     enqueueCapture,
