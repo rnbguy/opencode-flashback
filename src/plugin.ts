@@ -1,7 +1,6 @@
 import type { Plugin, PluginInput, ToolContext } from "@opencode-ai/plugin";
 import type { Part } from "@opencode-ai/sdk";
 import { tool } from "@opencode-ai/plugin";
-import { registerCommands } from "./commands.ts";
 import { getConfig, getConfigErrors, isConfigured } from "./config.ts";
 import { resolveContainerTag } from "./core/tags.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
@@ -243,25 +242,25 @@ async function handleToolCall(
 
 function getHelpText(): string {
   return [
-    "## Flashback Commands",
+    "## Flashback Tool Modes",
     "",
-    "| Command | Description |",
-    "|---------|-------------|",
-    "| /flashback:search <query> | Search memories semantically |",
-    "| /flashback:add <content> | Store a new memory |",
-    "| /flashback:recall | Auto-recall relevant memories |",
-    "| /flashback:list | Browse stored memories |",
-    "| /flashback:forget <id> | Delete a memory |",
-    "| /flashback:profile | View learned user profile |",
-    "| /flashback:stats | Show diagnostics |",
-    "| /flashback:context | Inject project context |",
-    "| /flashback:help | Show this help |",
-    "| /flashback:export [json|markdown] | Export memories |",
-    "| /flashback:related <topic> | Find related memories |",
-    "| /flashback:review | Review stale memories |",
-    "| /flashback:suspend <id> [reason] | Suspend a memory |",
-    "| /flashback:clear | Clear all data (requires confirmation) |",
-    "| /flashback:consolidate [--dry-run] | Merge duplicates |",
+    "| Mode | Description |",
+    "|------|-------------|",
+    "| search <query> | Search memories semantically |",
+    "| add <content> | Store a new memory |",
+    "| recall | Auto-recall relevant memories |",
+    "| list | Browse stored memories |",
+    "| forget <id> | Delete a memory |",
+    "| profile | View learned user profile |",
+    "| stats | Show diagnostics |",
+    "| context | Inject project context |",
+    "| help | Show this help |",
+    "| export [json|markdown] | Export memories |",
+    "| related <topic> | Find related memories |",
+    "| review | Review stale memories |",
+    "| suspend <id> [reason] | Suspend a memory |",
+    "| clear | Clear all data (requires confirmation) |",
+    "| consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
 }
 
@@ -436,8 +435,8 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   }
 
   return {
-    config: async (cfg) => {
-      registerCommands(cfg);
+    config: async () => {
+      // no-op: commands removed, tool calls only
     },
     tool: {
       flashback: tool({

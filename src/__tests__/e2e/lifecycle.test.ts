@@ -204,7 +204,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     }
   });
 
-  test("plugin factory returns hooks and config registers 14 commands", async () => {
+  test("plugin factory returns hooks and config with no commands", async () => {
     const hooks = await createHooks(tmpDir);
     expect(typeof hooks.config).toBe("function");
     expect(typeof hooks.tool.flashback.execute).toBe("function");
@@ -214,7 +214,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     const cfg: { command?: Record<string, unknown> } = { command: {} };
     await hooks.config(cfg);
     expect(cfg.command).toBeDefined();
-    expect(Object.keys(cfg.command ?? {}).length).toBe(15);
+    expect(Object.keys(cfg.command ?? {}).length).toBe(0);
   });
 
   test("tool execution handles all 14 modes and validation errors", async () => {
