@@ -31,8 +31,28 @@ let workflowPage = 0;
 let preferenceTotalPages = 1;
 let patternTotalPages = 1;
 let workflowTotalPages = 1;
+let lastProfilePageSize = 0;
 
-const PROFILE_PAGE_SIZE = 6;
+function getProfilePageSize(): number {
+  if (lastProfilePageSize > 0) return lastProfilePageSize;
+  const grid = document.querySelector(".cards-grid");
+  if (!grid) {
+    const pane = document.querySelector(".profile-pane");
+    if (!pane) return 6;
+    const cols = Math.max(1, Math.floor((pane.clientWidth - 62) / 250));
+    return cols * 3;
+  }
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+  const section = grid.closest(".dashboard-section");
+  if (!section) return cols * 3;
+  const header = section.querySelector(".dashboard-section-header");
+  const headerH = header ? header.getBoundingClientRect().height : 40;
+  const card = grid.querySelector(".compact-card");
+  const cardH = card ? card.getBoundingClientRect().height + 10 : 100;
+  const availableH = section.clientHeight - headerH - 50;
+  const rows = Math.max(1, Math.floor(availableH / cardH));
+  return cols * rows;
+}
 
 type Memory = {
   id: string;
@@ -562,23 +582,25 @@ function renderUserProfile(): void {
   const patterns = parseField(profileData.patterns);
   const workflows = parseField(profileData.workflows);
 
-  preferenceTotalPages = Math.max(1, Math.ceil(preferences.length / PROFILE_PAGE_SIZE));
-  patternTotalPages = Math.max(1, Math.ceil(patterns.length / PROFILE_PAGE_SIZE));
-  workflowTotalPages = Math.max(1, Math.ceil(workflows.length / PROFILE_PAGE_SIZE));
+  const pageSize = getProfilePageSize();
+
+  preferenceTotalPages = Math.max(1, Math.ceil(preferences.length / pageSize));
+  patternTotalPages = Math.max(1, Math.ceil(patterns.length / pageSize));
+  workflowTotalPages = Math.max(1, Math.ceil(workflows.length / pageSize));
 
   preferencePage = Math.max(0, Math.min(preferencePage, preferenceTotalPages - 1));
   patternPage = Math.max(0, Math.min(patternPage, patternTotalPages - 1));
   workflowPage = Math.max(0, Math.min(workflowPage, workflowTotalPages - 1));
 
-  const prefStart = preferencePage * PROFILE_PAGE_SIZE;
-  const patternStart = patternPage * PROFILE_PAGE_SIZE;
-  const workflowStart = workflowPage * PROFILE_PAGE_SIZE;
+  const prefStart = preferencePage * pageSize;
+  const patternStart = patternPage * pageSize;
+  const workflowStart = workflowPage * pageSize;
 
-  const prefSlice = preferences.slice(prefStart, prefStart + PROFILE_PAGE_SIZE);
-  const patternSlice = patterns.slice(patternStart, patternStart + PROFILE_PAGE_SIZE);
+  const prefSlice = preferences.slice(prefStart, prefStart + pageSize);
+  const patternSlice = patterns.slice(patternStart, patternStart + pageSize);
   const workflowSlice = workflows.slice(
     workflowStart,
-    workflowStart + PROFILE_PAGE_SIZE,
+    workflowStart + pageSize,
   );
 
   container.innerHTML = `
@@ -771,6 +793,14 @@ function renderUserProfile(): void {
   });
 
   createIcons({ icons: lucideIcons });
+
+  requestAnimationFrame(() => {
+    const measured = getProfilePageSize();
+    if (measured > 0 && measured !== lastProfilePageSize) {
+      lastProfilePageSize = measured;
+      renderUserProfile();
+    }
+  });
 }
 
 function escapeHtml(text: string): string {
@@ -823,4 +853,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   startAutoRefresh();
 
   createIcons({ icons: lucideIcons });
+});
+
+window.addEventListener("resize", () => {
+  lastProfilePageSize = 0;
+  void loadProfile();
 });
