@@ -23,6 +23,15 @@ const defaultConfig: PluginConfig = {
   },
   web: { port: 4747, enabled: false },
   search: { retrievalQuality: "balanced" as const },
+  toasts: {
+    autoCapture: true,
+    userProfile: true,
+    errors: true,
+  },
+  compaction: {
+    enabled: true,
+    memoryLimit: 10,
+  },
 };
 
 import { callLLMWithTool } from "../core/llm.ts";

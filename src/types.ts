@@ -113,6 +113,7 @@ export interface MemoryConfig {
   autoCapture: boolean;
   injection: "first" | "every";
   excludeCurrentSession: boolean;
+  maxAgeDays?: number;
 }
 
 export interface WebConfig {
@@ -124,6 +125,17 @@ export interface SearchConfig {
   retrievalQuality: RetrievalQuality;
   hybridWeights?: { semantic: number; keyword: number };
   rankingWeights?: { recency: number; importance: number; semantic: number };
+}
+
+export interface ToastsConfig {
+  autoCapture: boolean;
+  userProfile: boolean;
+  errors: boolean;
+}
+
+export interface CompactionConfig {
+  enabled: boolean;
+  memoryLimit: number;
 }
 
 // -- Enum-like union types -------------------------------------------------

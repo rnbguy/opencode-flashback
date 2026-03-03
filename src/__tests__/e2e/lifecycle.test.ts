@@ -109,8 +109,18 @@ function makeTestConfig(
       path: storagePath,
       ...(overrides?.storage ?? {}),
     },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
+    },
   };
 }
+
 
 async function createHooks(directory: string): Promise<Hooks> {
   const hooks = await OpenCodeFlashbackPlugin({ directory } as unknown as never);

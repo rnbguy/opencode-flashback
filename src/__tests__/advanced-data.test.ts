@@ -36,6 +36,15 @@ const defaultConfig: PluginConfig = {
     hybridWeights: { semantic: 0.5, keyword: 0.5 },
     rankingWeights: { recency: 0.3, importance: 0.4, semantic: 0.3 },
   },
+  toasts: {
+    autoCapture: true,
+    userProfile: true,
+    errors: true,
+  },
+  compaction: {
+    enabled: true,
+    memoryLimit: 10,
+  },
 };
 
 let tmpDir = "";

@@ -3,10 +3,12 @@ import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
 import type {
+  CompactionConfig,
   LlmConfig,
   MemoryConfig,
   SearchConfig,
   StorageConfig,
+  ToastsConfig,
   WebConfig,
 } from "./types";
 
@@ -145,6 +147,7 @@ export const ConfigSchema = z
         autoCapture: z.boolean(),
         injection: z.enum(["first", "every"]),
         excludeCurrentSession: z.boolean(),
+        maxAgeDays: z.number().optional(),
       })
       .strict(),
     web: z
@@ -169,6 +172,19 @@ export const ConfigSchema = z
             semantic: z.number(),
           })
           .optional(),
+      })
+      .strict(),
+    toasts: z
+      .object({
+        autoCapture: z.boolean(),
+        userProfile: z.boolean(),
+        errors: z.boolean(),
+      })
+      .strict(),
+    compaction: z
+      .object({
+        enabled: z.boolean(),
+        memoryLimit: z.number(),
       })
       .strict(),
   })
@@ -215,8 +231,21 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "  // Search quality preset: fast, balanced, thorough, custom",
     "  \"search\": {",
     `    \"retrievalQuality\": \"${defaults.search.retrievalQuality}\"`,
+    "  },",
+    "",
+    "  // Toast notification toggles",
+    "  \"toasts\": {",
+    `    \"autoCapture\": ${defaults.toasts.autoCapture},`,
+    `    \"userProfile\": ${defaults.toasts.userProfile},`,
+    `    \"errors\": ${defaults.toasts.errors}`,
+    "  },",
+    "",
+    "  // Post-compaction memory re-injection",
+    "  \"compaction\": {",
+    `    \"enabled\": ${defaults.compaction.enabled},`,
+    `    \"memoryLimit\": ${defaults.compaction.memoryLimit}`,
     "  }",
-    "}",
+    "}"
   ];
 
   try {
@@ -254,6 +283,15 @@ function loadConfigFile(): PluginConfig {
     },
     search: {
       retrievalQuality: "balanced",
+    },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
     },
   };
 
@@ -310,8 +348,11 @@ function loadConfigFile(): PluginConfig {
   // Expand storage path
   config.storage.path = expandPath(config.storage.path);
 
+  // Strip $schema key before validation (schema uses .strict())
+  const { $schema: _, ...configWithoutSchema } = config as Record<string, unknown> & { $schema?: string };
+
   // Validate against schema
-  const result = ConfigSchema.safeParse(config);
+  const result = ConfigSchema.safeParse(configWithoutSchema);
   if (!result.success) {
     console.error("Config validation failed:", result.error.issues);
     return defaults;
@@ -393,4 +434,9 @@ export function getHybridWeights(config: PluginConfig): {
     default:
       return { semantic: 0.5, keyword: 0.5 };
   }
+}
+
+export function isConfigured(): boolean {
+  const config = getConfig();
+  return config.llm.apiKey.length > 0;
 }

@@ -83,6 +83,15 @@ function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
     },
     web: { port, enabled: true },
     search: { retrievalQuality: "balanced" },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
+    },
   };
 }
 

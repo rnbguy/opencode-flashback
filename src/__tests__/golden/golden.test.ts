@@ -253,6 +253,15 @@ function makeConfig(retrievalQuality: RetrievalPreset): PluginConfig {
     search: {
       retrievalQuality,
     },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
+    },
   };
 }
 

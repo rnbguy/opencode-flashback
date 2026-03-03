@@ -66,6 +66,15 @@ function makeValidConfig(): PluginConfig {
     },
     web: { port: 4747, enabled: true },
     search: { retrievalQuality: "balanced" },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
+    },
   };
 }
 

@@ -29,6 +29,15 @@ describe("ConfigSchema", () => {
     },
     web: { port: 4747, enabled: true },
     search: { retrievalQuality: "balanced" },
+    toasts: {
+      autoCapture: true,
+      userProfile: true,
+      errors: true,
+    },
+    compaction: {
+      enabled: true,
+      memoryLimit: 10,
+    },
   };
 
   test("accepts valid config", () => {
@@ -184,6 +193,15 @@ describe("getHybridWeights", () => {
       },
       web: { port: 4747, enabled: true },
       search: { retrievalQuality: quality, hybridWeights },
+      toasts: {
+        autoCapture: true,
+        userProfile: true,
+        errors: true,
+      },
+      compaction: {
+        enabled: true,
+        memoryLimit: 10,
+      },
     };
   }
 
