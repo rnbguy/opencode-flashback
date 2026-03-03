@@ -351,7 +351,7 @@ describe("LLM extraction", () => {
 // -- Error handling & retry ---------------------------------------------------
 
 describe("error handling", () => {
-  test("retries on api_error with backoff", async () => {
+  test("fails on api_error without outer retry", async () => {
     let callCount = 0;
     mockCallLLM.mockImplementation(async () => {
       callCount++;
@@ -364,29 +364,10 @@ describe("error handling", () => {
 
     enqueueCapture(makeRequest());
 
-    // Advance past debounce
+    // Advance past debounce -- single call, no outer retry loop
     jest.advanceTimersByTime(5000);
     await flushPromises();
     expect(callCount).toBe(1);
-
-    // First retry after 30s
-    jest.advanceTimersByTime(30_000);
-    await flushPromises();
-    expect(callCount).toBe(2);
-
-    // Second retry after 60s
-    jest.advanceTimersByTime(60_000);
-    await flushPromises();
-    expect(callCount).toBe(3);
-
-    // Third retry after 120s
-    jest.advanceTimersByTime(120_000);
-    await flushPromises();
-    expect(callCount).toBe(4);
-
-    // After 4th call, sleep(300_000) is pending -- advance past it
-    jest.advanceTimersByTime(300_000);
-    await flushPromises();
 
     expect(getCaptureState()).toBe("degraded");
     expect(getLastCaptureStatus()).toBe("failed");
@@ -413,39 +394,21 @@ describe("error handling", () => {
     expect(getCaptureState()).toBe("degraded");
   });
 
-  test("succeeds on retry after initial failure", async () => {
-    let callCount = 0;
-    mockCallLLM.mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          success: false as const,
-          error: "transient",
-          code: "api_error" as const,
-        };
-      }
-      return {
-        success: true as const,
-        data: {
-          summary: "recovered",
-          type: "feature",
-          tags: ["test"],
-          importance: 5,
-        },
-      };
-    });
+  test("api_error results in failed status without retry", async () => {
+    mockCallLLM.mockImplementation(async () => ({
+      success: false as const,
+      error: "transient",
+      code: "api_error" as const,
+    }));
 
     enqueueCapture(makeRequest());
 
     jest.advanceTimersByTime(5000);
     await flushPromises();
-    expect(callCount).toBe(1);
 
-    // Retry succeeds
-    jest.advanceTimersByTime(30_000);
-    await flushPromises();
-    expect(callCount).toBe(2);
-    expect(mockAddMemory).toHaveBeenCalledTimes(1);
+    // No outer retry -- failure is immediate
+    expect(getCaptureState()).toBe("degraded");
+    expect(getLastCaptureStatus()).toBe("failed");
   });
 });
 

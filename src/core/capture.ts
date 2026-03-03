@@ -20,7 +20,6 @@ let state: SubsystemState = "uninitialized";
 let queuePromise: Promise<void> = Promise.resolve();
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const DEBOUNCE_MS = 5_000;
-const RETRY_BACKOFF = [30_000, 60_000, 120_000, 300_000] as const;
 
 type CaptureStatus = "stored" | "duplicate" | "skipped" | "failed";
 let lastCaptureStatus: CaptureStatus = "skipped";
@@ -239,30 +238,20 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
     .join("\n\n");
 
   let lastError: string | undefined;
-  for (let attempt = 0; attempt < RETRY_BACKOFF.length; attempt++) {
-    if (attempt > 0) {
-      logger.warn("Capture retrying", { attempt, sessionId: opts.sessionId, lastError });
-    }
-    const result = await deps.callLLMWithTool({
-      systemPrompt: getSystemPrompt(langName),
-      userPrompt: context,
-      toolSchema: extractionToolSchema,
-    });
+  const result = await deps.callLLMWithTool({
+    systemPrompt: getSystemPrompt(langName),
+    userPrompt: context,
+    toolSchema: extractionToolSchema,
+  });
 
-    if (result.success) {
-      await processResult(result.data, uncaptured.id, opts);
-      logger.debug("Capture completed", { sessionId: opts.sessionId, status: lastCaptureStatus });
-      notifier?.(lastCaptureStatus);
-      return;
-    }
-
-    lastError = result.error;
-    if (result.code === "parse_error") {
-      logger.error("Capture LLM parse error (non-retryable)", { error: lastError, sessionId: opts.sessionId });
-      break;
-    }
-    await sleep(RETRY_BACKOFF[attempt]);
+  if (result.success) {
+    await processResult(result.data, uncaptured.id, opts);
+    logger.debug("Capture completed", { sessionId: opts.sessionId, status: lastCaptureStatus });
+    notifier?.(lastCaptureStatus);
+    return;
   }
+
+  lastError = result.error;
 
   logger.error("Capture failed after retries", { error: lastError, sessionId: opts.sessionId });
   state = "degraded";
@@ -327,6 +316,3 @@ function findLastUserMessage(
   return undefined;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
