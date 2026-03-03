@@ -214,7 +214,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     const cfg: { command?: Record<string, unknown> } = { command: {} };
     await hooks.config(cfg);
     expect(cfg.command).toBeDefined();
-    expect(Object.keys(cfg.command ?? {}).length).toBe(14);
+    expect(Object.keys(cfg.command ?? {}).length).toBe(15);
   });
 
   test("tool execution handles all 14 modes and validation errors", async () => {

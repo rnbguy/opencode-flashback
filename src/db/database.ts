@@ -465,6 +465,20 @@ export function updateProfile(db: Database, profile: UserProfile): void {
   );
 }
 
+export function clearAllData(db: Database): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec("DELETE FROM memories");
+    db.exec("DELETE FROM user_profiles");
+    db.exec("DELETE FROM user_profile_changelogs");
+    db.exec("DELETE FROM user_prompts");
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 // -- CRUD: prompts -----------------------------------------------------------
 
 export function insertPrompt(db: Database, prompt: UserPrompt): void {

@@ -58,6 +58,10 @@ const COMMANDS: Record<string, CommandSpec> = {
     description: "Temporarily disable a memory without deleting it",
     template: "Suspend this memory: $ARGUMENTS",
   },
+  "flashback:clear": {
+    description: "Clear all memories and reset database (requires confirmation)",
+    template: "Clear all flashback data $ARGUMENTS",
+  },
   "flashback:consolidate": {
     description: "Detect and merge duplicate or conflicting memories",
     template: "Consolidate duplicate or conflicting memories $ARGUMENTS",

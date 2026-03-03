@@ -197,6 +197,7 @@ export type ToolResult =
   | { mode: "related"; results: SearchResult[]; count: number }
   | { mode: "review"; memories: Memory[]; count: number }
   | { mode: "suspend"; success: boolean; id: string }
+  | { mode: "clear"; success: boolean; message: string }
   | {
       mode: "consolidate";
       candidates: ConsolidationCandidate[];

@@ -29,6 +29,7 @@ type ToolMode =
   | "related"
   | "review"
   | "suspend"
+  | "clear"
   | "consolidate";
 
 const injectedSessionIds = new Set<string>();
@@ -209,6 +210,23 @@ async function handleToolCall(
       );
       return { mode: "suspend", success, id };
     }
+    case "clear": {
+      const confirmed = asBoolean(args.confirmed);
+      if (!confirmed) {
+        return {
+          mode: "clear",
+          success: false,
+          message:
+            "WARNING: This will permanently delete ALL memories, profiles, prompts, and changelogs. This action cannot be undone. To proceed, call again with confirmed: true.",
+        };
+      }
+      engine.clearAllData();
+      return {
+        mode: "clear",
+        success: true,
+        message: "All data cleared. Database is now empty.",
+      };
+    }
     case "consolidate": {
       const dryRun = asBoolean(args.dryRun) ?? true;
       return {
@@ -242,6 +260,7 @@ function getHelpText(): string {
     "| /flashback:related <topic> | Find related memories |",
     "| /flashback:review | Review stale memories |",
     "| /flashback:suspend <id> [reason] | Suspend a memory |",
+    "| /flashback:clear | Clear all data (requires confirmation) |",
     "| /flashback:consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
 }
@@ -438,6 +457,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             "related",
             "review",
             "suspend",
+            "clear",
             "consolidate",
           ]),
           query: tool.schema.string().optional(),
@@ -449,6 +469,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           format: tool.schema.enum(["json", "markdown"]).optional(),
           reason: tool.schema.string().optional(),
           dryRun: tool.schema.boolean().optional(),
+          confirmed: tool.schema.boolean().optional(),
         },
         execute: async (args, context) => {
           try {

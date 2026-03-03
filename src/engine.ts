@@ -31,7 +31,7 @@ import {
 } from "./core/capture.ts";
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
 import { initSearch, getSearchState } from "./search/index.ts";
-import { getDb, countMemories, closeDb } from "./db/database.ts";
+import { getDb, countMemories, closeDb, clearAllData } from "./db/database.ts";
 
 export interface MemoryEngine {
   addMemory(
@@ -71,6 +71,7 @@ export interface MemoryEngine {
   setCaptureNotifier(fn: (status: string, error?: string) => void): void;
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
+  clearAllData(): void;
   warmup(): Promise<void>;
   shutdown(): void;
 }
@@ -116,6 +117,10 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
         },
         version: "0.1.0",
       };
+    },
+    clearAllData: () => {
+      const db = getDb();
+      clearAllData(db);
     },
     warmup: async () => {
       await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);
