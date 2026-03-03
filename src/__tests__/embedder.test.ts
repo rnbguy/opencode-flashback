@@ -64,6 +64,15 @@ describe("embedder", () => {
       );
     });
 
+    // Regression: onnxruntime-node only supports cuda/cpu, not wasm
+    test("uses cpu device, not wasm (onnxruntime-node compatibility)", async () => {
+      setupSuccessfulPipeline();
+      await embed(["regression"], "query");
+      const opts = mockPipelineInstance.mock.calls[0][2] as { device: string };
+      expect(opts.device).toBe("cpu");
+      expect(opts.device).not.toBe("wasm");
+    });
+
     test("reuses pipeline on subsequent calls", async () => {
       setupSuccessfulPipeline();
       await embed(["hello"], "query");
