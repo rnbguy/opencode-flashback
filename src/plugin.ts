@@ -382,14 +382,14 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
   if (config.web.enabled) {
     startServer(input.directory)
-      .then(() => {
-        logger?.info("Web server started", { port: config.web.port });
+      .then((actualPort) => {
+        logger?.info("Web server started", { port: actualPort });
         if (input.client?.tui) {
           input.client.tui
             .showToast({
               body: {
                 title: "Flashback",
-                message: `Web UI started on 127.0.0.1:${config.web.port}`,
+                message: `Web UI started on 127.0.0.1:${actualPort}`,
                 variant: "success",
                 duration: 5000,
               },

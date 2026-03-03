@@ -46,7 +46,7 @@ const rateLimiter = {
 
 // -- Public API -------------------------------------------------------------
 
-export async function startServer(directory: string): Promise<void> {
+export async function startServer(directory: string): Promise<number> {
   const logger = getLogger();
   csrfToken = crypto.randomUUID();
 
@@ -65,7 +65,7 @@ export async function startServer(directory: string): Promise<void> {
       });
       serverState = "ready";
       logger.debug("startServer completed", { port });
-      return;
+      return server.port!;
     } catch (error: unknown) {
       lastError = error;
       logger.warn("startServer attempt failed", { port });
