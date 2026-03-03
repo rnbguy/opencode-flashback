@@ -16,6 +16,7 @@ import { getSearchState } from "../search/index.ts";
 import { getCaptureState } from "../core/capture.ts";
 import { getConfig } from "../config.ts";
 import type { SubsystemState, DiagnosticsResponse } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 
 // -- State ------------------------------------------------------------------
 
@@ -44,6 +45,7 @@ const rateLimiter = {
 // -- Public API -------------------------------------------------------------
 
 export async function startServer(directory: string): Promise<void> {
+  const logger = getLogger();
   csrfToken = crypto.randomUUID();
 
   const config = getConfig();
@@ -60,21 +62,26 @@ export async function startServer(directory: string): Promise<void> {
         fetch: (req) => handleRequest(req, directory),
       });
       serverState = "ready";
+      logger.debug("startServer completed", { port });
       return;
     } catch (error: unknown) {
       lastError = error;
+      logger.warn("startServer attempt failed", { port });
     }
   }
 
   serverState = "error";
+  logger.error("startServer failed", { basePort });
   throw lastError;
 }
 
 export function stopServer(): void {
+  const logger = getLogger();
   if (server) {
     server.stop();
     server = null;
     serverState = "uninitialized";
+    logger.debug("stopServer completed");
   }
 }
 
@@ -88,8 +95,10 @@ async function handleRequest(
   req: Request,
   directory: string,
 ): Promise<Response> {
+  const logger = getLogger();
   const url = new URL(req.url);
   const method = req.method;
+  logger.debug("handleRequest received", { method, path: url.pathname });
 
   // Security: localhost validation
   if (!isLocalhostRequest(req)) {
@@ -330,7 +339,8 @@ function serveStatic(filePath: string): Response {
     "X-Content-Type-Options": "nosniff",
   };
   if (filePath.endsWith(".html")) {
-    headers["Content-Security-Policy"] = "script-src 'self' 'sha256-6YqWunyF9B6avn1g4fXCrUMdPPmQylnakcaAKaAyMjk='";
+    headers["Content-Security-Policy"] =
+      "script-src 'self' 'sha256-6YqWunyF9B6avn1g4fXCrUMdPPmQylnakcaAKaAyMjk='";
     headers["Content-Type"] = "text/html; charset=utf-8";
   } else if (filePath.endsWith(".css")) {
     headers["Content-Type"] = "text/css; charset=utf-8";

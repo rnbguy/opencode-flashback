@@ -3,6 +3,7 @@ import {
   type FeatureExtractionPipeline,
 } from "@huggingface/transformers";
 import type { SubsystemState } from "../types";
+import { getLogger } from "../util/logger.ts";
 
 const MODEL_ID = "onnx-community/embeddinggemma-300m-ONNX";
 const EMBEDDING_DIMENSION = 768;
@@ -119,6 +120,7 @@ function onFailure(): void {
 }
 
 async function getModel(): Promise<FeatureExtractionPipeline> {
+  const logger = getLogger();
   if (modelPipeline) {
     return modelPipeline;
   }
@@ -128,6 +130,7 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
   }
 
   subsystemState = "initializing";
+  const start = Date.now();
   modelInitPromise = pipeline("feature-extraction", MODEL_ID, {
     device: "cpu",
     dtype: "q4",
@@ -136,11 +139,16 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
       modelPipeline = instance;
       modelInitPromise = null;
       subsystemState = "ready";
+      logger.debug("Embedder model loaded", {
+        modelName: MODEL_ID,
+        durationMs: Date.now() - start,
+      });
       return instance;
     })
     .catch((error: unknown) => {
       modelInitPromise = null;
       subsystemState = "error";
+      logger.error("Embedder model load failed", { modelName: MODEL_ID });
       throw error;
     });
 
@@ -162,9 +170,16 @@ export function resetEmbedder(): void {
 }
 
 export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
+  const logger = getLogger();
+  const start = Date.now();
   beforeRequest();
 
   if (texts.length === 0) {
+    logger.debug("embed completed", {
+      textCount: 0,
+      purpose: mode,
+      durationMs: Date.now() - start,
+    });
     return [];
   }
 
@@ -172,6 +187,11 @@ export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
   const cached = keys.map((key) => getCachedVector(key));
   const allCached = cached.every((vector) => vector !== null);
   if (allCached) {
+    logger.debug("embed completed", {
+      textCount: texts.length,
+      purpose: mode,
+      durationMs: Date.now() - start,
+    });
     return cached as number[][];
   }
 
@@ -224,6 +244,7 @@ export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
     onSuccess();
   } catch (error: unknown) {
     onFailure();
+    logger.error("embed failed", { textCount: texts.length, purpose: mode });
     throw error;
   }
 
@@ -234,5 +255,10 @@ export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
     return vector;
   });
 
+  logger.debug("embed completed", {
+    textCount: texts.length,
+    purpose: mode,
+    durationMs: Date.now() - start,
+  });
   return finalized;
 }

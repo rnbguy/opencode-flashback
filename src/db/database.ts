@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import type { Memory, UserProfile, UserPrompt } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 
 // -- DB row shapes (internal) ------------------------------------------------
 
@@ -75,6 +76,7 @@ const DEFAULT_DB_PATH = join(
 );
 
 export function getDb(dbPath?: string): Database {
+  const logger = getLogger();
   if (_db) return _db;
 
   const path = dbPath ?? DEFAULT_DB_PATH;
@@ -95,6 +97,7 @@ export function getDb(dbPath?: string): Database {
 
   runMigrations(db);
 
+  logger.debug("getDb initialized", { path });
   _db = db;
   return db;
 }
@@ -312,6 +315,8 @@ const MEMORY_INSERT_SQL = `INSERT OR REPLACE INTO memories (
 )`;
 
 export function insertMemory(db: Database, memory: Memory): void {
+  const logger = getLogger();
+  logger.debug("insertMemory start", { id: memory.id });
   db.query(MEMORY_INSERT_SQL).run(
     memory.id,
     memory.content,
@@ -359,6 +364,8 @@ export function getMemory(db: Database, id: string): Memory | null {
 }
 
 export function deleteMemory(db: Database, id: string): void {
+  const logger = getLogger();
+  logger.debug("deleteMemory start", { id });
   db.query("DELETE FROM memories WHERE id = ?").run(id);
 }
 
@@ -473,10 +480,12 @@ export function markPromptCaptured(db: Database, promptId: string): void {
 // -- Lifecycle ---------------------------------------------------------------
 
 export function closeDb(): void {
+  const logger = getLogger();
   if (!_db) return;
   _db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   _db.close();
   _db = null;
+  logger.debug("closeDb completed");
 }
 
 export function _setDbForTesting(db: Database): void {

@@ -5,6 +5,7 @@ import {
   insertProfile,
   updateProfile,
 } from "../db/database.ts";
+import { getLogger } from "../util/logger.ts";
 import { callLLMWithTool } from "./llm.ts";
 import type { UserProfile, UserProfileChangelog } from "../types.ts";
 
@@ -57,9 +58,13 @@ let deps: ProfileDeps = { ...defaultDeps };
 // -- Exported functions -------------------------------------------------------
 
 export function getOrCreateProfile(userId: string): UserProfile {
+  const logger = getLogger();
   const db = getDb();
   const existing = getProfile(db, userId);
-  if (existing) return existing;
+  if (existing) {
+    logger.debug("getOrCreateProfile completed", { userId, status: "found" });
+    return existing;
+  }
 
   const profile: UserProfile = {
     id: crypto.randomUUID(),
@@ -71,6 +76,7 @@ export function getOrCreateProfile(userId: string): UserProfile {
     totalPromptsAnalyzed: 0,
   };
   insertProfile(db, profile);
+  logger.debug("getOrCreateProfile completed", { userId, status: "created" });
   return profile;
 }
 
@@ -78,9 +84,15 @@ export async function analyzeAndUpdateProfile(
   userId: string,
   prompts: string[],
 ): Promise<{ updated: boolean; version: number }> {
+  const logger = getLogger();
   const profile = getOrCreateProfile(userId);
 
   if (prompts.length < ANALYSIS_THRESHOLD) {
+    logger.debug("analyzeAndUpdateProfile completed", {
+      userId,
+      promptCount: prompts.length,
+      status: "skipped",
+    });
     return { updated: false, version: profile.version };
   }
 
@@ -91,6 +103,11 @@ export async function analyzeAndUpdateProfile(
   });
 
   if (!result.success) {
+    logger.debug("analyzeAndUpdateProfile completed", {
+      userId,
+      promptCount: prompts.length,
+      status: "skipped",
+    });
     return { updated: false, version: profile.version };
   }
 
@@ -124,9 +141,15 @@ export async function analyzeAndUpdateProfile(
     insertChangelog(db, changelog);
 
     db.exec("COMMIT");
+    logger.debug("analyzeAndUpdateProfile completed", {
+      userId,
+      promptCount: prompts.length,
+      status: "updated",
+    });
     return { updated: true, version: newVersion };
   } catch (error) {
     db.exec("ROLLBACK");
+    logger.error("analyzeAndUpdateProfile failed", { userId });
     throw error;
   }
 }
@@ -142,6 +165,8 @@ export function _resetProfileDepsForTesting(): void {
 }
 
 export function decayConfidence(userId: string, decayFactor = 0.95): void {
+  const logger = getLogger();
+  logger.debug("decayConfidence start", { userId });
   const db = getDb();
   const profile = getProfile(db, userId);
   if (!profile) return;

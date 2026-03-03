@@ -45,6 +45,15 @@
       ],
       "additionalProperties": false
     },
+    "logLevel": {
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ]
+    },
     "memory": {
       "type": "object",
       "properties": {

@@ -141,6 +141,7 @@ export interface CompactionConfig {
 // -- Enum-like union types -------------------------------------------------
 
 export type RetrievalQuality = "fast" | "balanced" | "thorough" | "custom";
+export type LogLevel = "debug" | "info" | "warn" | "error";
 export type MemoryTier = "pinned" | "semantic" | "ephemeral";
 export type SubsystemState =
   | "uninitialized"

@@ -8,6 +8,7 @@ import {
 } from "../db/database.ts";
 import { getConfig, getHybridWeights } from "../config.ts";
 import type { Memory, SearchResult, SubsystemState } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 
 // -- Schema ------------------------------------------------------------------
 
@@ -38,20 +39,32 @@ let isStale = false;
 // -- Init / Rebuild ----------------------------------------------------------
 
 export async function initSearch(): Promise<void> {
+  const logger = getLogger();
   if (oramaDb) return;
 
   try {
+    const previousState = state;
     state = "initializing";
+    logger.debug("initSearch state transition", {
+      from: previousState,
+      to: state,
+    });
     oramaDb = create({ schema });
     await rebuildIndex();
+    const fromState = state;
     state = "ready";
+    logger.debug("initSearch state transition", { from: fromState, to: state });
   } catch (error: unknown) {
+    const fromState = state;
     state = "error";
+    logger.error("initSearch failed", { from: fromState, to: state });
     throw error;
   }
 }
 
 export async function rebuildIndex(): Promise<void> {
+  const logger = getLogger();
+  const start = Date.now();
   try {
     // Recreate to guarantee a clean index
     oramaDb = create({ schema });
@@ -71,8 +84,15 @@ export async function rebuildIndex(): Promise<void> {
       };
       insert(oramaDb, doc);
     }
+    logger.debug("rebuildIndex completed", {
+      memoryCount: memories.length,
+      durationMs: Date.now() - start,
+    });
   } catch (error: unknown) {
     state = "error";
+    logger.error("rebuildIndex failed", {
+      durationMs: Date.now() - start,
+    });
     throw error;
   }
 }
@@ -85,6 +105,7 @@ export async function hybridSearch(
   containerTag: string,
   limit: number,
 ): Promise<SearchResult[]> {
+  const logger = getLogger();
   try {
     if (!oramaDb) {
       await initSearch();
@@ -109,10 +130,10 @@ export async function hybridSearch(
     });
 
     // Orama search may be sync or async depending on hooks
-    const resolved =
-      results instanceof Promise ? await results : results;
+    const resolved = results instanceof Promise ? await results : results;
 
     if (resolved.count === 0) {
+      logger.debug("hybridSearch completed", { query, resultCount: 0 });
       return [];
     }
 
@@ -140,18 +161,28 @@ export async function hybridSearch(
       ).run(Date.now(), ...ids);
     }
 
+    logger.debug("hybridSearch completed", {
+      query,
+      resultCount: searchResults.length,
+    });
     return searchResults;
   } catch (error: unknown) {
     state = "degraded";
+    logger.warn("hybridSearch degraded", { query });
 
     // Fallback to SQLite text search
     const db = getDb();
     const fallback = searchMemoriesByText(db, query, containerTag, limit);
-    return fallback.map((memory) => ({
+    const results = fallback.map((memory) => ({
       memory,
       score: 0,
       _debug: { fallback: true, oramaScore: 0 },
     }));
+    logger.debug("hybridSearch completed", {
+      query,
+      resultCount: results.length,
+    });
+    return results;
   }
 }
 

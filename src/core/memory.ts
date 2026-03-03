@@ -13,6 +13,7 @@ import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search/index.ts";
 import { resolveContainerTag } from "./tags.ts";
 import type { ContainerTagInfo, Memory, SearchResult } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 
 const DEDUP_SIMILARITY_THRESHOLD = 0.9;
 const DEFAULT_IMPORTANCE = 5;
@@ -43,6 +44,12 @@ export interface AddMemoryOptions {
 export async function addMemory(
   opts: AddMemoryOptions,
 ): Promise<{ id: string; deduplicated: boolean }> {
+  const logger = getLogger();
+  logger.debug("addMemory start", {
+    contentLength: opts.content.length,
+    containerTag: opts.containerTag,
+    tags: opts.tags ?? [],
+  });
   const db = getDb();
 
   const content = opts.content.trim();
@@ -122,6 +129,7 @@ export async function searchMemories(
   containerTag: string,
   limit?: number,
 ): Promise<SearchResult[]> {
+  const logger = getLogger();
   const db = getDb();
   const config = getConfig();
   const maxResults = limit ?? config.memory.maxResults;
@@ -131,6 +139,7 @@ export async function searchMemories(
   try {
     await initSearch();
   } catch {
+    logger.warn("searchMemories initSearch failed", { containerTag });
     // Search init failure is non-fatal -- text fallback used below
   }
 
@@ -140,8 +149,14 @@ export async function searchMemories(
     const results = await hybridSearch(query, vector, containerTag, maxResults);
     const ranked = rerank(results, config);
     trackAccess(ranked);
+    logger.debug("searchMemories completed", {
+      query,
+      containerTag,
+      resultCount: ranked.length,
+    });
     return ranked;
   } catch {
+    logger.warn("searchMemories using text fallback", { query, containerTag });
     const fallback = searchMemoriesByText(db, query, containerTag, maxResults);
     const ranked = rerank(
       fallback.map((memory) => ({
@@ -152,6 +167,11 @@ export async function searchMemories(
       config,
     );
     trackAccess(ranked);
+    logger.debug("searchMemories completed", {
+      query,
+      containerTag,
+      resultCount: ranked.length,
+    });
     return ranked;
   }
 }
@@ -161,19 +181,28 @@ export async function recallMemories(
   containerTag: string,
   limit?: number,
 ): Promise<SearchResult[]> {
+  const logger = getLogger();
   const query = sessionMessages
     .slice(-10)
     .map((message) => message.slice(0, 500))
     .join("\n");
 
   if (query.trim().length === 0) {
+    logger.debug("recallMemories completed", { containerTag, resultCount: 0 });
     return [];
   }
 
-  return searchMemories(query, containerTag, limit);
+  const results = await searchMemories(query, containerTag, limit);
+  logger.debug("recallMemories completed", {
+    containerTag,
+    resultCount: results.length,
+  });
+  return results;
 }
 
 export async function forgetMemory(id: string): Promise<void> {
+  const logger = getLogger();
+  logger.debug("forgetMemory start", { id });
   const db = getDb();
   deleteMemory(db, id);
   markStale();
@@ -195,13 +224,22 @@ export async function listMemories(
   limit = 50,
   offset = 0,
 ): Promise<{ memories: Memory[]; total: number }> {
-  return listMemoriesPage(containerTag, limit, offset);
+  const logger = getLogger();
+  const page = await listMemoriesPage(containerTag, limit, offset);
+  logger.debug("listMemories completed", {
+    containerTag,
+    limit,
+    offset,
+    total: page.total,
+  });
+  return page;
 }
 
 export async function getContext(
   containerTag: string,
   sessionId?: string,
 ): Promise<string> {
+  const logger = getLogger();
   const db = getDb();
   const config = getConfig();
   const topMemories = dbListMemories(db, containerTag, 5, 0).filter(
@@ -209,6 +247,7 @@ export async function getContext(
   );
 
   if (topMemories.length === 0) {
+    logger.debug("getContext completed", { containerTag, contextLength: 0 });
     return "";
   }
 
@@ -240,21 +279,31 @@ export async function getContext(
   lines.push(...memoryLines);
 
   if (config.memory.maxResults <= 0) {
+    logger.debug("getContext completed", { containerTag, contextLength: 0 });
     return "";
   }
 
-  return lines.join("\n");
+  const context = lines.join("\n");
+  logger.debug("getContext completed", {
+    containerTag,
+    contextLength: context.length,
+  });
+  return context;
 }
 
 export async function getMemoryById(id: string): Promise<Memory | null> {
+  const logger = getLogger();
   const db = getDb();
-  return getMemory(db, id);
+  const memory = getMemory(db, id);
+  logger.debug("getMemoryById completed", { id, found: memory !== null });
+  return memory;
 }
 
 export async function exportMemories(
   containerTag: string,
   format: "json" | "markdown",
 ): Promise<{ data: string; count: number }> {
+  const logger = getLogger();
   const db = getDb();
   const all = getAllActiveMemories(db).filter(
     (memory) =>
@@ -269,9 +318,19 @@ export async function exportMemories(
         return `## ${memory.type || "note"}\n\n${memory.content}${tags}\n\nCreated: ${new Date(memory.createdAt).toISOString()}`;
       })
       .join("\n\n---\n\n");
+    logger.debug("exportMemories completed", {
+      containerTag,
+      format,
+      count: all.length,
+    });
     return { data, count: all.length };
   }
 
+  logger.debug("exportMemories completed", {
+    containerTag,
+    format,
+    count: all.length,
+  });
   return {
     data: JSON.stringify(
       all.map((memory) => ({
@@ -294,22 +353,31 @@ export async function findRelatedMemories(
   containerTag: string,
   limit?: number,
 ): Promise<SearchResult[]> {
-  return searchMemories(query, containerTag, limit);
+  const logger = getLogger();
+  const results = await searchMemories(query, containerTag, limit);
+  logger.debug("findRelatedMemories completed", {
+    query,
+    resultCount: results.length,
+  });
+  return results;
 }
 
 export async function suspendMemory(
   id: string,
   reason: string | null,
 ): Promise<boolean> {
+  const logger = getLogger();
   const db = getDb();
   const memory = getMemory(db, id);
   if (!memory) {
+    logger.debug("suspendMemory completed", { id, success: false });
     return false;
   }
 
   db.query(
     "UPDATE memories SET suspended = 1, suspended_reason = ?, suspended_at = ? WHERE id = ?",
   ).run(reason, Date.now(), id);
+  logger.debug("suspendMemory completed", { id, success: true });
   return true;
 }
 
@@ -317,6 +385,7 @@ export async function getMemoriesForReview(
   containerTag: string,
   limit?: number,
 ): Promise<Memory[]> {
+  const logger = getLogger();
   const db = getDb();
   const now = Date.now();
   const memories = getAllActiveMemories(db).filter(
@@ -328,9 +397,14 @@ export async function getMemoriesForReview(
       memory.nextReviewAt <= now,
   );
 
-  return memories
+  const results = memories
     .sort((a, b) => (a.nextReviewAt ?? 0) - (b.nextReviewAt ?? 0))
     .slice(0, limit ?? 10);
+  logger.debug("getMemoriesForReview completed", {
+    containerTag,
+    count: results.length,
+  });
+  return results;
 }
 
 function getRankingWeights(config: PluginConfig): {

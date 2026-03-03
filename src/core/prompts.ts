@@ -1,5 +1,6 @@
 import { getDb } from "../db/database.ts";
 import type { UserPrompt } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 
 // -- Prompt ID generation -----------------------------------------------------
 
@@ -50,6 +51,8 @@ export function storePrompt(
   content: string,
   directory: string,
 ): string {
+  const logger = getLogger();
+  logger.debug("storePrompt start", { sessionId, messageId });
   const db = getDb();
   const promptId = generatePromptId();
 
@@ -89,6 +92,7 @@ export function storePrompt(
  * @returns UserPrompt or null if none found
  */
 export function getLastUncapturedPrompt(sessionId: string): UserPrompt | null {
+  const logger = getLogger();
   const db = getDb();
   const row = db
     .query(
@@ -96,7 +100,12 @@ export function getLastUncapturedPrompt(sessionId: string): UserPrompt | null {
     )
     .get(sessionId) as PromptRow | null;
 
-  return row ? rowToPrompt(row) : null;
+  const prompt = row ? rowToPrompt(row) : null;
+  logger.debug("getLastUncapturedPrompt completed", {
+    sessionId,
+    found: prompt !== null,
+  });
+  return prompt;
 }
 
 /**
@@ -105,6 +114,8 @@ export function getLastUncapturedPrompt(sessionId: string): UserPrompt | null {
  * @param memoryId - Memory identifier to link
  */
 export function markCaptured(promptId: string, memoryId: string): void {
+  const logger = getLogger();
+  logger.debug("markCaptured start", { promptId });
   const db = getDb();
   db.query(
     "UPDATE user_prompts SET is_captured = 1, linked_memory_id = ? WHERE id = ?",
@@ -116,6 +127,8 @@ export function markCaptured(promptId: string, memoryId: string): void {
  * @param promptId - Prompt identifier
  */
 export function markAnalyzed(promptId: string): void {
+  const logger = getLogger();
+  logger.debug("markAnalyzed start", { promptId });
   const db = getDb();
   db.query(
     "UPDATE user_prompts SET is_user_learning_captured = 1 WHERE id = ?",
@@ -128,6 +141,7 @@ export function markAnalyzed(promptId: string): void {
  * @returns Array of UserPrompt objects
  */
 export function getUnanalyzedPrompts(count: number): UserPrompt[] {
+  const logger = getLogger();
   const db = getDb();
   const rows = db
     .query(
@@ -135,5 +149,7 @@ export function getUnanalyzedPrompts(count: number): UserPrompt[] {
     )
     .all(count) as PromptRow[];
 
-  return rows.map(rowToPrompt);
+  const prompts = rows.map(rowToPrompt);
+  logger.debug("getUnanalyzedPrompts completed", { count: prompts.length });
+  return prompts;
 }
