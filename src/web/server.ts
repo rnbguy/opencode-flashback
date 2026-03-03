@@ -334,6 +334,8 @@ function jsonResponse(data: unknown, status = 200): Response {
     headers: {
       "Content-Type": "application/json",
       "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Cache-Control": "no-store",
     },
   });
 }
@@ -348,6 +350,7 @@ function serveStatic(filePath: string): Response {
   const headers: Record<string, string> = {
     "X-Content-Type-Options": "nosniff",
   };
+  headers["X-Frame-Options"] = "DENY";
   if (filePath.endsWith(".html")) {
     headers["Content-Security-Policy"] =
       "script-src 'self' 'sha256-6YqWunyF9B6avn1g4fXCrUMdPPmQylnakcaAKaAyMjk='";
