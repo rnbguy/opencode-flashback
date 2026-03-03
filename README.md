@@ -7,7 +7,7 @@ Persistent AI memory plugin for OpenCode -- free, local, open-source.
 
 ## Features
 
-- EmbeddingGemma-300M via WASM (no GPU, no Docker, no Ollama)
+- EmbeddingGemma-300M via ONNX Runtime (no GPU, no Docker, no Ollama)
 - Hybrid BM25+vector search (Orama)
 - Auto-capture from coding sessions
 - User profile learning
@@ -100,40 +100,40 @@ Flashback registers 14 commands programmatically. Use the colon-name syntax:
 
 | Command | Description |
 | --- | --- |
-| `/memory:search <query>` | Search memories semantically |
-| `/memory:add <content>` | Store a new memory |
-| `/memory:recall` | Auto-recall relevant memories |
-| `/memory:list` | Browse stored memories (paginated) |
-| `/memory:forget <id>` | Delete a memory by ID |
-| `/memory:profile` | View learned user profile |
-| `/memory:stats` | Show memory system diagnostics |
-| `/memory:context` | Inject project-scoped context into conversation |
-| `/memory:help` | Show all available memory commands |
-| `/memory:export [json\|markdown]` | Export all memories |
-| `/memory:related <topic>` | Find related memories |
-| `/memory:review` | Review stale memories |
-| `/memory:suspend <id> [reason]` | Temporarily disable a memory |
-| `/memory:consolidate [--dry-run]` | Detect and merge duplicate memories |
+| `/flashback:search <query>` | Search memories semantically |
+| `/flashback:add <content>` | Store a new memory |
+| `/flashback:recall` | Auto-recall relevant memories |
+| `/flashback:list` | Browse stored memories (paginated) |
+| `/flashback:forget <id>` | Delete a memory by ID |
+| `/flashback:profile` | View learned user profile |
+| `/flashback:stats` | Show memory system diagnostics |
+| `/flashback:context` | Inject project-scoped context into conversation |
+| `/flashback:help` | Show all available memory commands |
+| `/flashback:export [json\|markdown]` | Export all memories |
+| `/flashback:related <topic>` | Find related memories |
+| `/flashback:review` | Review stale memories |
+| `/flashback:suspend <id> [reason]` | Temporarily disable a memory |
+| `/flashback:consolidate [--dry-run]` | Detect and merge duplicate memories |
 
 ## Tool API
 
-AI agents can use the `memory` tool directly:
+AI agents can use the `flashback` tool directly:
 
 ```typescript
 // Search
-await context.callTool("memory", { mode: "search", query: "how to deploy" });
+await context.callTool("flashback", { mode: "search", query: "how to deploy" });
 
 // Add
-await context.callTool("memory", {
+await context.callTool("flashback", {
   mode: "add",
   content: "The project uses Bun for testing",
 });
 
 // Recall
-await context.callTool("memory", { mode: "recall" });
+await context.callTool("flashback", { mode: "recall" });
 
 // Profile
-await context.callTool("memory", { mode: "profile" });
+await context.callTool("flashback", { mode: "profile" });
 ```
 
 ## Web UI

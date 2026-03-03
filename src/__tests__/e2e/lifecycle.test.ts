@@ -56,7 +56,7 @@ type ToolRunner = {
 
 type Hooks = {
   config: (cfg: { command?: Record<string, unknown> }) => Promise<void>;
-  tool: { memory: ToolRunner };
+  tool: { flashback: ToolRunner };
   "chat.message": (
     args: { sessionID: string },
     output: {
@@ -132,7 +132,7 @@ async function runMemoryTool(
   args: Record<string, unknown>,
   context: { directory: string; sessionID: string },
 ): Promise<Record<string, unknown>> {
-  const raw = await hooks.tool.memory.execute(args, context);
+    const raw = await hooks.tool.flashback.execute(args, context);
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
@@ -201,7 +201,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
   test("plugin factory returns hooks and config registers 14 commands", async () => {
     const hooks = await createHooks(tmpDir);
     expect(typeof hooks.config).toBe("function");
-    expect(typeof hooks.tool.memory.execute).toBe("function");
+    expect(typeof hooks.tool.flashback.execute).toBe("function");
     expect(typeof hooks["chat.message"]).toBe("function");
     expect(typeof hooks.event).toBe("function");
 

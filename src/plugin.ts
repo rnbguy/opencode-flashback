@@ -223,24 +223,24 @@ async function handleToolCall(
 
 function getHelpText(): string {
   return [
-    "## Memory Commands",
+    "## Flashback Commands",
     "",
     "| Command | Description |",
     "|---------|-------------|",
-    "| /memory:search <query> | Search memories semantically |",
-    "| /memory:add <content> | Store a new memory |",
-    "| /memory:recall | Auto-recall relevant memories |",
-    "| /memory:list | Browse stored memories |",
-    "| /memory:forget <id> | Delete a memory |",
-    "| /memory:profile | View learned user profile |",
-    "| /memory:stats | Show diagnostics |",
-    "| /memory:context | Inject project context |",
-    "| /memory:help | Show this help |",
-    "| /memory:export [json|markdown] | Export memories |",
-    "| /memory:related <topic> | Find related memories |",
-    "| /memory:review | Review stale memories |",
-    "| /memory:suspend <id> [reason] | Suspend a memory |",
-    "| /memory:consolidate [--dry-run] | Merge duplicates |",
+    "| /flashback:search <query> | Search memories semantically |",
+    "| /flashback:add <content> | Store a new memory |",
+    "| /flashback:recall | Auto-recall relevant memories |",
+    "| /flashback:list | Browse stored memories |",
+    "| /flashback:forget <id> | Delete a memory |",
+    "| /flashback:profile | View learned user profile |",
+    "| /flashback:stats | Show diagnostics |",
+    "| /flashback:context | Inject project context |",
+    "| /flashback:help | Show this help |",
+    "| /flashback:export [json|markdown] | Export memories |",
+    "| /flashback:related <topic> | Find related memories |",
+    "| /flashback:review | Review stale memories |",
+    "| /flashback:suspend <id> [reason] | Suspend a memory |",
+    "| /flashback:consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
 }
 
@@ -351,7 +351,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
       registerCommands(cfg);
     },
     tool: {
-      memory: tool({
+      flashback: tool({
         description: `Manage and query project memory (MATCH USER LANGUAGE: ${getLanguageName("en")}). Use 'search' with keywords, 'add' to store, 'profile' for preferences.`,
         args: {
           mode: tool.schema.enum([
