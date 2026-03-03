@@ -195,3 +195,7 @@ bun run typecheck
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+Inspired by [opencode-mem](https://github.com/tickernelz/opencode-mem).
