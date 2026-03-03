@@ -334,6 +334,7 @@ button:disabled {
   transition: border-color 0.2s;
   position: relative;
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .memory-card:hover {
