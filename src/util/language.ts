@@ -1,4 +1,5 @@
 import { detect } from "tinyld/light";
+import ISO6391 from "iso-639-1";
 
 export interface LanguageDetectionResult {
   mode: "code" | "nl" | "mixed";
@@ -42,4 +43,8 @@ export async function detectLanguage(
 
   // Mixed mode
   return { mode: "mixed", codeRatio, detectedLang: "en" };
+}
+
+export function getLanguageName(code: string): string {
+  return ISO6391.getName(code) || "English";
 }

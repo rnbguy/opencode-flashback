@@ -21,6 +21,7 @@ import {
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
 import { initSearch, getSearchState } from "./search/index.ts";
 import type { DiagnosticsResponse, ToolResult } from "./types.ts";
+import { getLanguageName } from "./util/language.ts";
 
 type ToolMode =
   | "search"
@@ -269,7 +270,7 @@ const flashback: Plugin = async (input) => {
     },
     tool: {
       memory: tool({
-        description: "Persistent memory system for AI coding agents",
+        description: `Manage and query project memory (MATCH USER LANGUAGE: ${getLanguageName("en")}). Use 'search' with keywords, 'add' to store, 'profile' for preferences.`,
         args: {
           mode: tool.schema.enum([
             "search",

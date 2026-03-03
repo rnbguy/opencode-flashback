@@ -7,6 +7,11 @@ import {
   markAnalyzed,
 } from "./prompts.ts";
 import type { SubsystemState } from "../types.ts";
+import {
+  detectLanguage,
+  getLanguageName,
+  type LanguageDetectionResult,
+} from "../util/language.ts";
 
 // -- State ---------------------------------------------------------------------
 
@@ -26,6 +31,8 @@ type CaptureDeps = {
   getLastUncapturedPrompt: typeof getLastUncapturedPrompt;
   markCaptured: typeof markCaptured;
   markAnalyzed: typeof markAnalyzed;
+  detectLanguage: (text: string) => Promise<LanguageDetectionResult>;
+  getLanguageName: (code: string) => string;
 };
 
 const defaultDeps: CaptureDeps = {
@@ -35,6 +42,8 @@ const defaultDeps: CaptureDeps = {
   getLastUncapturedPrompt,
   markCaptured,
   markAnalyzed,
+  detectLanguage,
+  getLanguageName,
 };
 
 let deps: CaptureDeps = { ...defaultDeps };
@@ -104,7 +113,8 @@ const extractionToolSchema: ToolSchema = {
   },
 };
 
-const SYSTEM_PROMPT = `You are a technical memory recorder for a software development project.
+function getSystemPrompt(langName: string): string {
+  return `You are a technical memory recorder for a software development project.
 
 RULES:
 1. ONLY capture technical work (code, bugs, features, architecture, config)
@@ -112,16 +122,18 @@ RULES:
 3. NO meta-commentary or behavior analysis
 4. Include specific file names, functions, technical details
 5. Generate 2-4 technical tags (e.g., "react", "auth", "bug-fix")
+6. You MUST write the summary in ${langName}.
 
 FORMAT for summary:
 ## Request
-[1-2 sentences: what was requested]
+[1-2 sentences: what was requested, in ${langName}]
 
 ## Outcome
-[1-2 sentences: what was done, include files/functions]
+[1-2 sentences: what was done, include files/functions, in ${langName}]
 
 SKIP if: greetings, casual chat, no code/decisions made
 CAPTURE if: code changed, bug fixed, feature added, decision made`;
+}
 
 // -- Core exports --------------------------------------------------------------
 
@@ -178,6 +190,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
     return;
   }
 
+  const languageResult = await deps.detectLanguage(lastUserMessage);
+  const langName = deps.getLanguageName(languageResult.detectedLang ?? "en");
+
   const messageId = `msg_${Date.now()}`;
   deps.storePrompt(opts.sessionId, messageId, lastUserMessage, opts.directory);
 
@@ -195,7 +210,7 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   let lastError: string | undefined;
   for (let attempt = 0; attempt < RETRY_BACKOFF.length; attempt++) {
     const result = await deps.callLLMWithTool({
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: getSystemPrompt(langName),
       userPrompt: context,
       toolSchema: extractionToolSchema,
     });
