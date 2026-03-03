@@ -459,6 +459,21 @@ export function clearAllData(db: Database): void {
   }
 }
 
+export function clearOldData(db: Database, cutoffMs: number): number {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = db
+      .query("DELETE FROM memories WHERE created_at < ?")
+      .run(cutoffMs);
+    db.query("DELETE FROM user_prompts WHERE created_at < ?").run(cutoffMs);
+    db.exec("COMMIT");
+    return result.changes;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 // -- CRUD: prompts -----------------------------------------------------------
 
 export function insertPrompt(db: Database, prompt: UserPrompt): void {

@@ -33,7 +33,7 @@ import {
 } from "./core/capture.ts";
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
 import { initSearch, getSearchState } from "./search/index.ts";
-import { getDb, countMemories, closeDb, clearAllData } from "./db/database.ts";
+import { getDb, countMemories, closeDb, clearAllData, clearOldData } from "./db/database.ts";
 
 export interface MemoryEngine {
   addMemory(
@@ -75,7 +75,7 @@ export interface MemoryEngine {
   setCaptureNotifier(fn: (status: string, error?: string) => void): void;
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
-  clearAllData(): void;
+  clearAllData(durationSecs?: number): void;
   warmup(): Promise<void>;
   shutdown(): void;
 }
@@ -124,9 +124,13 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
         version: "0.1.0",
       };
     },
-    clearAllData: () => {
+    clearAllData: (durationSecs?: number) => {
       const db = getDb();
-      clearAllData(db);
+      if (typeof durationSecs === "number" && durationSecs > 0) {
+        clearOldData(db, Date.now() - durationSecs * 1000);
+      } else {
+        clearAllData(db);
+      }
     },
     warmup: async () => {
       await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);

@@ -229,19 +229,26 @@ async function handleToolCall(
     }
     case "clear": {
       const confirmed = asBoolean(args.confirmed);
+      const duration = asNumber(args.duration);
       if (!confirmed) {
+        const durationNote = typeof duration === "number"
+          ? ` memories older than ${duration} seconds`
+          : " ALL memories, profiles, and prompts";
         return {
           mode: "clear",
           success: false,
           message:
-            "WARNING: This will permanently delete ALL memories, profiles, and prompts. This action cannot be undone. To proceed, call again with confirmed: true.",
+            `WARNING: This will permanently delete${durationNote}. This action cannot be undone. To proceed, call again with confirmed: true.`,
         };
       }
-      engine.clearAllData();
+      engine.clearAllData(duration);
+      const message = typeof duration === "number"
+        ? `Cleared memories older than ${duration} seconds.`
+        : "All data cleared. Database is now empty.";
       return {
         mode: "clear",
         success: true,
-        message: "All data cleared. Database is now empty.",
+        message,
       };
     }
     case "consolidate": {
@@ -279,7 +286,7 @@ function getHelpText(): string {
     "| suspend <id> [reason] | Suspend a memory |",
     "| pin <id> | Pin a memory (protected from eviction) |",
     "| unpin <id> | Unpin a memory |",
-    "| clear | Clear all data (requires confirmation) |",
+    "| clear [duration] | Clear all data or memories older than duration seconds |",
     "| consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
 }
@@ -488,6 +495,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           reason: tool.schema.string().optional(),
           dryRun: tool.schema.boolean().optional(),
           confirmed: tool.schema.boolean().optional(),
+          duration: tool.schema.number().optional(),
         },
         execute: async (args, context) => {
           try {
