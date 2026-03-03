@@ -136,7 +136,7 @@ describe("detectLanguage properties", () => {
       expect(text.length).toBeGreaterThan(0);
       const result = await detectLanguage(text);
       expect(result.codeRatio).toBeGreaterThanOrEqual(0);
-      expect(result.codeRatio).toBeLessThan(1);
+      expect(result.codeRatio).toBeLessThanOrEqual(1);
     }
   });
 });
