@@ -526,7 +526,6 @@ async function fetchJson(
       } catch {
         // response body is not JSON -- use empty object fallback
         json = {};
-        json = {};
       }
     }
 

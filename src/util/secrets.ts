@@ -37,7 +37,6 @@ export async function resolveSecret(value: string): Promise<string> {
     } catch {
       // file read failed -- secret is unavailable, return empty string
       return "";
-      return "";
     }
   }
 

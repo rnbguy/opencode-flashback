@@ -28,7 +28,6 @@ function gitCmd(args: string[], cwd?: string): string | null {
   } catch {
     // git command failed -- container tag unavailable in non-git directories
     return null;
-    return null;
   }
 }
 
