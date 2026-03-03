@@ -1,4 +1,5 @@
 import type {
+  ConsolidationCandidate,
   ContainerTagInfo,
   ContainerTagResolver,
   Memory,
@@ -23,6 +24,7 @@ import {
   type AddMemoryOptions,
 } from "./core/memory.ts";
 import { getOrCreateProfile } from "./core/profile.ts";
+import { consolidateMemories } from "./core/consolidate.ts";
 import {
   enqueueCapture,
   getCaptureState,
@@ -76,6 +78,10 @@ export interface MemoryEngine {
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
   clearAllData(durationSecs?: number): void;
+  consolidateMemories(
+    containerTag: string,
+    dryRun: boolean,
+  ): Promise<{ candidates: ConsolidationCandidate[]; merged: number }>;
   warmup(): Promise<void>;
   shutdown(): void;
 }
@@ -131,6 +137,9 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
       } else {
         clearAllData(db);
       }
+    },
+    consolidateMemories: async (containerTag, dryRun) => {
+      return consolidateMemories({ containerTag, dryRun });
     },
     warmup: async () => {
       await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);

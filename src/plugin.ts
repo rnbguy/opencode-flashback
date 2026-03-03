@@ -252,11 +252,24 @@ async function handleToolCall(
       };
     }
     case "consolidate": {
-      const dryRun = asBoolean(args.dryRun) ?? true;
+      const dryRun =
+        typeof args.dryRun === "boolean" ? asBoolean(args.dryRun) ?? true : true;
+      const confirmed = asBoolean(args.confirmed);
+      if (!dryRun && !confirmed) {
+        return {
+          mode: "consolidate",
+          candidates: [],
+          merged: 0,
+          dryRun: false,
+          message:
+            "WARNING: This will merge duplicate memories. To proceed, call again with confirmed: true.",
+        };
+      }
+      const result = await engine.consolidateMemories(containerTag, dryRun);
       return {
         mode: "consolidate",
-        candidates: [],
-        merged: 0,
+        candidates: result.candidates,
+        merged: result.merged,
         dryRun,
       };
     }

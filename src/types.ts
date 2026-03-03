@@ -194,6 +194,7 @@ export type ToolResult =
       candidates: ConsolidationCandidate[];
       merged: number;
       dryRun: boolean;
+      message?: string;
     };
 
 export interface DiagnosticsResponse {

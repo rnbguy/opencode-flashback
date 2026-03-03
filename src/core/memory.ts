@@ -517,7 +517,7 @@ function findDuplicateMemory(
   return best?.memory ?? null;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) {
     return 0;
   }
