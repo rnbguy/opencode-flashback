@@ -28,7 +28,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
         with:
-          bun-version: latest
+          bun-version: "1.3"
 
       - name: install
         run: bun install --frozen-lockfile
@@ -41,6 +41,17 @@ jobs:
 
       - name: test
         run: bun test
+
+      - name: coverage gate
+        shell: bash
+        run: |
+          bun test --coverage 2>&1 | tee coverage-output.txt
+          AVG=$(awk -F'|' '/^ src\//{gsub(/ /,"",$3); sum+=$3; n++} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
+          echo "Average line coverage: ${AVG}%"
+          if [ "$AVG" -lt 82 ]; then
+            echo "ERROR: Coverage ${AVG}% is below 82% threshold"
+            exit 1
+          fi
 
       - name: check tarball size
         shell: bash
