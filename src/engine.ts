@@ -18,6 +18,8 @@ import {
   getContext,
   getMemoryById,
   suspendMemory,
+  pinMemory,
+  unpinMemory,
   type AddMemoryOptions,
 } from "./core/memory.ts";
 import { getOrCreateProfile } from "./core/profile.ts";
@@ -65,6 +67,8 @@ export interface MemoryEngine {
     limit?: number,
   ): Promise<SearchResult[]>;
   suspendMemory(id: string, reason: string | null): Promise<boolean>;
+  pinMemory(id: string): Promise<boolean>;
+  unpinMemory(id: string): Promise<boolean>;
   getMemoriesForReview(containerTag: string, limit?: number): Promise<Memory[]>;
   getOrCreateProfile(userId: string): UserProfile | null;
   enqueueCapture(request: CaptureRequest): void;
@@ -88,6 +92,8 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     exportMemories,
     findRelatedMemories,
     suspendMemory,
+    pinMemory,
+    unpinMemory,
     getMemoriesForReview,
     getOrCreateProfile,
     enqueueCapture,

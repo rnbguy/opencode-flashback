@@ -108,6 +108,53 @@ body {
   margin: 0;
 }
 
+.icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-md {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-lg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-spin {
+  animation: spin 1s linear infinite;
+}
+
+.icon-filled {
+  fill: currentColor;
+}
+
+button .icon {
+  margin-right: 4px;
+}
+
+button:only-child .icon,
+.btn-delete .icon,
+#search-btn .icon,
+#clear-search-btn .icon,
+.pagination button .icon {
+  margin-right: 0;
+}
+
 .github-link,
 .theme-toggle {
   display: inline-flex;
@@ -447,6 +494,31 @@ button:disabled {
   color: var(--bg-primary);
 }
 
+.btn-pin,
+.btn-unpin {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.btn-pin:hover,
+.btn-unpin:hover {
+  background: var(--warning);
+  color: var(--bg-primary);
+}
+
+.pin-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--warning);
+  z-index: 1;
+}
+
+.memory-card.pinned {
+  border-color: var(--warning);
+  border-left: 3px solid var(--warning);
+}
+
 .loading,
 .empty-state,
 .error-state {
@@ -524,7 +596,7 @@ textarea {
 }
 
 .hidden {
-  display: none !important;
+  display: none;
 }
 
 #refresh-indicator {
@@ -538,53 +610,6 @@ textarea {
   to {
     transform: rotate(360deg);
   }
-}
-
-.icon {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-  vertical-align: middle;
-  display: inline-block;
-}
-
-.icon-sm {
-  width: 14px;
-  height: 14px;
-}
-
-.icon-md {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-lg {
-  width: 20px;
-  height: 20px;
-}
-
-.icon-spin {
-  animation: spin 1s linear infinite;
-}
-
-.icon-filled {
-  fill: currentColor;
-}
-
-button .icon {
-  margin-right: 4px;
-}
-
-button:only-child .icon,
-.btn-delete .icon,
-#search-btn .icon,
-#clear-search-btn .icon,
-.pagination button .icon {
-  margin-right: 0;
 }
 
 @media (max-width: 768px) {

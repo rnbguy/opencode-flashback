@@ -28,6 +28,8 @@ type ToolMode =
   | "related"
   | "review"
   | "suspend"
+  | "pin"
+  | "unpin"
   | "clear"
   | "consolidate";
 
@@ -209,6 +211,22 @@ async function handleToolCall(
       );
       return { mode: "suspend", success, id };
     }
+    case "pin": {
+      const id = asString(args.id);
+      if (id.length === 0) {
+        return { error: "Missing memory id" };
+      }
+      const success = await engine.pinMemory(id);
+      return { mode: "pin", success, id };
+    }
+    case "unpin": {
+      const id = asString(args.id);
+      if (id.length === 0) {
+        return { error: "Missing memory id" };
+      }
+      const success = await engine.unpinMemory(id);
+      return { mode: "unpin", success, id };
+    }
     case "clear": {
       const confirmed = asBoolean(args.confirmed);
       if (!confirmed) {
@@ -259,6 +277,8 @@ function getHelpText(): string {
     "| related <topic> | Find related memories |",
     "| review | Review stale memories |",
     "| suspend <id> [reason] | Suspend a memory |",
+    "| pin <id> | Pin a memory (protected from eviction) |",
+    "| unpin <id> | Unpin a memory |",
     "| clear | Clear all data (requires confirmation) |",
     "| consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
@@ -453,6 +473,8 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             "related",
             "review",
             "suspend",
+            "pin",
+            "unpin",
             "clear",
             "consolidate",
           ]),

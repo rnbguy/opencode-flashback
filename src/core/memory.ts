@@ -382,6 +382,34 @@ export async function suspendMemory(
   return true;
 }
 
+export async function pinMemory(id: string): Promise<boolean> {
+  const logger = getLogger();
+  const db = getDb();
+  const memory = getMemory(db, id);
+  if (!memory) {
+    logger.debug("pinMemory completed", { id, success: false });
+    return false;
+  }
+
+  db.query("UPDATE memories SET is_pinned = 1 WHERE id = ?").run(id);
+  logger.debug("pinMemory completed", { id, success: true });
+  return true;
+}
+
+export async function unpinMemory(id: string): Promise<boolean> {
+  const logger = getLogger();
+  const db = getDb();
+  const memory = getMemory(db, id);
+  if (!memory) {
+    logger.debug("unpinMemory completed", { id, success: false });
+    return false;
+  }
+
+  db.query("UPDATE memories SET is_pinned = 0 WHERE id = ?").run(id);
+  logger.debug("unpinMemory completed", { id, success: true });
+  return true;
+}
+
 export async function getMemoriesForReview(
   containerTag: string,
   limit?: number,

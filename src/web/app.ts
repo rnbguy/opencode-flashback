@@ -11,6 +11,7 @@ import {
   Plus,
   RotateCw,
   Search,
+  Star,
   Sun,
   Trash2,
   User,
@@ -60,6 +61,7 @@ type Memory = {
   createdAt?: number;
   type?: string;
   tags?: string[];
+  isPinned?: boolean;
 };
 
 type SearchResult = {
@@ -127,6 +129,7 @@ const lucideIcons = {
   Workflow,
   Info,
   ArrowRight,
+  Star,
 };
 
 function renderMarkdown(markdown: string): string {
@@ -247,25 +250,43 @@ function renderMemories(): void {
       if (id) deleteMemory(id);
     });
   });
+  container.querySelectorAll("[data-pin-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const el = btn as HTMLElement;
+      const id = el.dataset.pinId;
+      const isPinned = el.dataset.pinned === "true";
+      if (id) togglePin(id, isPinned);
+    });
+  });
   createIcons({ icons: lucideIcons });
 }
 
 function renderMemoryCard(memory: Memory): string {
   const createdDate = formatDate(memory.createdAt);
+  const pinnedIndicator = memory.isPinned
+    ? '<span class="pin-indicator" title="Pinned"><i data-lucide="star" class="icon icon-sm icon-filled"></i></span>'
+    : "";
 
   const tagsHtml =
     memory.tags && memory.tags.length > 0
       ? `<div class="tags-list">${memory.tags.map((t) => `<span class="tag-badge">${escapeHtml(t)}</span>`).join("")}</div>`
       : "";
 
+  const pinBtnLabel = memory.isPinned ? "Unpin" : "Pin";
+  const pinBtnClass = memory.isPinned ? "btn-unpin" : "btn-pin";
+
   return `
-    <div class="memory-card" data-id="${memory.id}">
+    <div class="memory-card${memory.isPinned ? " pinned" : ""}" data-id="${memory.id}">
+      ${pinnedIndicator}
       <div class="memory-header">
         <div class="meta">
           ${memory.type ? `<span class="badge badge-type">${escapeHtml(memory.type)}</span>` : ""}
           <span class="memory-display-name">Memory</span>
         </div>
         <div class="memory-actions">
+          <button class="${pinBtnClass}" data-pin-id="${memory.id}" data-pinned="${memory.isPinned ? "true" : "false"}">
+            <i data-lucide="star" class="icon"></i> ${pinBtnLabel}
+          </button>
           <button class="btn-delete" data-delete-id="${memory.id}">
             <i data-lucide="trash-2" class="icon"></i> Delete
           </button>
@@ -409,6 +430,18 @@ async function deleteMemory(id: string): Promise<void> {
     await loadStats();
   } else {
     showToast(result.error || "Failed to delete", "error");
+  }
+}
+
+async function togglePin(id: string, isPinned: boolean): Promise<void> {
+  const endpoint = isPinned ? `/api/memories/${id}/unpin` : `/api/memories/${id}/pin`;
+  const result = await fetchAPI(endpoint, { method: "POST" });
+
+  if (result.success) {
+    showToast(isPinned ? "Memory unpinned" : "Memory pinned", "success");
+    await loadMemories();
+  } else {
+    showToast(result.error || "Failed to toggle pin", "error");
   }
 }
 
