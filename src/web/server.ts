@@ -222,8 +222,10 @@ async function handleListMemories(
   url: URL,
   directory: string,
 ): Promise<Response> {
-  const limit = parseInt(url.searchParams.get("limit") ?? "50");
-  const offset = parseInt(url.searchParams.get("offset") ?? "0");
+  const rawLimit = parseInt(url.searchParams.get("limit") ?? "50");
+  const limit = isNaN(rawLimit) ? 50 : Math.max(1, Math.min(100, rawLimit));
+  const rawOffset = parseInt(url.searchParams.get("offset") ?? "0");
+  const offset = isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
   const containerTag = getContainerTag(
     directory,
     url.searchParams.get("containerTag") ?? undefined,
@@ -293,7 +295,8 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
     return jsonResponse({ error: "Missing required parameter: q" }, 400);
   }
 
-  const limit = parseInt(url.searchParams.get("limit") ?? "10");
+  const rawLimit = parseInt(url.searchParams.get("limit") ?? "10");
+  const limit = isNaN(rawLimit) ? 10 : Math.max(1, Math.min(100, rawLimit));
   const containerTag = getContainerTag(
     directory,
     url.searchParams.get("containerTag") ?? undefined,
