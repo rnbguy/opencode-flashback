@@ -1,5 +1,4 @@
-import { APICallError, generateText, NoObjectGeneratedError, Output } from "ai";
-import { z } from "zod";
+import { APICallError, generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
 import { getConfig } from "../../config";
 import type { LLMProvider } from "../../types";
 import { resolveSecret } from "../../util/secrets";
@@ -25,19 +24,6 @@ const MESSAGE_VALIDATION_UNREACHABLE_PREFIX = "LLM endpoint unreachable: ";
 const MESSAGE_INVALID_API_KEY = "Invalid or unauthorized API key";
 const MESSAGE_MODEL_NOT_FOUND = "Model not found";
 
-const FIELD_TYPE = "type" as const;
-const FIELD_PROPERTIES = "properties" as const;
-const FIELD_REQUIRED = "required" as const;
-const FIELD_ITEMS = "items" as const;
-const FIELD_ENUM = "enum" as const;
-
-const SCHEMA_OBJECT = "object" as const;
-const SCHEMA_ARRAY = "array" as const;
-const SCHEMA_STRING = "string" as const;
-const SCHEMA_NUMBER = "number" as const;
-const SCHEMA_INTEGER = "integer" as const;
-const SCHEMA_BOOLEAN = "boolean" as const;
-const SCHEMA_NULL = "null" as const;
 
 const VALIDATION_PROMPT = "Return the JSON object {\"ok\":true}.";
 const VALIDATION_SYSTEM_PROMPT = "You are a health check assistant.";
@@ -124,7 +110,6 @@ export async function callLLMWithTool(
       apiKey: rawApiKey,
     });
 
-    const outputSchema = jsonSchemaToZodObject(options.toolSchema.parameters);
     const prompt = buildStructuredPrompt(options);
 
     const result = await deps.generateText({
@@ -134,7 +119,9 @@ export async function callLLMWithTool(
       temperature: effectiveTemperature,
       maxRetries: MAX_RETRIES,
       abortSignal: AbortSignal.timeout(timeoutMs),
-      output: Output.object({ schema: outputSchema }),
+      output: Output.object({
+        schema: jsonSchema(options.toolSchema.parameters),
+      }),
     });
 
     if (!isRecord(result.output)) {
@@ -190,7 +177,7 @@ export async function validateLLMEndpoint(): Promise<{
       temperature: 0,
       abortSignal: AbortSignal.timeout(VALIDATE_TIMEOUT_MS),
       output: Output.object({
-        schema: z.object({ ok: z.boolean() }).catchall(z.unknown()),
+        schema: jsonSchema({ type: "object", properties: { ok: { type: "boolean" } } }),
       }),
     });
 
@@ -231,90 +218,6 @@ function buildStructuredPrompt(options: LLMCallOptions): string {
   return lines.join("\n");
 }
 
-function jsonSchemaToZodObject(schema: Record<string, unknown>): z.ZodType<Record<string, unknown>> {
-  const maybeType = schema[FIELD_TYPE];
-  if (maybeType !== SCHEMA_OBJECT) {
-    return z.record(z.string(), z.unknown());
-  }
-
-  const properties = schema[FIELD_PROPERTIES];
-  if (!isRecord(properties)) {
-    return z.record(z.string(), z.unknown());
-  }
-
-  const required = readStringArray(schema, FIELD_REQUIRED);
-  const requiredSet = new Set(required);
-  const shape: Record<string, z.ZodType<unknown>> = {};
-
-  for (const [key, value] of Object.entries(properties)) {
-    let field = jsonSchemaToZod(value);
-    if (!requiredSet.has(key)) {
-      field = field.optional();
-    }
-    shape[key] = field;
-  }
-
-  return z.object(shape).catchall(z.unknown());
-}
-
-function jsonSchemaToZod(schema: unknown): z.ZodType<unknown> {
-  if (!isRecord(schema)) {
-    return z.unknown();
-  }
-
-  const enumValues = schema[FIELD_ENUM];
-  if (Array.isArray(enumValues) && enumValues.length > 0) {
-    const literals = enumValues
-      .filter((value): value is string | number | boolean | null =>
-        typeof value === "string" ||
-        typeof value === "number" ||
-        typeof value === "boolean" ||
-        value === null,
-      )
-      .map((value) => z.literal(value));
-    if (literals.length > 0) {
-      return z.union(literals);
-    }
-  }
-
-  const typeValue = schema[FIELD_TYPE];
-  if (typeof typeValue !== "string") {
-    return z.unknown();
-  }
-
-  switch (typeValue) {
-    case SCHEMA_STRING:
-      return z.string();
-    case SCHEMA_NUMBER:
-      return z.number();
-    case SCHEMA_INTEGER:
-      return z.number().int();
-    case SCHEMA_BOOLEAN:
-      return z.boolean();
-    case SCHEMA_NULL:
-      return z.null();
-    case SCHEMA_ARRAY: {
-      const items = schema[FIELD_ITEMS];
-      return z.array(jsonSchemaToZod(items));
-    }
-    case SCHEMA_OBJECT:
-      return jsonSchemaToZodObject(schema);
-    default:
-      return z.unknown();
-  }
-}
-
-function readStringArray(
-  source: Record<string, unknown>,
-  field: string,
-): string[] {
-  const value = source[field];
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string");
-}
 
 function mapGenerateError(error: unknown): {
   error: string;
