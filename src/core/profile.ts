@@ -5,7 +5,7 @@ import {
   updateProfile,
 } from "../db/database.ts";
 import { getLogger } from "../util/logger.ts";
-import { callLLMWithTool } from "./llm.ts";
+import { callLLMWithTool } from "./ai/generate.ts";
 import type {
   ProfilePattern,
   ProfilePreference,

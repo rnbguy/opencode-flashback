@@ -1,5 +1,5 @@
 import { addMemory } from "./memory.ts";
-import { callLLMWithTool, type ToolSchema } from "./llm.ts";
+import { callLLMWithTool, type ToolSchema } from "./ai/generate.ts";
 import {
   storePrompt,
   getLastUncapturedPrompt,

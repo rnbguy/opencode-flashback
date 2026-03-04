@@ -6,7 +6,7 @@ import { resolveContainerTag } from "./core/tags.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
 import { createEngine } from "./engine.ts";
-import { validateLLMEndpoint } from "./core/llm.ts";
+import { validateLLMEndpoint } from "./core/ai/generate.ts";
 import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
 import { createLogger } from "./util/logger.ts";
