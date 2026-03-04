@@ -239,6 +239,16 @@ function parseJson<T>(value: string | null, fallback: T): T {
   }
 }
 
+export const META_KEY_EMBEDDING_MODEL = "embedding_model";
+
+export function getMetaValue(db: Database, key: string): string | null {
+  const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | null;
+  return row?.value ?? null;
+}
+
+export function setMetaValue(db: Database, key: string, value: string): void {
+  db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(key, value);
+}
 
 function rowToMemory(row: MemoryRow): Memory {
   const bytes = new Uint8Array(row.embedding);

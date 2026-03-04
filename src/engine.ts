@@ -36,8 +36,19 @@ import {
 } from "./core/capture.ts";
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
 import { initSearch, getSearchState } from "./search.ts";
-import { getDb, countMemories, closeDb, clearAllData, clearOldData } from "./db/database.ts";
+import {
+  getDb,
+  countMemories,
+  closeDb,
+  clearAllData,
+  clearOldData,
+  getMetaValue,
+  setMetaValue,
+  META_KEY_EMBEDDING_MODEL,
+} from "./db/database.ts";
 import { getConfig } from "./config.ts";
+import type { Database } from "bun:sqlite";
+import { getLogger } from "./util/logger.ts";
 
 export interface MemoryEngine {
   addMemory(
@@ -90,6 +101,55 @@ export interface MemoryEngine {
   ): Promise<{ candidates: ConsolidationCandidate[]; merged: number }>;
   warmup(): Promise<void>;
   shutdown(): void;
+}
+
+async function checkEmbeddingModelChange(db: Database): Promise<void> {
+  const config = getConfig();
+  const currentModel = config.embedding?.model;
+  if (!currentModel) return;
+
+  const storedModel = getMetaValue(db, META_KEY_EMBEDDING_MODEL);
+
+  if (!storedModel) {
+    // First run -- store current model, don't re-embed
+    setMetaValue(db, META_KEY_EMBEDDING_MODEL, currentModel);
+    return;
+  }
+
+  if (storedModel === currentModel) return;
+
+  // Model changed -- re-embed in background
+  const logger = getLogger();
+  logger.info(`Re-embedding memories for model change: ${storedModel} -> ${currentModel}`);
+
+  // Don't await -- run in background
+  reembedAllMemories(db, currentModel).catch((err) => {
+    logger.error("Background re-embed failed", { error: String(err) });
+  });
+}
+
+async function reembedAllMemories(db: Database, newModel: string): Promise<void> {
+  const logger = getLogger();
+  const memories = db.query("SELECT id, content FROM memories").all() as Array<{ id: string; content: string }>;
+
+  if (memories.length === 0) {
+    setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
+    return;
+  }
+
+  logger.info(`Re-embedding ${memories.length} memories...`);
+
+  const texts = memories.map((m) => m.content);
+  const embeddings = await embed(texts, "document");
+
+  const updateStmt = db.query("UPDATE memories SET embedding = ? WHERE id = ?");
+  for (let i = 0; i < memories.length; i++) {
+    const float32 = new Float32Array(embeddings[i]);
+    updateStmt.run(Buffer.from(float32.buffer), memories[i].id);
+  }
+
+  setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
+  logger.info(`Re-embedding complete: ${memories.length} memories updated`);
 }
 
 export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
@@ -150,6 +210,9 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     },
     warmup: async () => {
       await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);
+      checkEmbeddingModelChange(getDb()).catch((err) => {
+        getLogger().error("Embedding model change check failed", { error: String(err) });
+      });
     },
     shutdown: () => {
       resetCapture();
