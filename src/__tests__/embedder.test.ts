@@ -1,263 +1,202 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import type { pipeline as hfPipeline } from "@huggingface/transformers";
-
-const mockDispose = mock(() => {});
-const mockPipelineInstance = mock();
-
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+  _resetConfigForTesting,
+  _setConfigForTesting,
+  type PluginConfig,
+} from "../config.ts";
+import {
+  _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   embed,
   getEmbedderState,
   resetEmbedder,
-  _setEmbedderDepsForTesting,
-  _resetEmbedderDepsForTesting,
-} from "../embed/embedder.ts";
+} from "../core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../core/ai/providers.ts";
 
-// -- Helpers -----------------------------------------------------------------
+const testConfig: PluginConfig = {
+  llm: {
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  },
+  storage: { path: "/tmp/test" },
+  memory: {
+    maxResults: 10,
+    autoCapture: true,
+    injection: "first",
+    excludeCurrentSession: true,
+  },
+  web: { port: 4747, enabled: false },
+  search: { retrievalQuality: "balanced" },
+  toasts: { autoCapture: true, userProfile: true, errors: true },
+  compaction: { enabled: true, memoryLimit: 10 },
+};
 
-function makeVector(seed: number): number[] {
-  return Array.from({ length: 768 }, (_, i) => (seed + i) * 0.001);
+const mockEmbedMany = mock((_options: { values: string[] }) =>
+  Promise.resolve({ embeddings: [] as number[][] }),
+);
+const mockCreateEmbeddingProvider = mock(() =>
+  Promise.resolve({ embedding: (_id: string) => ({}) }),
+);
+
+function makeVector(seed: number, dim = 768): number[] {
+  return Array.from({ length: dim }, (_, i) => seed + i * 0.001);
 }
 
-function makeBatchOutput(vectors: number[][]) {
-  const output: Record<string | number, unknown> = {
-    dispose: mockDispose,
-  };
-  for (let i = 0; i < vectors.length; i++) {
-    output[i] = { data: vectors[i] };
-  }
-  return output;
-}
-
-function setupSuccessfulPipeline(vectors?: number[][]) {
-  const vecs = vectors ?? [makeVector(1)];
-  let callIndex = 0;
-  const pipelineFn = mock(async () => {
-    const batch = vecs.slice(callIndex, callIndex + 10);
-    callIndex += batch.length;
-    return makeBatchOutput(batch.length > 0 ? batch : [makeVector(99)]);
+beforeEach(() => {
+  resetEmbedder();
+  _setConfigForTesting(testConfig);
+  mockEmbedMany.mockReset();
+  mockCreateEmbeddingProvider.mockReset();
+  mockCreateEmbeddingProvider.mockResolvedValue({ embedding: (_id: string) => ({}) });
+  _setEmbedDepsForTesting({
+    embedMany: mockEmbedMany as unknown as typeof import("ai").embedMany,
+    createEmbeddingProvider:
+      mockCreateEmbeddingProvider as unknown as typeof createEmbeddingProvider,
   });
-  mockPipelineInstance.mockResolvedValue(pipelineFn);
-  return pipelineFn;
-}
+});
 
-// -- Tests -------------------------------------------------------------------
+afterEach(() => {
+  _resetEmbedDepsForTesting();
+  _resetConfigForTesting();
+  resetEmbedder();
+});
 
-describe("embedder", () => {
-  beforeEach(() => {
-    const mockedPipeline =
-      mockPipelineInstance as unknown as typeof hfPipeline;
+describe("embed()", () => {
+  test("returns [] for empty input without calling embedMany", async () => {
+    const result = await embed([], "query");
+
+    expect(result).toEqual([]);
+    expect(mockEmbedMany).not.toHaveBeenCalled();
+    expect(mockCreateEmbeddingProvider).not.toHaveBeenCalled();
+  });
+
+  test("returns a 768-dim vector for single text", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(1)] });
+
+    const result = await embed(["hello"], "query");
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveLength(768);
+    expect(mockEmbedMany).toHaveBeenCalledTimes(1);
+  });
+
+  test("caches identical inputs", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(2)] });
+
+    const first = await embed(["same"], "query");
+    const second = await embed(["same"], "query");
+
+    expect(first).toEqual(second);
+    expect(mockEmbedMany).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses different cache keys for query and document modes", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(3)] });
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(4)] });
+
+    const query = await embed(["same text"], "query");
+    const document = await embed(["same text"], "document");
+
+    expect(mockEmbedMany).toHaveBeenCalledTimes(2);
+    expect(query[0]).not.toEqual(document[0]);
+  });
+
+  test("handles mixed cache hits and misses", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(10)] });
+    await embed(["a"], "query");
+
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(11)] });
+    const result = await embed(["a", "b"], "query");
+
+    expect(mockEmbedMany).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toHaveLength(768);
+    expect(result[1]).toHaveLength(768);
+  });
+
+  test("keeps separate caches across modes", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(20)] });
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(21)] });
+
+    await embed(["shared"], "query");
+    await embed(["shared"], "document");
+    await embed(["shared"], "query");
+    await embed(["shared"], "document");
+
+    expect(mockEmbedMany).toHaveBeenCalledTimes(2);
+  });
+
+  test("throws on wrong embedding dimension", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(30, 32)] });
+
+    await expect(embed(["bad"], "query")).rejects.toThrow(
+      "Unexpected embedding dimension",
+    );
+  });
+
+  test("propagates provider creation errors", async () => {
+    mockCreateEmbeddingProvider.mockRejectedValueOnce(new Error("provider failed"));
+
+    await expect(embed(["x"], "query")).rejects.toThrow("provider failed");
+    expect(mockEmbedMany).not.toHaveBeenCalled();
+  });
+
+  test("resetEmbedder clears cache and state", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(40)] });
+
+    await embed(["x"], "query");
+    expect(getEmbedderState()).toBe("ready");
+
     resetEmbedder();
-    _resetEmbedderDepsForTesting();
-    _setEmbedderDepsForTesting({ pipeline: mockedPipeline });
-    mockPipelineInstance.mockReset();
-    mockDispose.mockClear();
+    expect(getEmbedderState()).toBe("uninitialized");
+
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(41)] });
+    await embed(["x"], "query");
+    expect(mockEmbedMany).toHaveBeenCalledTimes(2);
   });
 
-  afterEach(() => {
-    resetEmbedder();
-    _resetEmbedderDepsForTesting();
+  test("throws when embedding config is missing", async () => {
+    const { embedding: _embedding, ...withoutEmbedding } = testConfig;
+    _setConfigForTesting(withoutEmbedding);
+
+    await expect(embed(["x"], "query")).rejects.toThrow(
+      "Embedding configuration is required",
+    );
+    expect(mockEmbedMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("getEmbedderState()", () => {
+  test("returns uninitialized initially", () => {
+    expect(getEmbedderState()).toBe("uninitialized");
   });
 
-  describe("lazy initialization", () => {
-    test("starts uninitialized", () => {
-      expect(getEmbedderState()).toBe("uninitialized");
-    });
+  test("returns ready after successful embed", async () => {
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(50)] });
 
-    test("initializes on first embed call", async () => {
-      setupSuccessfulPipeline();
-      await embed(["hello"], "query");
-      expect(getEmbedderState()).toBe("ready");
-      expect(mockPipelineInstance).toHaveBeenCalledWith(
-        "feature-extraction",
-        "onnx-community/embeddinggemma-300m-ONNX",
-        { device: "cpu", dtype: "q4" },
-      );
-    });
+    await embed(["ok"], "query");
 
-    // Regression: onnxruntime-node only supports cuda/cpu, not wasm
-    test("uses cpu device, not wasm (onnxruntime-node compatibility)", async () => {
-      setupSuccessfulPipeline();
-      await embed(["regression"], "query");
-      const opts = mockPipelineInstance.mock.calls[0][2] as { device: string };
-      expect(opts.device).toBe("cpu");
-      expect(opts.device).not.toBe("wasm");
-    });
-
-    test("reuses pipeline on subsequent calls", async () => {
-      setupSuccessfulPipeline();
-      await embed(["hello"], "query");
-      await embed(["world"], "query");
-      // pipeline() called only once
-      expect(mockPipelineInstance).toHaveBeenCalledTimes(1);
-    });
+    expect(getEmbedderState()).toBe("ready");
   });
 
-  describe("embedding generation", () => {
-    test("returns empty array for empty input", async () => {
-      const result = await embed([], "query");
-      expect(result).toEqual([]);
-    });
+  test("returns degraded after breaker opens", async () => {
+    mockEmbedMany.mockRejectedValue(new Error("boom"));
 
-    test("returns vectors with correct dimensions", async () => {
-      const vec = makeVector(42);
-      setupSuccessfulPipeline([vec]);
-      const result = await embed(["test text"], "query");
-      expect(result).toHaveLength(1);
-      expect(result[0]).toHaveLength(768);
-    });
+    await expect(embed(["a"], "query")).rejects.toThrow("boom");
+    await expect(embed(["b"], "query")).rejects.toThrow("boom");
+    await expect(embed(["c"], "query")).rejects.toThrow("boom");
 
-    test("handles multiple texts", async () => {
-      const vecs = [makeVector(1), makeVector(2), makeVector(3)];
-      setupSuccessfulPipeline(vecs);
-      const result = await embed(["a", "b", "c"], "document");
-      expect(result).toHaveLength(3);
-    });
-
-    test("disposes tensor output after processing", async () => {
-      setupSuccessfulPipeline();
-      await embed(["test"], "query");
-      expect(mockDispose).toHaveBeenCalled();
-    });
-  });
-
-  describe("LRU cache", () => {
-    test("cache hit returns previously computed vector", async () => {
-      const vec = makeVector(10);
-      const pipelineFn = setupSuccessfulPipeline([vec]);
-      await embed(["cached text"], "query");
-
-      pipelineFn.mockClear();
-      const result = await embed(["cached text"], "query");
-      // Should not call model again -- all cached
-      expect(pipelineFn).not.toHaveBeenCalled();
-      expect(result[0]).toHaveLength(768);
-    });
-
-    test("different modes produce different cache keys", async () => {
-      const vec = makeVector(20);
-      const pipelineFn = setupSuccessfulPipeline([vec]);
-      await embed(["same text"], "query");
-
-      pipelineFn.mockClear();
-      // Same text but different mode = cache miss
-      setupSuccessfulPipeline([makeVector(21)]);
-      const result = await embed(["same text"], "document");
-      expect(result[0]).toHaveLength(768);
-    });
-
-    test("mixed cache hit/miss fetches only missing", async () => {
-      const vec1 = makeVector(30);
-      setupSuccessfulPipeline([vec1]);
-      await embed(["text1"], "query");
-
-      // Now embed text1 (cached) + text2 (miss)
-      const vec2 = makeVector(31);
-      setupSuccessfulPipeline([vec2]);
-      const result = await embed(["text1", "text2"], "query");
-      expect(result).toHaveLength(2);
-    });
-  });
-
-  describe("circuit breaker", () => {
-    test("transitions to error state on failure", async () => {
-      mockPipelineInstance.mockResolvedValue(
-        mock(async () => {
-          throw new Error("Model inference failed");
-        }),
-      );
-      await expect(embed(["test"], "query")).rejects.toThrow(
-        "Model inference failed",
-      );
-      expect(getEmbedderState()).toBe("error");
-    });
-
-    test("transitions to degraded after 3 failures", async () => {
-      for (let i = 0; i < 3; i++) {
-        resetEmbedder();
-        // Keep state as ready but simulate failures
-        mockPipelineInstance.mockResolvedValue(
-          mock(async () => {
-            throw new Error(`Failure ${i}`);
-          }),
-        );
-        try {
-          await embed(["test"], "query");
-        } catch {
-          // expected
-        }
-      }
-      // After 3 failures within the window, state should be degraded
-      // Note: resetEmbedder clears failure timestamps, so we need consecutive failures
-      // without resetting
-      resetEmbedder();
-      const failingFn = mock(async () => {
-        throw new Error("fail");
-      });
-      mockPipelineInstance.mockResolvedValue(failingFn);
-
-      for (let i = 0; i < 3; i++) {
-        try {
-          await embed(["test"], "query");
-        } catch {
-          // expected
-        }
-      }
-      expect(getEmbedderState()).toBe("degraded");
-    });
-
-    test("degraded state throws circuit breaker error", async () => {
-      // Force degraded state with 3 failures
-      const failingFn = mock(async () => {
-        throw new Error("fail");
-      });
-      mockPipelineInstance.mockResolvedValue(failingFn);
-
-      for (let i = 0; i < 3; i++) {
-        try {
-          await embed(["test"], "query");
-        } catch {
-          // expected
-        }
-      }
-      expect(getEmbedderState()).toBe("degraded");
-
-      // Next call should throw circuit breaker error
-      await expect(embed(["test"], "query")).rejects.toThrow(
-        "Embedder circuit breaker is open",
-      );
-    });
-  });
-
-  describe("error handling", () => {
-    test("wrong embedding dimension throws", async () => {
-      const wrongDimVector = Array.from({ length: 256 }, (_, i) => i * 0.01);
-      const pipelineFn = mock(async () => makeBatchOutput([wrongDimVector]));
-      mockPipelineInstance.mockResolvedValue(pipelineFn);
-
-      await expect(embed(["test"], "query")).rejects.toThrow(
-        "Unexpected embedding dimension",
-      );
-    });
-
-    test("pipeline init failure sets error state", async () => {
-      mockPipelineInstance.mockRejectedValue(
-        new Error("Model download failed"),
-      );
-      await expect(embed(["test"], "query")).rejects.toThrow(
-        "Model download failed",
-      );
-      expect(getEmbedderState()).toBe("error");
-    });
-  });
-
-  describe("resetEmbedder", () => {
-    test("clears all state", async () => {
-      setupSuccessfulPipeline();
-      await embed(["test"], "query");
-      expect(getEmbedderState()).toBe("ready");
-
-      resetEmbedder();
-      expect(getEmbedderState()).toBe("uninitialized");
-    });
+    expect(getEmbedderState()).toBe("degraded");
+    await expect(embed(["d"], "query")).rejects.toThrow(
+      "Embedder circuit breaker is open",
+    );
   });
 });

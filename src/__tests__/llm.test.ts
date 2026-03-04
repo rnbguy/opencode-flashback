@@ -1,899 +1,393 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { APICallError, NoObjectGeneratedError } from "ai";
+import type { generateText } from "ai";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
-} from "../config";
+} from "../config.ts";
+import {
+  _resetGenerateDepsForTesting,
+  _setGenerateDepsForTesting,
+  callLLMWithTool,
+  validateLLMEndpoint,
+  type LLMCallOptions,
+  type ToolSchema,
+} from "../core/ai/generate.ts";
+import type { createLLMProvider } from "../core/ai/providers.ts";
 
-// -- Mock dependencies -------------------------------------------------------
-
-const defaultConfig: PluginConfig = {
+const baseConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat" as const,
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "test-key-1234",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
   },
   storage: { path: "/tmp/test" },
   memory: {
     maxResults: 10,
     autoCapture: true,
-    injection: "first" as const,
+    injection: "first",
     excludeCurrentSession: true,
   },
   web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" as const },
-  toasts: {
-    autoCapture: true,
-    userProfile: true,
-    errors: true,
-  },
-  compaction: {
-    enabled: true,
-    memoryLimit: 10,
-  },
+  search: { retrievalQuality: "balanced" },
+  toasts: { autoCapture: true, userProfile: true, errors: true },
+  compaction: { enabled: true, memoryLimit: 10 },
 };
 
-import { callLLMWithTool, validateLLMEndpoint } from "../core/llm.ts";
-import type { LLMCallOptions, LLMCallResult, ToolSchema } from "../core/llm.ts";
-
-// -- Speed up retries: make setTimeout instant -------------------------------
-
-const realSetTimeout = globalThis.setTimeout;
-
-// -- Helpers -----------------------------------------------------------------
-
-const testTool: ToolSchema = {
-  name: "test_tool",
-  description: "A test tool",
+const testToolSchema: ToolSchema = {
+  name: "extract_fact",
+  description: "Extract structured data",
   parameters: {
     type: "object",
-    properties: { result: { type: "string" } },
+    properties: {
+      result: { type: "string" },
+    },
     required: ["result"],
   },
 };
 
 const baseOptions: LLMCallOptions = {
-  systemPrompt: "You are a test assistant.",
-  userPrompt: "Test prompt",
-  toolSchema: testTool,
-  apiKey: "test-key-1234",
-  apiUrl: "https://api.test.com/v1",
-  timeout: 30_000,
+  systemPrompt: "You are a strict JSON assistant.",
+  userPrompt: "Return one fact.",
+  toolSchema: testToolSchema,
 };
 
-const mockFetch = mock<typeof fetch>();
+const mockGenerateText = mock(
+  (_options: {
+    prompt?: string;
+    system?: string;
+    temperature?: number;
+    output?: unknown;
+  }): Promise<{ output: Record<string, unknown> }> =>
+    Promise.resolve({ output: { result: "test" } }),
+);
+const mockCreateLLMProvider = mock(() => Promise.resolve({ chat: (_id: string) => ({}) }));
 
-function makeOpenAIChatResponse(args: Record<string, unknown>): unknown {
-  return {
-    choices: [
-      {
-        message: {
-          tool_calls: [{ function: { arguments: JSON.stringify(args) } }],
-        },
+function makeAbortError(): Error {
+  const err = new Error("AbortError");
+  err.name = "AbortError";
+  return err;
+}
+
+function makeApiCallError(message: string, statusCode?: number): APICallError {
+  return new APICallError({
+    message,
+    url: "http://test",
+    requestBodyValues: {},
+    statusCode,
+    responseHeaders: {},
+    responseBody: undefined,
+    isRetryable: false,
+  });
+}
+
+function makeNoObjectGeneratedError(message: string): NoObjectGeneratedError {
+  return new NoObjectGeneratedError({
+    message,
+    text: "not-json",
+    response: {
+      id: "resp-1",
+      timestamp: new Date(),
+      modelId: "test-model",
+    },
+    usage: {
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 2,
+      inputTokenDetails: {
+        noCacheTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
       },
-    ],
-  };
-}
-
-function makeOpenAIResponsesResponse(args: Record<string, unknown>): unknown {
-  return {
-    output: [{ type: "function_call", arguments: JSON.stringify(args) }],
-  };
-}
-
-function makeAnthropicResponse(input: Record<string, unknown>): unknown {
-  return {
-    content: [{ type: "tool_use", input }],
-  };
-}
-
-function makeGeminiResponse(args: Record<string, unknown>): unknown {
-  return {
-    candidates: [
-      {
-        content: {
-          parts: [{ functionCall: { args } }],
-        },
+      outputTokenDetails: {
+        textTokens: 1,
+        reasoningTokens: 0,
       },
-    ],
-  };
+    },
+    finishReason: "stop",
+  });
 }
 
-function mockSuccess(body: unknown): void {
-  mockFetch.mockResolvedValueOnce(
-    new Response(JSON.stringify(body), { status: 200 }),
-  );
+function getFailure(
+  result: Awaited<ReturnType<typeof callLLMWithTool>>,
+): Extract<Awaited<ReturnType<typeof callLLMWithTool>>, { success: false }> {
+  if (result.success) {
+    throw new Error("Expected callLLMWithTool to fail");
+  }
+
+  return result as Extract<
+    Awaited<ReturnType<typeof callLLMWithTool>>,
+    { success: false }
+  >;
 }
 
-function mockError(
-  status: number,
-  body: unknown,
-  headers?: Record<string, string>,
-): void {
-  mockFetch.mockResolvedValueOnce(
-    new Response(JSON.stringify(body), { status, headers }),
-  );
-}
-
-// -- Tests -------------------------------------------------------------------
-
-describe("llm", () => {
-  beforeEach(() => {
-    _setConfigForTesting(defaultConfig);
-    mockFetch.mockReset();
-    globalThis.fetch = mockFetch as unknown as typeof fetch;
-    // Make all setTimeout instant to speed up retry tests
-    globalThis.setTimeout = ((
-      fn: (...args: unknown[]) => void,
-      _ms?: number,
-      ...args: unknown[]
-    ) => {
-      return realSetTimeout(fn, 0, ...args);
-    }) as typeof setTimeout;
-  });
-
-  afterEach(() => {
-    _resetConfigForTesting();
-    globalThis.setTimeout = realSetTimeout;
-  });
-
-  // -- OpenAI Chat ---------------------------------------------------------
-
-  describe("openai-chat", () => {
-    test("returns parsed tool call arguments", async () => {
-      mockSuccess(makeOpenAIChatResponse({ result: "hello" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-        model: "gpt-4o",
-      });
-
-      expect(result).toEqual({ success: true, data: { result: "hello" } });
-    });
-
-    test("sends correct payload structure", async () => {
-      mockSuccess(makeOpenAIChatResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-        model: "gpt-4o",
-      });
-
-      const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toBe("https://api.test.com/v1/chat/completions");
-      const body = JSON.parse(opts!.body as string);
-      expect(body.model).toBe("gpt-4o");
-      expect(body.messages).toHaveLength(2);
-      expect(body.tools[0].type).toBe("function");
-      expect(body.tool_choice.type).toBe("function");
-    });
-
-    test("handles missing tool call arguments", async () => {
-      mockSuccess({ choices: [{ message: {} }] });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-    });
-  });
-
-  // -- OpenAI Responses ----------------------------------------------------
-
-  describe("openai-responses", () => {
-    test("returns parsed function call arguments", async () => {
-      mockSuccess(makeOpenAIResponsesResponse({ result: "world" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-responses",
-        model: "gpt-4o",
-      });
-
-      expect(result).toEqual({ success: true, data: { result: "world" } });
-    });
-
-    test("nothink mode adds reasoning effort none", async () => {
-      mockSuccess(makeOpenAIResponsesResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-responses",
-        model: "gpt-4o",
-        nothink: true,
-      });
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1]!.body as string);
-      expect(body.reasoning).toEqual({ effort: "none" });
-    });
-
-    test("falls back on nothink 400 error mentioning reasoning", async () => {
-      // First call: 400 with reasoning error
-      mockError(400, { error: { message: "reasoning effort not supported" } });
-      // Fallback call: success without reasoning
-      mockSuccess(makeOpenAIResponsesResponse({ result: "fallback" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-responses",
-        model: "gpt-4o",
-        nothink: true,
-      });
-
-      expect(result).toEqual({
-        success: true,
-        data: { result: "fallback" },
-      });
-      // Second call should NOT have reasoning field
-      const fallbackBody = JSON.parse(
-        mockFetch.mock.calls[1][1]!.body as string,
-      );
-      expect(fallbackBody.reasoning).toBeUndefined();
-    });
-
-    test("sends to /responses endpoint", async () => {
-      mockSuccess(makeOpenAIResponsesResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-responses",
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toBe("https://api.test.com/v1/responses");
-    });
-
-    test("handles missing function_call in output", async () => {
-      mockSuccess({ output: [{ type: "text", text: "no tool" }] });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-responses",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-    });
-  });
-
-  // -- Anthropic -----------------------------------------------------------
-
-  describe("anthropic", () => {
-    test("returns parsed tool_use input", async () => {
-      mockSuccess(makeAnthropicResponse({ result: "claude" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "anthropic",
-        model: "claude-3-5-sonnet-20241022",
-        apiUrl: "https://api.anthropic.com/v1",
-      });
-
-      expect(result).toEqual({ success: true, data: { result: "claude" } });
-    });
-
-    test("sends anthropic-version header and x-api-key", async () => {
-      mockSuccess(makeAnthropicResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "anthropic",
-        apiUrl: "https://api.anthropic.com/v1",
-      });
-
-      const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toBe("https://api.anthropic.com/v1/messages");
-      const headers = opts!.headers as Record<string, string>;
-      expect(headers["anthropic-version"]).toBe("2023-06-01");
-      expect(headers["x-api-key"]).toBe("test-key-1234");
-    });
-
-    test("sends system prompt as top-level field", async () => {
-      mockSuccess(makeAnthropicResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "anthropic",
-        apiUrl: "https://api.anthropic.com/v1",
-      });
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1]!.body as string);
-      expect(body.system).toBe("You are a test assistant.");
-      expect(body.messages).toHaveLength(1);
-      expect(body.messages[0].role).toBe("user");
-    });
-
-    test("uses input_schema for tool parameters", async () => {
-      mockSuccess(makeAnthropicResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "anthropic",
-        apiUrl: "https://api.anthropic.com/v1",
-      });
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1]!.body as string);
-      expect(body.tools[0].input_schema).toBeDefined();
-      expect(body.tools[0].input_schema.type).toBe("object");
-    });
-
-    test("handles missing tool_use in response", async () => {
-      mockSuccess({ content: [{ type: "text", text: "no tool" }] });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "anthropic",
-        apiUrl: "https://api.anthropic.com/v1",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-    });
-  });
-
-  // -- Gemini --------------------------------------------------------------
-
-  describe("gemini", () => {
-    test("returns parsed functionCall args", async () => {
-      mockSuccess(makeGeminiResponse({ result: "gemini" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "gemini",
-        model: "gemini-2.0-flash",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
-      });
-
-      expect(result).toEqual({ success: true, data: { result: "gemini" } });
-    });
-
-    test("puts API key in query parameter", async () => {
-      mockSuccess(makeGeminiResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "gemini",
-        model: "gemini-2.0-flash",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
-        apiKey: "gemini-key-5678",
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url as string).toContain("key=gemini-key-5678");
-      expect(url as string).toContain(
-        "models/gemini-2.0-flash:generateContent",
-      );
-    });
-
-    test("uses system_instruction and function_declarations", async () => {
-      mockSuccess(makeGeminiResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "gemini",
-        model: "gemini-2.0-flash",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
-      });
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1]!.body as string);
-      expect(body.system_instruction.parts[0].text).toBe(
-        "You are a test assistant.",
-      );
-      expect(body.tools[0].function_declarations).toHaveLength(1);
-      expect(body.tool_config.function_calling_config.mode).toBe("ANY");
-    });
-
-    test("handles missing functionCall in response", async () => {
-      mockSuccess({
-        candidates: [{ content: { parts: [{ text: "no tool" }] } }],
-      });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "gemini",
-        model: "gemini-2.0-flash",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-    });
-  });
-
-  // -- Generic -------------------------------------------------------------
-
-  describe("generic", () => {
-    test("returns parsed tool call arguments", async () => {
-      mockSuccess(makeOpenAIChatResponse({ result: "generic" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "generic",
-        model: "local-model",
-      });
-
-      expect(result).toEqual({
-        success: true,
-        data: { result: "generic" },
-      });
-    });
-
-    test("nothink mode adds think: false", async () => {
-      mockSuccess(makeOpenAIChatResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "generic",
-        model: "local-model",
-        nothink: true,
-      });
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1]!.body as string);
-      expect(body.think).toBe(false);
-    });
-
-    test("sends to /chat/completions endpoint", async () => {
-      mockSuccess(makeOpenAIChatResponse({ result: "ok" }));
-
-      await callLLMWithTool({
-        ...baseOptions,
-        provider: "generic",
-        apiUrl: "http://localhost:11434/v1",
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toBe("http://localhost:11434/v1/chat/completions");
-    });
-
-    test("handles missing tool call arguments", async () => {
-      mockSuccess({ choices: [{ message: { tool_calls: [{}] } }] });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "generic",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-    });
-  });
-
-  // -- Retry logic ---------------------------------------------------------
-
-  describe("retry logic", () => {
-    test("retries on 429 with Retry-After header", async () => {
-      mockError(
-        429,
-        { error: { message: "rate limited" } },
-        {
-          "Retry-After": "0",
-        },
-      );
-      mockSuccess(makeOpenAIChatResponse({ result: "retried" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result).toEqual({
-        success: true,
-        data: { result: "retried" },
-      });
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    test("retries on 500 server error", async () => {
-      mockError(500, { error: { message: "internal error" } });
-      mockSuccess(makeOpenAIChatResponse({ result: "recovered" }));
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result).toEqual({
-        success: true,
-        data: { result: "recovered" },
-      });
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    test("returns error after max retries exhausted", async () => {
-      // 4 calls total: initial + 3 retries
-      for (let i = 0; i < 4; i++) {
-        mockError(
-          429,
-          { error: { message: "rate limited" } },
-          {
-            "Retry-After": "0",
-          },
-        );
-      }
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("rate_limit");
-      }
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-    });
-
-    test("does not retry on parse_error", async () => {
-      // Response with missing tool call -> parse_error
-      mockSuccess({ choices: [{ message: {} }] });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("parse_error");
-      }
-      // Only 1 call -- no retries for parse errors
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-    });
-
-    test("does not retry on non-retryable 4xx errors", async () => {
-      mockError(401, { error: { message: "unauthorized" } });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("api_error");
-      }
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  // -- Timeout -------------------------------------------------------------
-
-  describe("timeout", () => {
-    test("returns timeout error on AbortError", async () => {
-      mockFetch.mockImplementation((async () => {
-        const err = new Error("The operation was aborted");
-        err.name = "AbortError";
-        throw err;
-      }) as unknown as typeof fetch);
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-        timeout: 100,
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("timeout");
-        expect(result.error).toContain("timed out");
-      }
-    });
-  });
-
-  // -- Network error -------------------------------------------------------
-
-  describe("network error", () => {
-    test("returns network_error on fetch failure", async () => {
-      mockFetch.mockImplementation((async () => {
-        throw new Error("ECONNREFUSED");
-      }) as unknown as typeof fetch);
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-        timeout: 100,
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("network_error");
-        expect(result.error).toContain("ECONNREFUSED");
-      }
-    });
-  });
-
-  // -- API key sanitization ----------------------------------------------
-
-  describe("error sanitization", () => {
-    test("redacts API key from error messages", async () => {
-      mockError(401, {
-        error: { message: "Invalid key: test-key-1234" },
-      });
-
-      const result = await callLLMWithTool({
-        ...baseOptions,
-        provider: "openai-chat",
-        apiKey: "test-key-1234",
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).not.toContain("test-key-1234");
-        expect(result.error).toContain("[redacted:1234]");
-      }
-    });
+beforeEach(() => {
+  _setConfigForTesting(baseConfig);
+  mockGenerateText.mockReset();
+  mockCreateLLMProvider.mockReset();
+  mockGenerateText.mockResolvedValue({ output: { result: "test" } });
+  mockCreateLLMProvider.mockResolvedValue({ chat: (_id: string) => ({}) });
+  _setGenerateDepsForTesting({
+    generateText: mockGenerateText as unknown as typeof generateText,
+    createLLMProvider: mockCreateLLMProvider as unknown as typeof createLLMProvider,
   });
 });
 
-// -- validateLLMEndpoint -----------------------------------------------------
+afterEach(() => {
+  _resetGenerateDepsForTesting();
+  _resetConfigForTesting();
+});
 
-describe("validateLLMEndpoint", () => {
-  beforeEach(() => {
-    mockFetch.mockReset();
-    globalThis.fetch = mockFetch as unknown as typeof fetch;
+describe("callLLMWithTool", () => {
+  test("returns parsed data on success", async () => {
+    mockGenerateText.mockResolvedValueOnce({ output: { result: "ok" } });
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result).toEqual({ success: true, data: { result: "ok" } });
   });
 
-  afterEach(() => {
-    _resetConfigForTesting();
-  });
+  test("passes prompt and schema to generateText", async () => {
+    await callLLMWithTool(baseOptions);
 
-  test("returns ok for valid openai-chat endpoint", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: {
-        ...defaultConfig.llm,
-        provider: "openai-chat",
-        model: "gpt-4o-mini",
-        apiUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-      },
-    });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: "gpt-4o-mini", object: "model" }), {
-        status: 200,
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        system: baseOptions.systemPrompt,
+        output: expect.anything(),
       }),
     );
+    expect(
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+    ).toContain(baseOptions.userPrompt);
+    expect(
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+    ).toContain("Return only a JSON object");
+    expect(
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+    ).toContain(testToolSchema.name);
+  });
 
-    const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(true);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+  test("supports per-call provider overrides", async () => {
+    const chat = mock((_id: string) => ({}));
+    mockCreateLLMProvider.mockResolvedValueOnce({ chat });
 
-    const call = mockFetch.mock.calls[0];
-    expect(call[0]).toBe("https://api.openai.com/v1/models/gpt-4o-mini");
-    const init = call[1] as RequestInit;
-    expect((init.headers as Record<string, string>).Authorization).toBe(
-      "Bearer sk-test",
+    await callLLMWithTool({
+      ...baseOptions,
+      provider: "openai-chat",
+      model: "gpt-4o-mini",
+      apiUrl: "https://api.openai.com/v1",
+      apiKey: "override-key",
+    });
+
+    expect(mockCreateLLMProvider).toHaveBeenCalledWith({
+      provider: "openai-chat",
+      model: "gpt-4o-mini",
+      apiUrl: "https://api.openai.com/v1",
+      apiKey: "override-key",
+    });
+    expect(chat).toHaveBeenCalledWith("gpt-4o-mini");
+  });
+
+  test("uses temperature 0 for nothink and 0.3 when nothink is false", async () => {
+    await callLLMWithTool({ ...baseOptions, nothink: true });
+    await callLLMWithTool({ ...baseOptions, nothink: false });
+
+    expect(mockGenerateText).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ temperature: 0 }),
+    );
+    expect(mockGenerateText).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ temperature: 0.3 }),
     );
   });
 
-  test("returns error for 401 unauthorized", async () => {
+  test("maps AbortError to timeout", async () => {
+    mockGenerateText.mockRejectedValueOnce(makeAbortError());
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("timeout");
+  });
+
+  test("maps APICallError 429 to rate_limit", async () => {
+    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Too many requests", 429));
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("rate_limit");
+  });
+
+  test("maps APICallError 401 to api_error", async () => {
+    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Unauthorized", 401));
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("api_error");
+  });
+
+  test("maps APICallError without status to network_error", async () => {
+    mockGenerateText.mockRejectedValueOnce(makeApiCallError("fetch failed"));
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("network_error");
+  });
+
+  test("maps NoObjectGeneratedError to parse_error", async () => {
+    mockGenerateText.mockRejectedValueOnce(
+      makeNoObjectGeneratedError("No object generated from model output"),
+    );
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("parse_error");
+  });
+
+  test("maps ECONNREFUSED errors to network_error", async () => {
+    mockGenerateText.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1"));
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("network_error");
+  });
+
+  test("maps generic errors to api_error", async () => {
+    mockGenerateText.mockRejectedValueOnce(new Error("unexpected failure"));
+
+    const result = await callLLMWithTool(baseOptions);
+
+    expect(result.success).toBe(false);
+    expect(getFailure(result).code).toBe("api_error");
+  });
+
+  test("sanitizes API key in error messages", async () => {
     _setConfigForTesting({
-      ...defaultConfig,
+      ...baseConfig,
       llm: {
-        ...defaultConfig.llm,
-        provider: "openai-chat",
-        apiKey: "bad-key",
+        ...baseConfig.llm,
+        apiKey: "secret-test-key",
+      },
+    });
+    mockGenerateText.mockRejectedValueOnce(
+      new Error("Request failed for key secret-test-key with Bearer secret-test-key"),
+    );
+
+    const result = await callLLMWithTool(baseOptions);
+
+    const failure = getFailure(result);
+    expect(result.success).toBe(false);
+    expect(failure.error).not.toContain("secret-test-key");
+    expect(failure.error).toContain("[redacted");
+  });
+});
+
+describe("validateLLMEndpoint", () => {
+  test("returns ok true when endpoint responds", async () => {
+    mockGenerateText.mockResolvedValueOnce({ output: { ok: true } as Record<string, unknown> });
+
+    const result = await validateLLMEndpoint();
+
+    expect(result).toEqual({ ok: true });
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns missing API key error when apiKey is empty", async () => {
+    _setConfigForTesting({
+      ...baseConfig,
+      llm: {
+        ...baseConfig.llm,
+        apiKey: "",
       },
     });
 
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ error: { message: "Invalid API key" } }),
-        { status: 401 },
-      ),
-    );
-
     const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("Invalid or unauthorized API key");
-  });
 
-  test("returns error for 404 model not found", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: {
-        ...defaultConfig.llm,
-        provider: "openai-chat",
-        model: "nonexistent-model",
-        apiKey: "sk-test",
-      },
-    });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ error: { message: "Model not found" } }),
-        { status: 404 },
-      ),
-    );
-
-    const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("Model not found");
-  });
-
-  test("returns error when apiKey is empty", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: { ...defaultConfig.llm, apiKey: "" },
-    });
-
-    const result = await validateLLMEndpoint();
     expect(result.ok).toBe(false);
     expect(result.error).toContain("not configured");
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
-  test("returns error on network failure", async () => {
+  test("returns timeout on AbortError", async () => {
     _setConfigForTesting({
-      ...defaultConfig,
+      ...baseConfig,
       llm: {
-        ...defaultConfig.llm,
-        apiKey: "sk-test",
-        apiUrl: "http://localhost:1",
+        ...baseConfig.llm,
+        apiKey: "test-key",
       },
     });
-
-    mockFetch.mockRejectedValueOnce(new Error("Connection refused"));
+    mockGenerateText.mockRejectedValueOnce(makeAbortError());
 
     const result = await validateLLMEndpoint();
+
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("unreachable");
+    expect(result.error).toContain("timed out");
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
-  test("validates anthropic with model list check", async () => {
+  test("returns invalid API key for 401", async () => {
     _setConfigForTesting({
-      ...defaultConfig,
+      ...baseConfig,
       llm: {
-        ...defaultConfig.llm,
-        provider: "anthropic",
-        model: "claude-3-5-sonnet-20241022",
-        apiUrl: "https://api.anthropic.com/v1",
-        apiKey: "sk-ant-test",
+        ...baseConfig.llm,
+        apiKey: "test-key",
       },
     });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          data: [
-            { id: "claude-3-5-sonnet-20241022" },
-            { id: "claude-3-opus-20240229" },
-          ],
-        }),
-        { status: 200 },
-      ),
-    );
+    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Unauthorized", 401));
 
     const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(true);
 
-    const call = mockFetch.mock.calls[0];
-    expect(call[0]).toBe("https://api.anthropic.com/v1/models");
-    const init = call[1] as RequestInit;
-    const headers = init.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBe("sk-ant-test");
-    expect(headers["anthropic-version"]).toBe("2023-06-01");
-  });
-
-  test("returns error when anthropic model not in list", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: {
-        ...defaultConfig.llm,
-        provider: "anthropic",
-        model: "nonexistent-model",
-        apiUrl: "https://api.anthropic.com/v1",
-        apiKey: "sk-ant-test",
-      },
-    });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          data: [{ id: "claude-3-5-sonnet-20241022" }],
-        }),
-        { status: 200 },
-      ),
-    );
-
-    const result = await validateLLMEndpoint();
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("not found");
+    expect(result.error).toContain("Invalid or unauthorized API key");
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
-  test("validates gemini with key as query param", async () => {
+  test("returns model not found for 404", async () => {
     _setConfigForTesting({
-      ...defaultConfig,
+      ...baseConfig,
       llm: {
-        ...defaultConfig.llm,
-        provider: "gemini",
-        model: "gemini-1.5-pro",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta",
-        apiKey: "gemini-key-5678",
+        ...baseConfig.llm,
+        apiKey: "test-key",
       },
     });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ name: "models/gemini-1.5-pro" }),
-        { status: 200 },
-      ),
-    );
+    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Model not found", 404));
 
     const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(true);
 
-    const call = mockFetch.mock.calls[0];
-    const url = call[0] as string;
-    expect(url).toContain("/models/gemini-1.5-pro");
-    expect(url).toContain("key=gemini-key-5678");
-    // gemini does not use Authorization header
-    const init = call[1] as RequestInit;
-    const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBeUndefined();
-  });
-
-  test("validates generic provider like openai-compatible", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: {
-        ...defaultConfig.llm,
-        provider: "generic",
-        model: "llama3",
-        apiUrl: "http://localhost:11434/v1",
-        apiKey: "ollama",
-      },
-    });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: "llama3" }), { status: 200 }),
-    );
-
-    const result = await validateLLMEndpoint();
-    expect(result.ok).toBe(true);
-
-    const call = mockFetch.mock.calls[0];
-    expect(call[0]).toBe("http://localhost:11434/v1/models/llama3");
-  });
-
-  test("redacts api key in error messages", async () => {
-    _setConfigForTesting({
-      ...defaultConfig,
-      llm: {
-        ...defaultConfig.llm,
-        provider: "openai-chat",
-        apiKey: "test-invalid-key",
-      },
-    });
-
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: { message: "Invalid key: test-invalid-key" },
-        }),
-        { status: 401 },
-      ),
-    );
-
-    const result = await validateLLMEndpoint();
     expect(result.ok).toBe(false);
-    expect(result.error).not.toContain("test-invalid-key");
+    expect(result.error).toContain("Model not found");
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns endpoint unreachable for network errors", async () => {
+    _setConfigForTesting({
+      ...baseConfig,
+      llm: {
+        ...baseConfig.llm,
+        apiKey: "test-key",
+      },
+    });
+    mockGenerateText.mockRejectedValueOnce(new Error("ECONNREFUSED 127.0.0.1"));
+
+    const result = await validateLLMEndpoint();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("LLM endpoint unreachable");
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 });
