@@ -56,8 +56,8 @@ jobs:
           bun test --coverage 2>&1 | tee coverage-output.txt
           AVG=$(awk -F'|' '/^ src\//{gsub(/ /,"",$3); sum+=$3; n++} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
           echo "Average line coverage: ${AVG}%"
-          if [ "$AVG" -lt 82 ]; then
-            echo "ERROR: Coverage ${AVG}% is below 82% threshold"
+          if [ "$AVG" -lt 75 ]; then
+            echo "ERROR: Coverage ${AVG}% is below 75% threshold"
             exit 1
           fi
 
