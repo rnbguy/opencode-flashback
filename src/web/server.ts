@@ -29,6 +29,8 @@ let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 let cspScriptHash = "";
 
+const WEB_UI_AVAILABLE_PREFIX = "Web UI available at http://127.0.0.1:";
+
 // -- Rate limiter (token bucket) --------------------------------------------
 
 const rateLimiter = {
@@ -69,6 +71,7 @@ export async function startServer(directory: string): Promise<number> {
         fetch: (req) => handleRequest(req, directory),
       });
       serverState = "ready";
+      logger.info(`${WEB_UI_AVAILABLE_PREFIX}${port}`);
       logger.debug("startServer completed", { port });
       return server.port!;
     } catch (error: unknown) {
