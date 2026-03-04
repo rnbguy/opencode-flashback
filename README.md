@@ -7,7 +7,7 @@ Persistent AI memory plugin for OpenCode -- free, local, open-source.
 
 ## Features
 
-- EmbeddingGemma-300M via ONNX Runtime (no GPU, no Docker, no Ollama)
+- Ollama-powered embedding (embeddinggemma) and LLM (kimi-k2.5:cloud)
 - Hybrid BM25+vector search (Orama)
 - Auto-capture from coding sessions
 - User profile learning
