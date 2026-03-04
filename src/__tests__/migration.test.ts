@@ -1,10 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import type { pipeline as hfPipeline } from "@huggingface/transformers";
 import { Database } from "bun:sqlite";
 import { mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { getDb, closeDb } from "../db/database.ts";
 import { DB_FILENAME } from "../consts.ts";
+import {
+  _setEmbedderDepsForTesting,
+  _resetEmbedderDepsForTesting,
+  resetEmbedder,
+} from "../embed/embedder.ts";
 
 const OLD_SCHEMA_SQL = `
 CREATE TABLE memories (
@@ -94,27 +100,27 @@ describe("migration", () => {
       homedir: () => mockedHome,
     }));
 
-    mock.module("@huggingface/transformers", () => ({
-      pipeline: mock(async () => async (inputs: string[]) => {
-        embedCalls += 1;
-        if (embedCalls === failEmbedOnCall) {
-          throw new Error("simulated migration interruption");
-        }
+    const mockedPipeline = mock(async () => async (inputs: string[]) => {
+      embedCalls += 1;
+      if (embedCalls === failEmbedOnCall) {
+        throw new Error("simulated migration interruption");
+      }
 
-        const output: Record<string | number, unknown> = {
-          dispose: () => {},
+      const output: Record<string | number, unknown> = {
+        dispose: () => {},
+      };
+      for (let i = 0; i < inputs.length; i++) {
+        output[i] = {
+          data: Array.from(
+            { length: 768 },
+            (_, j) => Math.sin(j + inputs[i].length) * 0.5,
+          ),
         };
-        for (let i = 0; i < inputs.length; i++) {
-          output[i] = {
-            data: Array.from(
-              { length: 768 },
-              (_, j) => Math.sin(j + inputs[i].length) * 0.5,
-            ),
-          };
-        }
-        return output;
-      }),
-    }));
+      }
+      return output;
+    }) as unknown as typeof hfPipeline;
+    _setEmbedderDepsForTesting({ pipeline: mockedPipeline });
+    resetEmbedder();
 
     const migrate = await import("../db/migrate.ts");
     runMigration = migrate.runMigration;
@@ -125,6 +131,8 @@ describe("migration", () => {
 
   afterEach(() => {
     closeDb();
+    resetEmbedder();
+    _resetEmbedderDepsForTesting();
     mockedHome = "";
     mock.restore();
     rmSync(tmpHome, { recursive: true, force: true });

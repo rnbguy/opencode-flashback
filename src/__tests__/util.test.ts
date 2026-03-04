@@ -188,8 +188,18 @@ more text`;
 describe("createLogger", () => {
   let tmpDir: string;
 
-  async function waitForLogFlush(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 10));
+  async function waitForLogFlush(minLines = 1): Promise<void> {
+    const logPath = join(tmpDir, LOG_FILENAME);
+    for (let i = 0; i < 100; i++) {
+      if (existsSync(logPath)) {
+        const text = readFileSync(logPath, "utf-8").trim();
+        const lineCount = text.length === 0 ? 0 : text.split("\n").length;
+        if (lineCount >= minLines) {
+          return;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
   }
 
   beforeEach(() => {
@@ -270,7 +280,7 @@ describe("createLogger", () => {
     logger.info("first");
     logger.info("second");
     logger.info("third");
-    await waitForLogFlush();
+    await waitForLogFlush(3);
 
     const logPath = join(tmpDir, LOG_FILENAME);
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");
@@ -284,7 +294,7 @@ describe("createLogger", () => {
     logger.info("msg1", { a: 1 });
     logger.warn("msg2");
     logger.error("msg3", { err: "boom" });
-    await waitForLogFlush();
+    await waitForLogFlush(3);
 
     const logPath = join(tmpDir, LOG_FILENAME);
     const lines = readFileSync(logPath, "utf-8").trim().split("\n");

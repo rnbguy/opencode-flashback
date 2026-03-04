@@ -10,6 +10,12 @@ import {
 } from "../config.ts";
 import { getDb, closeDb } from "../db/database.ts";
 import { callLLMWithTool } from "../core/llm.ts";
+import type { pipeline as hfPipeline } from "@huggingface/transformers";
+import {
+  _setEmbedderDepsForTesting,
+  _resetEmbedderDepsForTesting,
+  resetEmbedder,
+} from "../embed/embedder.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
@@ -72,22 +78,22 @@ describe("fuzz", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-fuzz-"));
     getDb(join(tmpDir, "fuzz.db"));
 
-    mock.module("@huggingface/transformers", () => ({
-      pipeline: mock(async () => async (inputs: string[]) => {
-        const output: Record<string | number, unknown> = {
-          dispose: () => {},
+    const mockedPipeline = mock(async () => async (inputs: string[]) => {
+      const output: Record<string | number, unknown> = {
+        dispose: () => {},
+      };
+      for (let i = 0; i < inputs.length; i++) {
+        output[i] = {
+          data: Array.from(
+            { length: 768 },
+            (_, j) => Math.sin(j + inputs[i].length) * 0.5,
+          ),
         };
-        for (let i = 0; i < inputs.length; i++) {
-          output[i] = {
-            data: Array.from(
-              { length: 768 },
-              (_, j) => Math.sin(j + inputs[i].length) * 0.5,
-            ),
-          };
-        }
-        return output;
-      }),
-    }));
+      }
+      return output;
+    }) as unknown as typeof hfPipeline;
+    _setEmbedderDepsForTesting({ pipeline: mockedPipeline });
+    resetEmbedder();
 
     const memory = await import(`../core/memory.ts?fuzz-test=${Date.now()}`);
     addMemory = memory.addMemory;
@@ -109,6 +115,8 @@ describe("fuzz", () => {
     _resetConfigForTesting();
     globalThis.setTimeout = realSetTimeout;
     globalThis.fetch = realFetch;
+    resetEmbedder();
+    _resetEmbedderDepsForTesting();
     closeDb();
     mock.restore();
     rmSync(tmpDir, { recursive: true, force: true });

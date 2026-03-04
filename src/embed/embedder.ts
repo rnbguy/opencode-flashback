@@ -13,6 +13,16 @@ const FAILURE_WINDOW_MS = 60_000;
 const FAILURE_THRESHOLD = 3;
 const DEGRADED_COOLDOWN_MS = 30_000;
 
+interface EmbedderDeps {
+  pipeline: typeof pipeline;
+}
+
+const defaultDeps: EmbedderDeps = {
+  pipeline,
+};
+
+let deps: EmbedderDeps = { ...defaultDeps };
+
 let subsystemState: SubsystemState = "uninitialized";
 let modelPipeline: FeatureExtractionPipeline | null = null;
 let modelInitPromise: Promise<FeatureExtractionPipeline> | null = null;
@@ -149,7 +159,7 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
 
   subsystemState = "initializing";
   const start = Date.now();
-  modelInitPromise = pipeline("feature-extraction", MODEL_ID, {
+  modelInitPromise = deps.pipeline("feature-extraction", MODEL_ID, {
     device: "cpu",
     dtype: "q4",
   })
@@ -157,7 +167,7 @@ async function getModel(): Promise<FeatureExtractionPipeline> {
       const msg = error instanceof Error ? error.message : "";
       if (msg.includes("device") || msg.includes("unsupported")) {
         logger.warn("Embedder device cpu failed, retrying with auto-detect");
-        return pipeline("feature-extraction", MODEL_ID, { dtype: "q4" }).catch(
+        return deps.pipeline("feature-extraction", MODEL_ID, { dtype: "q4" }).catch(
           () => {
             throw error; // propagate original error, not fallback error
           },
@@ -199,6 +209,16 @@ export function resetEmbedder(): void {
   degradedProbePromise = null;
   probeResolve = null;
   probeReject = null;
+}
+
+export function _setEmbedderDepsForTesting(
+  overrides: Partial<EmbedderDeps>,
+): void {
+  deps = { ...deps, ...overrides };
+}
+
+export function _resetEmbedderDepsForTesting(): void {
+  deps = { ...defaultDeps };
 }
 
 export async function embed(texts: string[], mode: Mode): Promise<number[][]> {

@@ -1,15 +1,16 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
-
-// -- Mock @huggingface/transformers before importing embedder ----------------
+import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import type { pipeline as hfPipeline } from "@huggingface/transformers";
 
 const mockDispose = mock(() => {});
 const mockPipelineInstance = mock();
 
-mock.module("@huggingface/transformers", () => ({
-  pipeline: mockPipelineInstance,
-}));
-
-import { embed, getEmbedderState, resetEmbedder } from "../embed/embedder.ts";
+import {
+  embed,
+  getEmbedderState,
+  resetEmbedder,
+  _setEmbedderDepsForTesting,
+  _resetEmbedderDepsForTesting,
+} from "../embed/embedder.ts";
 
 // -- Helpers -----------------------------------------------------------------
 
@@ -43,9 +44,18 @@ function setupSuccessfulPipeline(vectors?: number[][]) {
 
 describe("embedder", () => {
   beforeEach(() => {
+    const mockedPipeline =
+      mockPipelineInstance as unknown as typeof hfPipeline;
     resetEmbedder();
+    _resetEmbedderDepsForTesting();
+    _setEmbedderDepsForTesting({ pipeline: mockedPipeline });
     mockPipelineInstance.mockReset();
     mockDispose.mockClear();
+  });
+
+  afterEach(() => {
+    resetEmbedder();
+    _resetEmbedderDepsForTesting();
   });
 
   describe("lazy initialization", () => {
