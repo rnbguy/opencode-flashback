@@ -41,7 +41,7 @@
   "scripts": {
     "prepublishOnly": "bun run build && bun test",
     "prebuild": "mkdir -p dist/web",
-    "build": "bun build src/index.ts --outdir dist --target bun --external onnxruntime-node && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/",
+    "build": "bun build src/index.ts --outdir dist --target bun && bun build src/web/app.ts --outdir dist/web --target browser --minify && tsc --emitDeclarationOnly --outDir dist && cp src/web/index.html src/web/styles.css src/web/favicon.ico dist/web/",
     "typecheck": "tsc --noEmit",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "generate:schema": "bun run scripts/generate-schema.ts",
@@ -51,7 +51,6 @@
     "@ai-sdk/anthropic": "^3.0.54",
     "@ai-sdk/google": "^3.0.37",
     "@ai-sdk/openai": "^3.0.39",
-    "@huggingface/transformers": "^3.8.1",
     "@orama/orama": "^3.1.18",
     "ai": "^6.0.111",
     "cockatiel": "^3.2.1",
