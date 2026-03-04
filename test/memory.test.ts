@@ -15,15 +15,6 @@ const mockHybridSearch = mock(
   ): Promise<SearchResult[]> => [],
 );
 
-mock.module("../src/search.ts", () => ({
-  initSearch: async () => {},
-  hybridSearch: (...args: unknown[]) =>
-    mockHybridSearch(...(args as [string, number[], string, number])),
-  markStale: () => {},
-  rebuildIndex: async () => {},
-  getSearchState: () => "ready" as const,
-}));
-
 // -- Imports (resolved after mocks) -------------------------------------------
 
 import { _resetConfigForTesting, _setConfigForTesting } from "../src/config";
@@ -48,6 +39,10 @@ import {
   getDb,
   insertMemory,
 } from "../src/db/database";
+import {
+  _resetSearchDepsForTesting,
+  _setSearchDepsForTesting,
+} from "../src/search";
 import { makeTestConfig } from "./fixtures/config";
 import { makeTestMemory } from "./fixtures/memory";
 import { seededVector } from "./fixtures/vectors";
@@ -68,6 +63,14 @@ beforeEach(() => {
       embedding: (_id: string) => ({}),
     })) as unknown as typeof createEmbeddingProvider,
   });
+  _setSearchDepsForTesting({
+    initSearch: async () => {},
+    hybridSearch: (...args: unknown[]) =>
+      mockHybridSearch(...(args as [string, number[], string, number])),
+    markStale: () => {},
+    rebuildIndex: async () => {},
+    getSearchState: () => "ready" as const,
+  });
   resetEmbedder();
   closeDb();
   tmpDir = mkdtempSync(join(tmpdir(), "flashback-mem-"));
@@ -78,6 +81,7 @@ beforeEach(() => {
 afterEach(() => {
   _resetConfigForTesting();
   _resetEmbedDepsForTesting();
+  _resetSearchDepsForTesting();
   resetEmbedder();
   closeDb();
   rmSync(tmpDir, { recursive: true, force: true });

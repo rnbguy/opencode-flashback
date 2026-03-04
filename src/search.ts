@@ -10,6 +10,66 @@ import {
 import type { SearchResult, SubsystemState } from "./types.ts";
 import { getLogger } from "./util/logger.ts";
 
+// -- DI Hooks ----------------------------------------------------------------
+
+interface SearchDeps {
+  initSearch: () => Promise<void>;
+  hybridSearch: (
+    query: string,
+    queryVector: number[],
+    containerTag: string,
+    limit: number,
+  ) => Promise<SearchResult[]>;
+  markStale: () => void;
+  rebuildIndex: () => Promise<void>;
+  getSearchState: () => SubsystemState;
+}
+
+const defaultDeps: SearchDeps = {
+  initSearch: initSearchImpl,
+  hybridSearch: hybridSearchImpl,
+  markStale: markStaleImpl,
+  rebuildIndex: rebuildIndexImpl,
+  getSearchState: getSearchStateImpl,
+};
+
+let deps: SearchDeps = { ...defaultDeps };
+
+export function _setSearchDepsForTesting(overrides: Partial<SearchDeps>): void {
+  deps = { ...deps, ...overrides };
+}
+
+export function _resetSearchDepsForTesting(): void {
+  deps = { ...defaultDeps };
+}
+
+// -- Wrapper Exports (delegate to deps) ----------------------------------------
+
+export async function initSearch(): Promise<void> {
+  return deps.initSearch();
+}
+
+export async function rebuildIndex(): Promise<void> {
+  return deps.rebuildIndex();
+}
+
+export async function hybridSearch(
+  query: string,
+  queryVector: number[],
+  containerTag: string,
+  limit: number,
+): Promise<SearchResult[]> {
+  return deps.hybridSearch(query, queryVector, containerTag, limit);
+}
+
+export function markStale(): void {
+  deps.markStale();
+}
+
+export function getSearchState(): SubsystemState {
+  return deps.getSearchState();
+}
+
 // -- Schema ------------------------------------------------------------------
 
 const schema = {
@@ -39,7 +99,7 @@ let rebuildPromise: Promise<void> = Promise.resolve();
 
 // -- Init / Rebuild ----------------------------------------------------------
 
-export async function initSearch(): Promise<void> {
+async function initSearchImpl(): Promise<void> {
   const logger = getLogger();
   if (oramaDb) return;
 
@@ -51,7 +111,7 @@ export async function initSearch(): Promise<void> {
       to: state,
     });
     oramaDb = create({ schema });
-    await rebuildIndex();
+    await deps.rebuildIndex();
     const fromState = state;
     state = "ready";
     logger.debug("initSearch state transition", { from: fromState, to: state });
@@ -63,7 +123,7 @@ export async function initSearch(): Promise<void> {
   }
 }
 
-export async function rebuildIndex(): Promise<void> {
+async function rebuildIndexImpl(): Promise<void> {
   // biome-ignore format: keep single line for regression audit invariant
   rebuildPromise = rebuildPromise.then(() => doRebuild())
     .catch(() => {
@@ -109,7 +169,7 @@ async function doRebuild(): Promise<void> {
 
 // -- Search ------------------------------------------------------------------
 
-export async function hybridSearch(
+async function hybridSearchImpl(
   query: string,
   queryVector: number[],
   containerTag: string,
@@ -118,11 +178,11 @@ export async function hybridSearch(
   const logger = getLogger();
   try {
     if (!oramaDb) {
-      await initSearch();
+      await deps.initSearch();
     }
 
     if (isStale) {
-      await rebuildIndex();
+      await deps.rebuildIndex();
       state = "ready";
     }
 
@@ -189,10 +249,10 @@ export async function hybridSearch(
 
 // -- Stale / State -----------------------------------------------------------
 
-export function markStale(): void {
+function markStaleImpl(): void {
   isStale = true;
 }
 
-export function getSearchState(): SubsystemState {
+function getSearchStateImpl(): SubsystemState {
   return state;
 }
