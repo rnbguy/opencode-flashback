@@ -1,4 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import deepmerge from "deepmerge";
+import type { ParseError } from "jsonc-parser";
+import { parse as parseJsonc } from "jsonc-parser";
 import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
@@ -12,84 +15,6 @@ import type {
   WebConfig,
 } from "./types";
 import { getLogger } from "./util/logger.ts";
-
-// -- JSONC comment stripping --------------------------------------------------
-
-function stripJsoncComments(content: string): string {
-  let result = "";
-  let i = 0;
-  let inString = false;
-  let inSingleLineComment = false;
-  let inMultiLineComment = false;
-
-  while (i < content.length) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    if (!inSingleLineComment && !inMultiLineComment) {
-      if (char === '"') {
-        let backslashCount = 0;
-        let j = i - 1;
-        while (j >= 0 && content[j] === "\\") {
-          backslashCount++;
-          j--;
-        }
-        if (backslashCount % 2 === 0) {
-          inString = !inString;
-        }
-        result += char;
-        i++;
-        continue;
-      }
-    }
-
-    if (inString) {
-      result += char;
-      i++;
-      continue;
-    }
-
-    if (!inSingleLineComment && !inMultiLineComment) {
-      if (char === "/" && nextChar === "/") {
-        inSingleLineComment = true;
-        i += 2;
-        continue;
-      }
-      if (char === "/" && nextChar === "*") {
-        inMultiLineComment = true;
-        i += 2;
-        continue;
-      }
-    }
-
-    if (inSingleLineComment) {
-      if (char === "\n") {
-        inSingleLineComment = false;
-        result += char;
-      }
-      i++;
-      continue;
-    }
-
-    if (inMultiLineComment) {
-      if (char === "*" && nextChar === "/") {
-        inMultiLineComment = false;
-        i += 2;
-        continue;
-      }
-      if (char === "\n") {
-        result += char;
-      }
-      i++;
-      continue;
-    }
-
-    result += char;
-    i++;
-  }
-
-  return result.replace(/,\s*([}\]])/g, "$1");
-}
 
 // -- XDG path helpers ---------------------------------------------------------
 
@@ -117,6 +42,18 @@ function expandPath(path: string): string {
     return homedir();
   }
   return path;
+}
+
+function parseJsoncStrict(content: string): Record<string, unknown> {
+  const errors: ParseError[] = [];
+  const parsed = parseJsonc(content, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  if (errors.length > 0) {
+    throw new Error(JSON.stringify(errors));
+  }
+  return parsed as Record<string, unknown>;
 }
 
 // -- Zod schema ---------------------------------------------------------------
@@ -377,7 +314,7 @@ function loadConfigFile(): PluginConfig {
     try {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
-      config = deepMerge(config, jsonData);
+      config = deepmerge(config, jsonData) as PluginConfig;
       loadedConfigFiles.push("opencode-flashback.json");
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
@@ -387,9 +324,8 @@ function loadConfigFile(): PluginConfig {
 
     try {
       const jsoncContent = readFileSync(jsoncPath, "utf-8");
-      const cleanedContent = stripJsoncComments(jsoncContent);
-      const jsoncData = JSON.parse(cleanedContent);
-      config = deepMerge(config, jsoncData);
+      const jsoncData = parseJsoncStrict(jsoncContent);
+      config = deepmerge(config, jsoncData) as PluginConfig;
       loadedConfigFiles.push("opencode-flashback.jsonc");
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
@@ -399,9 +335,8 @@ function loadConfigFile(): PluginConfig {
   } else if (jsoncExists) {
     try {
       const jsoncContent = readFileSync(jsoncPath, "utf-8");
-      const cleanedContent = stripJsoncComments(jsoncContent);
-      const jsoncData = JSON.parse(cleanedContent);
-      config = deepMerge(config, jsoncData);
+      const jsoncData = parseJsoncStrict(jsoncContent);
+      config = deepmerge(config, jsoncData) as PluginConfig;
       loadedConfigFiles.push("opencode-flashback.jsonc");
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
@@ -412,7 +347,7 @@ function loadConfigFile(): PluginConfig {
     try {
       const jsonContent = readFileSync(jsonPath, "utf-8");
       const jsonData = JSON.parse(jsonContent);
-      config = deepMerge(config, jsonData);
+      config = deepmerge(config, jsonData) as PluginConfig;
       loadedConfigFiles.push("opencode-flashback.json");
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
@@ -446,38 +381,6 @@ function loadConfigFile(): PluginConfig {
   }
 
   return result.data;
-}
-
-function deepMerge(
-  target: PluginConfig,
-  source: Record<string, unknown>,
-): PluginConfig {
-  const result = { ...target } as Record<string, unknown>;
-
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      const sourceValue = source[key];
-      const targetValue = result[key];
-
-      if (
-        sourceValue &&
-        typeof sourceValue === "object" &&
-        !Array.isArray(sourceValue) &&
-        targetValue &&
-        typeof targetValue === "object" &&
-        !Array.isArray(targetValue)
-      ) {
-        result[key] = deepMerge(
-          targetValue as PluginConfig,
-          sourceValue as Record<string, unknown>,
-        );
-      } else {
-        result[key] = sourceValue;
-      }
-    }
-  }
-
-  return result as PluginConfig;
 }
 
 // -- Lazy config getter -------------------------------------------------------
