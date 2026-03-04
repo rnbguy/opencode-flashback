@@ -8,6 +8,13 @@ import {
   type PluginConfig,
 } from "../config.ts";
 import {
+  embed,
+  resetEmbedder,
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
+} from "../core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../core/ai/providers.ts";
+import {
   getDb,
   closeDb,
   insertMemory,
@@ -18,10 +25,16 @@ import type { Memory, SearchResult } from "../types.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "test-key-1234",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
   },
   storage: { path: "/tmp/test" },
   memory: {
@@ -57,9 +70,6 @@ let initSearch: (typeof import("../search.ts"))["initSearch"];
 let rebuildIndex: (typeof import("../search.ts"))["rebuildIndex"];
 let hybridSearch: (typeof import("../search.ts"))["hybridSearch"];
 let markStale: (typeof import("../search.ts"))["markStale"];
-
-let embed: (typeof import("../embed/embedder.ts"))["embed"];
-let resetEmbedder: (typeof import("../embed/embedder.ts"))["resetEmbedder"];
 
 function seededVector(text: string): number[] {
   const normalized = text
@@ -133,19 +143,15 @@ describe("advanced data pipeline", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-advanced-data-"));
     getDb(join(tmpDir, "advanced-data.db"));
 
-    mock.module("@huggingface/transformers", () => ({
-      pipeline: mock(async () => async (inputs: string[]) => {
-        const output: Record<string | number, unknown> = {
-          dispose: () => {},
-        };
-        for (let i = 0; i < inputs.length; i++) {
-          output[i] = {
-            data: seededVector(inputs[i]),
-          };
-        }
-        return output;
-      }),
-    }));
+    _setEmbedDepsForTesting({
+      embedMany: (async ({ values }: { values: string[] }) => ({
+        embeddings: values.map((value) => seededVector(value)),
+      })) as unknown as typeof import("ai").embedMany,
+      createEmbeddingProvider: (async () => ({
+        embedding: (_id: string) => ({}),
+      })) as unknown as typeof createEmbeddingProvider,
+    });
+    resetEmbedder();
 
     const memory = await import(`../core/memory.ts?adv=${Date.now()}`);
     addMemory = memory.addMemory;
@@ -158,13 +164,12 @@ describe("advanced data pipeline", () => {
     hybridSearch = search.hybridSearch;
     markStale = search.markStale;
 
-    const embedder = await import(`../embed/embedder.ts?adv=${Date.now()}`);
-    embed = embedder.embed;
-    resetEmbedder = embedder.resetEmbedder;
   });
 
   afterEach(() => {
     _resetConfigForTesting();
+    _resetEmbedDepsForTesting();
+    resetEmbedder();
     closeDb();
     mock.restore();
     rmSync(tmpDir, { recursive: true, force: true });

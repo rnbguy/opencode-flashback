@@ -2,6 +2,8 @@ import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { APICallError, NoObjectGeneratedError } from "ai";
+import type { generateText } from "ai";
 import {
   _setConfigForTesting,
   _resetConfigForTesting,
@@ -9,20 +11,33 @@ import {
   type PluginConfig,
 } from "../config.ts";
 import { getDb, closeDb } from "../db/database.ts";
-import { callLLMWithTool } from "../core/llm.ts";
-import type { pipeline as hfPipeline } from "@huggingface/transformers";
 import {
-  _setEmbedderDepsForTesting,
-  _resetEmbedderDepsForTesting,
+  callLLMWithTool,
+  _setGenerateDepsForTesting,
+  _resetGenerateDepsForTesting,
+} from "../core/ai/generate.ts";
+import {
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
   resetEmbedder,
-} from "../embed/embedder.ts";
+} from "../core/ai/embed.ts";
+import type {
+  createEmbeddingProvider,
+  createLLMProvider,
+} from "../core/ai/providers.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "test-key-1234",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
   },
   storage: { path: "/tmp/test" },
   memory: {
@@ -44,12 +59,34 @@ const defaultConfig: PluginConfig = {
   },
 };
 
-const mockFetch = mock<typeof fetch>();
-const realFetch = globalThis.fetch;
+const mockGenerateText = mock(() => Promise.resolve({ output: {} }));
+const mockCreateLLMProvider = mock(() =>
+  Promise.resolve({ chat: (_id: string) => ({}) }),
+);
+
+function seededVector(text: string): number[] {
+  let seed = 0;
+  for (let i = 0; i < text.length; i++) {
+    seed = ((seed << 5) - seed + text.charCodeAt(i)) | 0;
+  }
+  const vector = new Array(768);
+  for (let i = 0; i < 768; i++) {
+    seed = (seed * 1664525 + 1013904223) | 0;
+    vector[i] = Math.sin(seed + i) * 0.5;
+  }
+  return vector;
+}
+
+const mockEmbedMany = mock((_opts: { values: string[] }) =>
+  Promise.resolve({
+    embeddings: _opts.values.map((value) => seededVector(value)),
+  }),
+);
+const mockCreateEmbeddingProvider = mock(() =>
+  Promise.resolve({ embedding: (_id: string) => ({}) }),
+);
 
 let tmpDir = "";
-let realSetTimeout: typeof setTimeout;
-
 let addMemory: (typeof import("../core/memory.ts"))["addMemory"];
 let searchMemories: (typeof import("../core/memory.ts"))["searchMemories"];
 
@@ -71,6 +108,33 @@ function expectMemoriesTableExists(): void {
   expect(row?.name).toBe("memories");
 }
 
+function makeNoObjectGeneratedError(message: string): NoObjectGeneratedError {
+  return new NoObjectGeneratedError({
+    message,
+    text: "malformed output",
+    response: {
+      id: "resp_fuzz_1",
+      timestamp: new Date(),
+      modelId: "kimi-k2.5:cloud",
+    },
+    usage: {
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 2,
+      inputTokenDetails: {
+        noCacheTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+      outputTokenDetails: {
+        textTokens: 1,
+        reasoningTokens: 0,
+      },
+    },
+    finishReason: "error",
+  });
+}
+
 describe("fuzz", () => {
   beforeEach(async () => {
     _setConfigForTesting(defaultConfig);
@@ -78,45 +142,42 @@ describe("fuzz", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-fuzz-"));
     getDb(join(tmpDir, "fuzz.db"));
 
-    const mockedPipeline = mock(async () => async (inputs: string[]) => {
-      const output: Record<string | number, unknown> = {
-        dispose: () => {},
-      };
-      for (let i = 0; i < inputs.length; i++) {
-        output[i] = {
-          data: Array.from(
-            { length: 768 },
-            (_, j) => Math.sin(j + inputs[i].length) * 0.5,
-          ),
-        };
-      }
-      return output;
-    }) as unknown as typeof hfPipeline;
-    _setEmbedderDepsForTesting({ pipeline: mockedPipeline });
+    mockEmbedMany.mockReset();
+    mockCreateEmbeddingProvider.mockReset();
+    mockEmbedMany.mockImplementation((_opts: { values: string[] }) =>
+      Promise.resolve({
+        embeddings: _opts.values.map((value) => seededVector(value)),
+      }),
+    );
+    mockCreateEmbeddingProvider.mockResolvedValue({
+      embedding: (_id: string) => ({}),
+    });
+    _setEmbedDepsForTesting({
+      embedMany: mockEmbedMany as unknown as typeof import("ai").embedMany,
+      createEmbeddingProvider:
+        mockCreateEmbeddingProvider as unknown as typeof createEmbeddingProvider,
+    });
     resetEmbedder();
+
+    mockGenerateText.mockReset();
+    mockCreateLLMProvider.mockReset();
+    mockGenerateText.mockResolvedValue({ output: {} });
+    mockCreateLLMProvider.mockResolvedValue({ chat: (_id: string) => ({}) });
+    _setGenerateDepsForTesting({
+      generateText: mockGenerateText as unknown as typeof generateText,
+      createLLMProvider: mockCreateLLMProvider as unknown as typeof createLLMProvider,
+    });
 
     const memory = await import(`../core/memory.ts?fuzz-test=${Date.now()}`);
     addMemory = memory.addMemory;
     searchMemories = memory.searchMemories;
-
-    mockFetch.mockReset();
-    globalThis.fetch = mockFetch as unknown as typeof fetch;
-    realSetTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = ((
-      fn: (...args: unknown[]) => void,
-      _ms?: number,
-      ...args: unknown[]
-    ) => {
-      return realSetTimeout(fn, 0, ...args);
-    }) as typeof setTimeout;
   });
 
   afterEach(() => {
     _resetConfigForTesting();
-    globalThis.setTimeout = realSetTimeout;
-    globalThis.fetch = realFetch;
+    _resetGenerateDepsForTesting();
     resetEmbedder();
-    _resetEmbedderDepsForTesting();
+    _resetEmbedDepsForTesting();
     closeDb();
     mock.restore();
     rmSync(tmpDir, { recursive: true, force: true });
@@ -155,15 +216,7 @@ describe("fuzz", () => {
       containerTag: "fuzz-search",
     });
 
-    const queries = [
-      "",
-      "a",
-      "q".repeat(10_000),
-      ".*",
-      "[a-z]+",
-      "(?:)",
-      "' OR 1=1 --",
-    ];
+    const queries = ["", "a", "q".repeat(10_000), ".*", "[a-z]+", "(?:)", "' OR 1=1 --"];
 
     for (const query of queries) {
       const results = await searchMemories(query, "fuzz-search", 10);
@@ -205,17 +258,19 @@ describe("fuzz", () => {
       },
     };
 
-    const malformedBodies = ['{"choices":[{"message":{"tool_', "", "not json"];
+    const malformedMessages = ["invalid-json", "missing-tool-calls", "wrong-argument-type"];
 
-    for (const body of malformedBodies) {
-      mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+    for (const malformed of malformedMessages) {
+      mockGenerateText.mockRejectedValueOnce(
+        makeNoObjectGeneratedError(`malformed: ${malformed}`),
+      );
       const result = await callLLMWithTool({
         systemPrompt: "sys",
         userPrompt: "user",
         toolSchema,
-        provider: "openai-chat",
-        model: "gpt-4o",
-        apiUrl: "https://api.test.com/v1",
+        provider: "ollama",
+        model: "kimi-k2.5:cloud",
+        apiUrl: "http://127.0.0.1:11434",
         apiKey: "test-key-1234",
       });
 
@@ -225,44 +280,29 @@ describe("fuzz", () => {
       }
     }
 
-    const missingToolCalls = { choices: [{ message: {} }] };
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify(missingToolCalls), { status: 200 }),
+    mockGenerateText.mockRejectedValueOnce(
+      new APICallError({
+        message: "rate limited",
+        statusCode: 429,
+        url: "http://127.0.0.1:11434",
+        requestBodyValues: {},
+        responseHeaders: {},
+        responseBody: undefined,
+        isRetryable: false,
+      }),
     );
-    const missingResult = await callLLMWithTool({
+    const rateLimited = await callLLMWithTool({
       systemPrompt: "sys",
       userPrompt: "user",
       toolSchema,
-      provider: "openai-chat",
-      model: "gpt-4o",
-      apiUrl: "https://api.test.com/v1",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
       apiKey: "test-key-1234",
     });
-    expect(missingResult.success).toBe(false);
-    if (!missingResult.success) {
-      expect(missingResult.code).toBe("parse_error");
-    }
-
-    const wrongTypes = {
-      choices: [
-        { message: { tool_calls: [{ function: { arguments: 123 } }] } },
-      ],
-    };
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify(wrongTypes), { status: 200 }),
-    );
-    const wrongTypeResult = await callLLMWithTool({
-      systemPrompt: "sys",
-      userPrompt: "user",
-      toolSchema,
-      provider: "openai-chat",
-      model: "gpt-4o",
-      apiUrl: "https://api.test.com/v1",
-      apiKey: "test-key-1234",
-    });
-    expect(wrongTypeResult.success).toBe(false);
-    if (!wrongTypeResult.success) {
-      expect(wrongTypeResult.code).toBe("parse_error");
+    expect(rateLimited.success).toBe(false);
+    if (!rateLimited.success) {
+      expect(rateLimited.code).toBe("rate_limit");
     }
 
     expectMemoriesTableExists();

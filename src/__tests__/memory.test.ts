@@ -31,13 +31,6 @@ const mockHybridSearch = mock(
   ): Promise<SearchResult[]> => [],
 );
 
-mock.module("../embed/embedder.ts", () => ({
-  embed: async (texts: string[], _mode: string) =>
-    texts.map((t) => deterministicVector(t)),
-  getEmbedderState: () => "ready" as const,
-  resetEmbedder: () => {},
-}));
-
 mock.module("../search.ts", () => ({
   initSearch: async () => {},
   hybridSearch: (...args: unknown[]) =>
@@ -61,6 +54,12 @@ import {
   type PluginConfig,
 } from "../config";
 import {
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
+  resetEmbedder,
+} from "../core/ai/embed";
+import type { createEmbeddingProvider } from "../core/ai/providers";
+import {
   addMemory,
   searchMemories,
   recallMemories,
@@ -76,10 +75,16 @@ let tmpDir: string;
 
 const testConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "test",
-    apiUrl: "http://test",
-    apiKey: "k",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
   },
   storage: { path: "/tmp" },
   memory: {
@@ -144,6 +149,15 @@ function makeTestMemory(
 
 beforeEach(() => {
   _setConfigForTesting(testConfig);
+  _setEmbedDepsForTesting({
+    embedMany: (async ({ values }: { values: string[] }) => ({
+      embeddings: values.map((value) => deterministicVector(value)),
+    })) as unknown as typeof import("ai").embedMany,
+    createEmbeddingProvider: (async () => ({
+      embedding: (_id: string) => ({}),
+    })) as unknown as typeof createEmbeddingProvider,
+  });
+  resetEmbedder();
   closeDb();
   tmpDir = mkdtempSync(join(tmpdir(), "flashback-mem-"));
   getDb(join(tmpDir, "test.db"));
@@ -152,6 +166,8 @@ beforeEach(() => {
 
 afterEach(() => {
   _resetConfigForTesting();
+  _resetEmbedDepsForTesting();
+  resetEmbedder();
   closeDb();
   rmSync(tmpDir, { recursive: true, force: true });
 });

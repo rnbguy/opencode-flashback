@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import type { LLMCallResult, LLMCallOptions } from "../core/llm";
+import type { LLMCallResult, LLMCallOptions } from "../core/ai/generate";
 
 // -- Mock functions -----------------------------------------------------------
 

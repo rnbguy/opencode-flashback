@@ -8,7 +8,7 @@ import {
   _resetCaptureDepsForTesting,
   type CaptureRequest,
 } from "../core/capture";
-import type { LLMCallResult } from "../core/llm";
+import type { LLMCallResult } from "../core/ai/generate";
 
 function makeRequest(overrides?: Partial<CaptureRequest>): CaptureRequest {
   return {

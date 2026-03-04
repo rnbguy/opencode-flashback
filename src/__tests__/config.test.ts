@@ -16,10 +16,16 @@ import type { PluginConfig } from "../config";
 describe("ConfigSchema", () => {
   const validConfig: PluginConfig = {
     llm: {
-      provider: "openai-chat",
-      model: "gpt-4o-mini",
-      apiUrl: "https://api.openai.com/v1",
-      apiKey: "sk-test",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
+    },
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
     },
     storage: { path: "/tmp/test" },
     memory: {
@@ -180,10 +186,16 @@ describe("getHybridWeights", () => {
   ): PluginConfig {
     return {
       llm: {
-        provider: "openai-chat",
-        model: "m",
-        apiUrl: "u",
-        apiKey: "k",
+        provider: "ollama",
+        model: "kimi-k2.5:cloud",
+        apiUrl: "http://127.0.0.1:11434",
+        apiKey: "",
+      },
+      embedding: {
+        provider: "ollama",
+        model: "embeddinggemma:latest",
+        apiUrl: "http://127.0.0.1:11434",
+        apiKey: "",
       },
       storage: { path: "/tmp" },
       memory: {
@@ -410,7 +422,7 @@ describe("getConfig", () => {
     writeConfigFiles("{ invalid");
     const config = getConfig();
     expect(config).toMatchObject({
-      llm: { provider: "openai-chat", model: "gpt-4o-mini" },
+      llm: { provider: "ollama", model: "kimi-k2.5:cloud" },
       search: { retrievalQuality: "balanced" },
     });
     expect(config.storage.path).toBe(
@@ -452,7 +464,7 @@ describe("getConfig", () => {
 
     const config = getConfig();
     expect(config.llm.apiKey).toBe("partial-key");
-    expect(config.llm.provider).toBe("openai-chat");
+    expect(config.llm.provider).toBe("ollama");
     expect(config.memory.injection).toBe("every");
     expect(config.memory.maxResults).toBe(10);
     expect(config.web.port).toBe(8787);
@@ -487,7 +499,7 @@ describe("getConfig", () => {
 
     const config = getConfig();
     expect(config.web.enabled).toBe(true);
-    expect(config.llm.model).toBe("gpt-4o-mini");
+    expect(config.llm.model).toBe("kimi-k2.5:cloud");
   });
 
   test("returns cached reference until reset", () => {

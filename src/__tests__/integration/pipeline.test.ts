@@ -30,18 +30,6 @@ function deterministicVector(text: string): number[] {
   return norm > 0 ? vec.map((value) => value / norm) : vec;
 }
 
-mock.module("../../embed/embedder.ts", () => ({
-  embed: async (texts: string[], _mode: string) =>
-    texts.map((t) => deterministicVector(t)),
-  initEmbedder: async () => {},
-  getEmbedderState: () => "ready" as const,
-  resetEmbedder: () => {},
-}));
-
-mock.module("../../core/llm.ts", () => ({
-  callLLMWithTool: async () => ({ success: true as const, data: {} }),
-}));
-
 import {
   addMemory,
   searchMemories,
@@ -62,6 +50,19 @@ import {
   _setDbForTesting,
 } from "../../db/database.ts";
 import { _setConfigForTesting, _resetConfigForTesting } from "../../config.ts";
+import {
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
+  resetEmbedder,
+} from "../../core/ai/embed.ts";
+import {
+  _setGenerateDepsForTesting,
+  _resetGenerateDepsForTesting,
+} from "../../core/ai/generate.ts";
+import type {
+  createEmbeddingProvider,
+  createLLMProvider,
+} from "../../core/ai/providers.ts";
 import { _resetTagCache } from "../../core/tags.ts";
 import { _resetSecretCache } from "../../util/secrets.ts";
 import { startServer, stopServer, getServerState } from "../../web/server.ts";
@@ -69,10 +70,16 @@ import { startServer, stopServer, getServerState } from "../../web/server.ts";
 function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
   return {
     llm: {
-      provider: "openai-chat",
-      model: "test",
-      apiUrl: "http://localhost:9999",
-      apiKey: "test-key",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
+    },
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
     },
     storage: { path: tmpPath },
     memory: {
@@ -131,6 +138,21 @@ describe("integration: memory pipeline", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-int-"));
     dbPath = join(tmpDir, "test.db");
     _setConfigForTesting(makeTestConfig(tmpDir));
+    _setEmbedDepsForTesting({
+      embedMany: (async ({ values }: { values: string[] }) => ({
+        embeddings: values.map((value) => deterministicVector(value)),
+      })) as unknown as typeof import("ai").embedMany,
+      createEmbeddingProvider: (async () => ({
+        embedding: (_id: string) => ({}),
+      })) as unknown as typeof createEmbeddingProvider,
+    });
+    resetEmbedder();
+    _setGenerateDepsForTesting({
+      generateText: (async () => ({ output: {} })) as unknown as typeof import("ai").generateText,
+      createLLMProvider: (async () => ({
+        chat: (_id: string) => ({}),
+      })) as unknown as typeof createLLMProvider,
+    });
 
     const db = getDb(dbPath);
     _setDbForTesting(db);
@@ -143,6 +165,9 @@ describe("integration: memory pipeline", () => {
     cleanupStaticMirror?.();
     cleanupStaticMirror = null;
     _resetConfigForTesting();
+    _resetGenerateDepsForTesting();
+    _resetEmbedDepsForTesting();
+    resetEmbedder();
     closeDb();
     _resetTagCache();
     _resetSecretCache();

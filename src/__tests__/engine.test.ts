@@ -7,14 +7,26 @@ import {
   _resetConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
+import {
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
+  resetEmbedder,
+} from "../core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../core/ai/providers.ts";
 import { getDb, closeDb } from "../db/database.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "test-key-1234",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
   },
   storage: { path: "/tmp/test" },
   memory: {
@@ -60,19 +72,15 @@ describe("engine facade", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-engine-"));
     getDb(join(tmpDir, "engine.db"));
 
-    mock.module("@huggingface/transformers", () => ({
-      pipeline: mock(async () => async (inputs: string[]) => {
-        const output: Record<string | number, unknown> = {
-          dispose: () => {},
-        };
-        for (let i = 0; i < inputs.length; i++) {
-          output[i] = {
-            data: seededVector(inputs[i]),
-          };
-        }
-        return output;
-      }),
-    }));
+    _setEmbedDepsForTesting({
+      embedMany: (async ({ values }: { values: string[] }) => ({
+        embeddings: values.map((value) => seededVector(value)),
+      })) as unknown as typeof import("ai").embedMany,
+      createEmbeddingProvider: (async () => ({
+        embedding: (_id: string) => ({}),
+      })) as unknown as typeof createEmbeddingProvider,
+    });
+    resetEmbedder();
 
     const engineModule = await import(`../engine.ts?eng=${Date.now()}`);
     createEngine = engineModule.createEngine;
@@ -80,6 +88,8 @@ describe("engine facade", () => {
 
   afterEach(() => {
     _resetConfigForTesting();
+    _resetEmbedDepsForTesting();
+    resetEmbedder();
     closeDb();
     mock.restore();
     rmSync(tmpDir, { recursive: true, force: true });

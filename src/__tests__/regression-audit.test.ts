@@ -16,9 +16,15 @@ const SRC_DIR = join(import.meta.dir, "..");
 
 const defaultConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "",
   },
   storage: { path: "" },
@@ -104,12 +110,6 @@ describe("regression: audit fixes", () => {
     stopServer();
   });
 
-  test("T14: embedder uses Promise-based probe, not boolean flag", () => {
-    const src = readFileSync(join(SRC_DIR, "embed", "embedder.ts"), "utf-8");
-    expect(src).toMatch(/let\s+degradedProbePromise\s*:\s*Promise<void>\s*\|\s*null/);
-    expect(src).not.toMatch(/degradedProbePromise\s*:\s*boolean/);
-  });
-
   test("T15: rebuildIndex chains via rebuildPromise.then", () => {
     const src = readFileSync(join(SRC_DIR, "search.ts"), "utf-8");
     expect(src).toContain("rebuildPromise = rebuildPromise.then(");
@@ -163,12 +163,6 @@ describe("regression: audit fixes", () => {
   test("T10: capture.ts has no outer retry loop (RETRY_BACKOFF removed)", () => {
     const src = readFileSync(join(SRC_DIR, "core", "capture.ts"), "utf-8");
     expect(src).not.toContain("RETRY_BACKOFF");
-  });
-
-  test("T13: embedder device fallback preserves original error", () => {
-    const src = readFileSync(join(SRC_DIR, "embed", "embedder.ts"), "utf-8");
-    expect(src).toContain("Embedder device cpu failed, retrying with auto-detect");
-    expect(src).toContain("propagate original error");
   });
 
   test("T19: server.ts has no hardcoded CSP sha256 hash", () => {

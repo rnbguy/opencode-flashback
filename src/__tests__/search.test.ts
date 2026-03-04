@@ -19,9 +19,15 @@ import {
 
 const defaultConfig: PluginConfig = {
   llm: {
-    provider: "openai-chat",
-    model: "gpt-4o-mini",
-    apiUrl: "https://api.openai.com/v1",
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  },
+  embedding: {
+    provider: "ollama",
+    model: "embeddinggemma:latest",
+    apiUrl: "http://127.0.0.1:11434",
     apiKey: "",
   },
   storage: { path: "/tmp/test" },

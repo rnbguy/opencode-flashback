@@ -12,6 +12,12 @@ import { join } from "path";
 import { tmpdir } from "os";
 import type { PluginConfig } from "../../config.ts";
 import { DB_FILENAME } from "../../consts.ts";
+import {
+  _setEmbedDepsForTesting,
+  _resetEmbedDepsForTesting,
+  resetEmbedder,
+} from "../../core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../../core/ai/providers.ts";
 
 const isDirectLifecycleRun =
   process.argv.some(
@@ -19,21 +25,6 @@ const isDirectLifecycleRun =
       arg.endsWith("src/__tests__/e2e/lifecycle.test.ts") ||
       arg.endsWith("lifecycle.test.ts"),
   ) && !process.argv.some((arg) => arg.endsWith("embedder.test.ts"));
-
-if (isDirectLifecycleRun) {
-  mock.module("../../embed/embedder.ts", () => ({
-    embed: async (texts: string[]) =>
-      texts.map((text) =>
-        Array.from(
-          { length: 768 },
-          (_, index) => Math.sin(index + text.length) * 0.5,
-        ),
-      ),
-    initEmbedder: async () => {},
-    getEmbedderState: () => "ready" as const,
-    resetEmbedder: () => {},
-  }));
-}
 
 import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
 import {
@@ -72,6 +63,7 @@ type Hooks = {
 
 type ConfigOverrides = {
   llm?: Partial<PluginConfig["llm"]>;
+  embedding?: Partial<PluginConfig["embedding"]>;
   storage?: Partial<PluginConfig["storage"]>;
   memory?: Partial<PluginConfig["memory"]>;
   web?: Partial<PluginConfig["web"]>;
@@ -100,11 +92,18 @@ function makeTestConfig(
       ...(overrides?.search ?? {}),
     },
     llm: {
-      provider: "openai-chat",
-      model: "test",
-      apiUrl: "http://localhost:9999",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
       apiKey: "test-key",
       ...(overrides?.llm ?? {}),
+    },
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
+      ...(overrides?.embedding ?? {}),
     },
     storage: {
       path: storagePath,
@@ -178,6 +177,20 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
       web: { port: nextPort++, enabled: true },
     });
     _setConfigForTesting(config);
+    _setEmbedDepsForTesting({
+      embedMany: (async ({ values }: { values: string[] }) => ({
+        embeddings: values.map((text) =>
+          Array.from(
+            { length: 768 },
+            (_, index) => Math.sin(index + text.length) * 0.5,
+          ),
+        ),
+      })) as unknown as typeof import("ai").embedMany,
+      createEmbeddingProvider: (async () => ({
+        embedding: (_id: string) => ({}),
+      })) as unknown as typeof createEmbeddingProvider,
+    });
+    resetEmbedder();
 
     const db = getDb(join(tmpDir, DB_FILENAME));
     _setDbForTesting(db);
@@ -189,6 +202,8 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     cleanupStaticMirror?.();
     cleanupStaticMirror = null;
     _resetConfigForTesting();
+    _resetEmbedDepsForTesting();
+    resetEmbedder();
     closeDb();
     _resetTagCache();
     rmSync(tmpDir, { recursive: true, force: true });
@@ -199,9 +214,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     closeDb();
     _resetConfigForTesting();
     _resetTagCache();
-    if (isDirectLifecycleRun) {
-      mock.restore();
-    }
+    mock.restore();
   });
 
   test("plugin factory returns hooks with tool, chat.message, and event", async () => {

@@ -47,15 +47,21 @@ import {
   _setDbForTesting,
   getProfile,
 } from "../db/database.ts";
-import type { LLMCallResult } from "../core/llm.ts";
+import type { LLMCallResult } from "../core/ai/generate.ts";
 
 function makeValidConfig(): PluginConfig {
   return {
     llm: {
-      provider: "openai-chat",
-      model: "gpt-4o-mini",
-      apiUrl: "https://api.openai.com/v1",
-      apiKey: "sk-test",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
+    },
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
     },
     storage: { path: "/tmp/flashback" },
     memory: {
@@ -131,7 +137,7 @@ describe("advanced config behavior", () => {
     }`);
 
     const cfg = getConfig();
-    expect(cfg.llm.model).toBe("gpt-4o-mini");
+    expect(cfg.llm.model).toBe("kimi-k2.5:cloud");
     expect(ConfigSchema.safeParse(cfg).success).toBe(true);
   });
 

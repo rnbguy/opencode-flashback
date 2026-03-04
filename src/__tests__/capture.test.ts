@@ -8,7 +8,7 @@ import {
   mock,
   jest,
 } from "bun:test";
-import type { LLMCallResult } from "../core/llm";
+import type { LLMCallResult } from "../core/ai/generate";
 
 // -- Mock functions (referenced in mock.module factories) ---------------------
 

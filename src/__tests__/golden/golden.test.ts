@@ -234,10 +234,16 @@ function embedDeterministic(text: string): number[] {
 function makeConfig(retrievalQuality: RetrievalPreset): PluginConfig {
   return {
     llm: {
-      provider: "openai-chat",
-      model: "test",
-      apiUrl: "http://localhost",
-      apiKey: "test",
+      provider: "ollama",
+      model: "kimi-k2.5:cloud",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
+    },
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "",
     },
     storage: { path: "/tmp" },
     memory: {
