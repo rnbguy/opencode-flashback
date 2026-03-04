@@ -8,6 +8,7 @@ import {
   listMemories as dbListMemories,
   searchMemoriesByText,
 } from "../db/database.ts";
+import { similarity as mlSimilarity } from "ml-distance";
 import { embed } from "../embed/embedder.ts";
 import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search/index.ts";
@@ -544,8 +545,8 @@ function findDuplicateMemory(
   let best: { memory: Memory; similarity: number } | null = null;
 
   for (const memory of memories) {
-    const similarity = cosineSimilarity(vector, Array.from(memory.embedding));
-    if (similarity <= DEDUP_SIMILARITY_THRESHOLD) {
+    const similarity = mlSimilarity.cosine(vector, Array.from(memory.embedding));
+    if (!Number.isFinite(similarity) || similarity <= DEDUP_SIMILARITY_THRESHOLD) {
       continue;
     }
     if (!best || similarity > best.similarity) {
@@ -560,19 +561,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) {
     return 0;
   }
-
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
+  return mlSimilarity.cosine(a, b);
 }
 
 async function enforceTagBudget(containerTag: string): Promise<void> {
