@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { generateText } from "ai";
 import { APICallError, NoObjectGeneratedError } from "ai";
-import {
-  _resetConfigForTesting,
-  _setConfigForTesting,
-  type PluginConfig,
-} from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
 import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
@@ -15,32 +11,9 @@ import {
   validateLLMEndpoint,
 } from "../core/ai/generate.ts";
 import type { createLLMProvider } from "../core/ai/providers.ts";
+import { makeTestConfig } from "./fixtures/config.ts";
 
-const baseConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "test-key-1234",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  storage: { path: "/tmp/test" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: { autoCapture: true, userProfile: true, errors: true },
-  compaction: { enabled: true, memoryLimit: 10 },
-};
+const baseConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
 
 const testToolSchema: ToolSchema = {
   name: "extract_fact",

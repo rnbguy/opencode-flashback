@@ -8,7 +8,6 @@ import {
   _resetConfigForTesting,
   _setConfigForTesting,
   ConfigSchema,
-  type PluginConfig,
 } from "../config.ts";
 import {
   _resetEmbedDepsForTesting,
@@ -25,39 +24,9 @@ import type {
   createLLMProvider,
 } from "../core/ai/providers.ts";
 import { closeDb, getDb } from "../db/database.ts";
+import { makeTestConfig } from "./fixtures/config.ts";
 
-const defaultConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "test-key-1234",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  storage: { path: "/tmp/test" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: {
-    autoCapture: true,
-    userProfile: true,
-    errors: true,
-  },
-  compaction: {
-    enabled: true,
-    memoryLimit: 10,
-  },
-};
+const defaultConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
 
 const mockGenerateText = mock(() => Promise.resolve({ output: {} }));
 const mockCreateLLMProvider = mock(() =>

@@ -2,11 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  _resetConfigForTesting,
-  _setConfigForTesting,
-  type PluginConfig,
-} from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
@@ -14,53 +10,10 @@ import {
 } from "../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../core/ai/providers.ts";
 import { closeDb, getDb } from "../db/database.ts";
+import { makeTestConfig } from "./fixtures/config.ts";
+import { seededVector } from "./fixtures/vectors.ts";
 
-const defaultConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "test-key-1234",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  storage: { path: "/tmp/test" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: {
-    autoCapture: true,
-    userProfile: true,
-    errors: true,
-  },
-  compaction: {
-    enabled: true,
-    memoryLimit: 10,
-  },
-};
-
-function seededVector(text: string): number[] {
-  let seed = 0;
-  for (let i = 0; i < text.length; i++) {
-    seed = ((seed << 5) - seed + text.charCodeAt(i)) | 0;
-  }
-  const vec = new Array(768);
-  for (let i = 0; i < 768; i++) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    vec[i] = (seed / 0x7fffffff) * 2 - 1;
-  }
-  const norm = Math.sqrt(vec.reduce((sum, value) => sum + value * value, 0));
-  return norm > 0 ? vec.map((value) => value / norm) : vec;
-}
+const defaultConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
 
 let tmpDir = "";
 let createEngine: typeof import("../engine.ts")["createEngine"];

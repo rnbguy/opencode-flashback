@@ -9,26 +9,6 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { PluginConfig } from "../../config.ts";
-
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return hash;
-}
-
-function deterministicVector(text: string): number[] {
-  let seed = hashCode(text);
-  const vec = new Array(768);
-  for (let i = 0; i < 768; i++) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    vec[i] = (seed / 0x7fffffff) * 2 - 1;
-  }
-  const norm = Math.sqrt(vec.reduce((sum, value) => sum + value * value, 0));
-  return norm > 0 ? vec.map((value) => value / norm) : vec;
-}
 
 import { _resetConfigForTesting, _setConfigForTesting } from "../../config.ts";
 import {
@@ -66,41 +46,8 @@ import {
 } from "../../search.ts";
 import { _resetSecretCache } from "../../util/secrets.ts";
 import { getServerState, startServer, stopServer } from "../../web/server.ts";
-
-function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
-  return {
-    llm: {
-      provider: "ollama",
-      model: "kimi-k2.5:cloud",
-      apiUrl: "http://127.0.0.1:11434",
-      apiKey: "",
-    },
-    embedding: {
-      provider: "ollama",
-      model: "embeddinggemma:latest",
-      apiUrl: "http://127.0.0.1:11434",
-      apiKey: "",
-    },
-    storage: { path: tmpPath },
-    memory: {
-      maxResults: 10,
-      autoCapture: true,
-      injection: "first",
-      excludeCurrentSession: true,
-    },
-    web: { port, enabled: true },
-    search: { retrievalQuality: "balanced" },
-    toasts: {
-      autoCapture: true,
-      userProfile: true,
-      errors: true,
-    },
-    compaction: {
-      enabled: true,
-      memoryLimit: 10,
-    },
-  };
-}
+import { makeTestConfig } from "../fixtures/config.ts";
+import { seededVector } from "../fixtures/vectors.ts";
 
 function ensureStaticMirrorWithScript(): () => void {
   const sourceDir = join(process.cwd(), "src", "web");
@@ -137,10 +84,15 @@ describe("integration: memory pipeline", () => {
 
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-int-"));
     dbPath = join(tmpDir, "test.db");
-    _setConfigForTesting(makeTestConfig(tmpDir));
+    _setConfigForTesting(
+      makeTestConfig({
+        storage: { path: tmpDir },
+        web: { enabled: true, port: 19747 },
+      }),
+    );
     _setEmbedDepsForTesting({
       embedMany: (async ({ values }: { values: string[] }) => ({
-        embeddings: values.map((value) => deterministicVector(value)),
+        embeddings: values.map((value) => seededVector(value)),
       })) as unknown as typeof import("ai").embedMany,
       createEmbeddingProvider: (async () => ({
         embedding: (_id: string) => ({}),
@@ -280,7 +232,12 @@ describe("integration: memory pipeline", () => {
 
   test("enforces csrf token for mutation endpoints", async () => {
     const port = 19747;
-    _setConfigForTesting(makeTestConfig(tmpDir, port));
+    _setConfigForTesting(
+      makeTestConfig({
+        storage: { path: tmpDir },
+        web: { port, enabled: true },
+      }),
+    );
 
     await startServer(tmpDir);
     const base = `http://127.0.0.1:${port}`;
@@ -347,7 +304,12 @@ describe("integration: memory pipeline", () => {
   test("covers server error and validation paths", async () => {
     cleanupStaticMirror = ensureStaticMirrorWithScript();
     const port = 19748;
-    _setConfigForTesting(makeTestConfig(tmpDir, port));
+    _setConfigForTesting(
+      makeTestConfig({
+        storage: { path: tmpDir },
+        web: { port, enabled: true },
+      }),
+    );
 
     await startServer(tmpDir);
     expect(getServerState()).toBe("ready");

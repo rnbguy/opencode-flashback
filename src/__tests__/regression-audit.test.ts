@@ -2,43 +2,20 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  _resetConfigForTesting,
-  _setConfigForTesting,
-  type PluginConfig,
-} from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
 import { MEMORY_HEADER } from "../consts.ts";
 import { getOrCreateProfile } from "../core/profile.ts";
 import { closeDb, getDb } from "../db/database.ts";
 import { startServer, stopServer } from "../web/server.ts";
+import { makeTestConfig } from "./fixtures/config.ts";
 
 const SRC_DIR = join(import.meta.dir, "..");
 
-const defaultConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
+const defaultConfig = makeTestConfig({
   storage: { path: "" },
-  memory: {
-    maxResults: 10,
-    autoCapture: false,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
+  memory: { autoCapture: false },
   web: { port: 19500, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: { autoCapture: true, userProfile: true, errors: true },
-  compaction: { enabled: true, memoryLimit: 10 },
-};
+});
 
 describe("regression: audit fixes", () => {
   let tmpDir: string;

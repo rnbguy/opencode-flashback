@@ -2,23 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { Memory, SearchResult } from "../types";
-
-// -- Deterministic embedding --------------------------------------------------
-
-function deterministicVector(text: string): number[] {
-  let seed = 0;
-  for (let i = 0; i < text.length; i++) {
-    seed = ((seed << 5) - seed + text.charCodeAt(i)) | 0;
-  }
-  const vec = new Array(768);
-  for (let i = 0; i < 768; i++) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    vec[i] = (seed / 0x7fffffff) * 2 - 1;
-  }
-  const norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
-  return norm > 0 ? vec.map((v) => v / norm) : vec;
-}
+import type { SearchResult } from "../types";
 
 // -- Module mocks (hoisted by Bun) --------------------------------------------
 
@@ -42,11 +26,7 @@ mock.module("../search.ts", () => ({
 
 // -- Imports (resolved after mocks) -------------------------------------------
 
-import {
-  _resetConfigForTesting,
-  _setConfigForTesting,
-  type PluginConfig,
-} from "../config";
+import { _resetConfigForTesting, _setConfigForTesting } from "../config";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
@@ -68,90 +48,21 @@ import {
   getDb,
   insertMemory,
 } from "../db/database";
+import { makeTestConfig } from "./fixtures/config";
+import { makeTestMemory } from "./fixtures/memory";
+import { seededVector } from "./fixtures/vectors";
 
 // -- Helpers ------------------------------------------------------------------
 
 let tmpDir: string;
 
-const testConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  storage: { path: "/tmp" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: {
-    autoCapture: true,
-    userProfile: true,
-    errors: true,
-  },
-  compaction: {
-    enabled: true,
-    memoryLimit: 10,
-  },
-};
-
-function makeTestMemory(
-  id: string,
-  containerTag: string,
-  overrides?: Partial<Memory>,
-): Memory {
-  const now = Date.now();
-  return {
-    id,
-    content: `content-${id}`,
-    embedding: new Float32Array(768),
-    containerTag,
-    tags: [],
-    type: "note",
-    isPinned: false,
-    createdAt: now,
-    updatedAt: now,
-    metadata: { importance: 5 },
-    userName: "",
-    userEmail: "",
-    projectPath: "",
-    projectName: "",
-    gitRepoUrl: "",
-    provenance: {
-      sessionId: "",
-      messageRange: [0, 0] as [number, number],
-      toolCallIds: [],
-    },
-    lastAccessedAt: now,
-    accessCount: 0,
-    epistemicStatus: { confidence: 0.7, evidenceCount: 1 },
-    evictedAt: null,
-    suspended: false,
-    suspendedReason: null,
-    suspendedAt: null,
-    stability: 0,
-    difficulty: 5.0,
-    nextReviewAt: null,
-    ...overrides,
-  };
-}
+const testConfig = makeTestConfig({ storage: { path: "/tmp" } });
 
 beforeEach(() => {
   _setConfigForTesting(testConfig);
   _setEmbedDepsForTesting({
     embedMany: (async ({ values }: { values: string[] }) => ({
-      embeddings: values.map((value) => deterministicVector(value)),
+      embeddings: values.map((value) => seededVector(value)),
     })) as unknown as typeof import("ai").embedMany,
     createEmbeddingProvider: (async () => ({
       embedding: (_id: string) => ({}),

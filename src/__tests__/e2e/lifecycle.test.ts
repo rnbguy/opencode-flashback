@@ -38,6 +38,7 @@ import {
 import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
 import { initSearch } from "../../search.ts";
 import { startServer, stopServer } from "../../web/server.ts";
+import { type DeepPartial, makeTestConfig } from "../fixtures/config.ts";
 
 type ToolRunner = {
   execute: (
@@ -61,64 +62,23 @@ type Hooks = {
   }) => Promise<void>;
 };
 
-type ConfigOverrides = {
-  llm?: Partial<PluginConfig["llm"]>;
-  embedding?: Partial<PluginConfig["embedding"]>;
-  storage?: Partial<PluginConfig["storage"]>;
-  memory?: Partial<PluginConfig["memory"]>;
-  web?: Partial<PluginConfig["web"]>;
-  search?: Partial<PluginConfig["search"]>;
-};
+type ConfigOverrides = DeepPartial<PluginConfig>;
 
-function makeTestConfig(
+function makeLifecycleConfig(
   storagePath: string,
   overrides?: ConfigOverrides,
 ): PluginConfig {
-  return {
+  return makeTestConfig({
+    llm: { apiKey: "test-key", ...(overrides?.llm ?? {}) },
+    ...(overrides?.embedding ? { embedding: overrides.embedding } : {}),
+    storage: { path: storagePath, ...(overrides?.storage ?? {}) },
     memory: {
-      maxResults: 10,
-      autoCapture: true,
-      injection: "first",
       excludeCurrentSession: false,
       ...(overrides?.memory ?? {}),
     },
-    web: {
-      port: 19848,
-      enabled: true,
-      ...(overrides?.web ?? {}),
-    },
-    search: {
-      retrievalQuality: "balanced",
-      ...(overrides?.search ?? {}),
-    },
-    llm: {
-      provider: "ollama",
-      model: "kimi-k2.5:cloud",
-      apiUrl: "http://127.0.0.1:11434",
-      apiKey: "test-key",
-      ...(overrides?.llm ?? {}),
-    },
-    embedding: {
-      provider: "ollama",
-      model: "embeddinggemma:latest",
-      apiUrl: "http://127.0.0.1:11434",
-      apiKey: "",
-      ...(overrides?.embedding ?? {}),
-    },
-    storage: {
-      path: storagePath,
-      ...(overrides?.storage ?? {}),
-    },
-    toasts: {
-      autoCapture: true,
-      userProfile: true,
-      errors: true,
-    },
-    compaction: {
-      enabled: true,
-      memoryLimit: 10,
-    },
-  };
+    web: { port: 19848, enabled: true, ...(overrides?.web ?? {}) },
+    search: { retrievalQuality: "balanced", ...(overrides?.search ?? {}) },
+  });
 }
 
 async function createHooks(directory: string): Promise<Hooks> {
@@ -174,7 +134,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     _resetTagCache();
 
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-e2e-"));
-    const config = makeTestConfig(tmpDir, {
+    const config = makeLifecycleConfig(tmpDir, {
       web: { port: nextPort++, enabled: true },
     });
     _setConfigForTesting(config);
@@ -354,7 +314,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
   test("chat.message injects context once per session when injection is first", async () => {
     _setConfigForTesting(
-      makeTestConfig(tmpDir, {
+      makeLifecycleConfig(tmpDir, {
         memory: { injection: "first", autoCapture: true },
       }),
     );
@@ -405,7 +365,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
   test("event hook enqueues capture only when autoCapture is enabled", async () => {
     _setConfigForTesting(
-      makeTestConfig(tmpDir, {
+      makeLifecycleConfig(tmpDir, {
         memory: { autoCapture: true, injection: "first" },
       }),
     );
@@ -431,7 +391,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     expect(timerDelays.includes(5000)).toBe(true);
 
     _setConfigForTesting(
-      makeTestConfig(tmpDir, {
+      makeLifecycleConfig(tmpDir, {
         memory: { autoCapture: false, injection: "first" },
       }),
     );
@@ -451,7 +411,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
     const port = 19848 + Math.floor(Math.random() * 1000);
     _setConfigForTesting(
-      makeTestConfig(tmpDir, { web: { port, enabled: true } }),
+      makeLifecycleConfig(tmpDir, { web: { port, enabled: true } }),
     );
 
     const tag = resolveContainerTag(tmpDir).tag;

@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import {
-  _resetConfigForTesting,
-  _setConfigForTesting,
-  type PluginConfig,
-} from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
@@ -12,32 +8,9 @@ import {
   resetEmbedder,
 } from "../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../core/ai/providers.ts";
+import { makeTestConfig } from "./fixtures/config.ts";
 
-const testConfig: PluginConfig = {
-  llm: {
-    provider: "ollama",
-    model: "kimi-k2.5:cloud",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  embedding: {
-    provider: "ollama",
-    model: "embeddinggemma:latest",
-    apiUrl: "http://127.0.0.1:11434",
-    apiKey: "",
-  },
-  storage: { path: "/tmp/test" },
-  memory: {
-    maxResults: 10,
-    autoCapture: true,
-    injection: "first",
-    excludeCurrentSession: true,
-  },
-  web: { port: 4747, enabled: false },
-  search: { retrievalQuality: "balanced" },
-  toasts: { autoCapture: true, userProfile: true, errors: true },
-  compaction: { enabled: true, memoryLimit: 10 },
-};
+const testConfig = makeTestConfig();
 
 const mockEmbedMany = mock((_options: { values: string[] }) =>
   Promise.resolve({ embeddings: [] as number[][] }),
