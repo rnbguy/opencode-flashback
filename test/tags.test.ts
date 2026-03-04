@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveContainerTag, resolveUserTag } from "../core/tags";
+import { resolveContainerTag, resolveUserTag } from "../src/core/tags";
 
 // -- sha256hex16 determinism (tested via resolveContainerTag / resolveUserTag) -
 

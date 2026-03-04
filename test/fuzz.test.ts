@@ -8,22 +8,22 @@ import {
   _resetConfigForTesting,
   _setConfigForTesting,
   ConfigSchema,
-} from "../config.ts";
+} from "../src/config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../core/ai/embed.ts";
+} from "../src/core/ai/embed.ts";
 import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
   callLLMWithTool,
-} from "../core/ai/generate.ts";
+} from "../src/core/ai/generate.ts";
 import type {
   createEmbeddingProvider,
   createLLMProvider,
-} from "../core/ai/providers.ts";
-import { closeDb, getDb } from "../db/database.ts";
+} from "../src/core/ai/providers.ts";
+import { closeDb, getDb } from "../src/db/database.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const defaultConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
@@ -56,8 +56,8 @@ const mockCreateEmbeddingProvider = mock(() =>
 );
 
 let tmpDir = "";
-let addMemory: typeof import("../core/memory.ts")["addMemory"];
-let searchMemories: typeof import("../core/memory.ts")["searchMemories"];
+let addMemory: typeof import("../src/core/memory.ts")["addMemory"];
+let searchMemories: typeof import("../src/core/memory.ts")["searchMemories"];
 
 function memoriesTableCount(): number {
   const db = getDb();
@@ -138,7 +138,9 @@ describe("fuzz", () => {
         mockCreateLLMProvider as unknown as typeof createLLMProvider,
     });
 
-    const memory = await import(`../core/memory.ts?fuzz-test=${Date.now()}`);
+    const memory = await import(
+      `../src/core/memory.ts?fuzz-test=${Date.now()}`
+    );
     addMemory = memory.addMemory;
     searchMemories = memory.searchMemories;
   });

@@ -11,14 +11,14 @@ import {
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import type { PluginConfig } from "../config.ts";
+import type { PluginConfig } from "../src/config.ts";
 import {
   _resetConfigForTesting,
   _setConfigForTesting,
   ConfigSchema,
   getConfig,
-} from "../config.ts";
-import type { LLMCallResult } from "../core/ai/generate.ts";
+} from "../src/config.ts";
+import type { LLMCallResult } from "../src/core/ai/generate.ts";
 import {
   _resetCaptureDepsForTesting,
   _setCaptureDepsForTesting,
@@ -26,28 +26,28 @@ import {
   enqueueCapture,
   getLastCaptureStatus,
   resetCapture,
-} from "../core/capture.ts";
+} from "../src/core/capture.ts";
 import {
   _resetProfileDepsForTesting,
   _setProfileDepsForTesting,
   analyzeAndUpdateProfile,
   decayConfidence,
   getOrCreateProfile,
-} from "../core/profile.ts";
+} from "../src/core/profile.ts";
 import {
   getLastUncapturedPrompt,
   markAnalyzed,
   markCaptured,
   storePrompt,
-} from "../core/prompts.ts";
-import { _resetTagCache, resolveContainerTag } from "../core/tags.ts";
+} from "../src/core/prompts.ts";
+import { _resetTagCache, resolveContainerTag } from "../src/core/tags.ts";
 import {
   _setDbForTesting,
   closeDb,
   getDb,
   getProfile,
-} from "../db/database.ts";
-import { stripPrivate } from "../util/privacy.ts";
+} from "../src/db/database.ts";
+import { stripPrivate } from "../src/util/privacy.ts";
 
 function makeValidConfig(): PluginConfig {
   return {

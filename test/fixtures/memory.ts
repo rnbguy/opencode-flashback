@@ -1,4 +1,4 @@
-import type { Memory } from "../../types.ts";
+import type { Memory } from "../../src/types.ts";
 
 export function makeTestMemory(
   id: string,

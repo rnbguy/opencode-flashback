@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { DB_FILENAME } from "../consts.ts";
+import { DB_FILENAME } from "../src/consts.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../core/ai/embed.ts";
-import type { createEmbeddingProvider } from "../core/ai/providers.ts";
-import { closeDb, getDb } from "../db/database.ts";
+} from "../src/core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../src/core/ai/providers.ts";
+import { closeDb, getDb } from "../src/db/database.ts";
 
 const OLD_SCHEMA_SQL = `
 CREATE TABLE memories (
@@ -38,8 +38,8 @@ let embedCalls = 0;
 let failEmbedOnCall = Number.POSITIVE_INFINITY;
 let tmpHome = "";
 
-let runMigration: typeof import("../db/migrate.ts")["runMigration"];
-let getMigrationStatus: typeof import("../db/migrate.ts")["getMigrationStatus"];
+let runMigration: typeof import("../src/db/migrate.ts")["runMigration"];
+let getMigrationStatus: typeof import("../src/db/migrate.ts")["getMigrationStatus"];
 
 function seededVector(text: string): number[] {
   const vector = Array.from(
@@ -127,7 +127,7 @@ describe("migration", () => {
     });
     resetEmbedder();
 
-    const migrate = await import("../db/migrate.ts");
+    const migrate = await import("../src/db/migrate.ts");
     runMigration = migrate.runMigration;
     getMigrationStatus = migrate.getMigrationStatus;
 
@@ -423,7 +423,7 @@ describe("migration", () => {
 
   test("static import coverage: migrates rows and reports completed status", async () => {
     createOldDb(oldDbPath(), 6);
-    const migrate = await import("../db/migrate.ts");
+    const migrate = await import("../src/db/migrate.ts");
 
     const result = await migrate.runMigration();
     expect(result).toEqual({ status: "completed", migratedCount: 6 });
@@ -437,7 +437,7 @@ describe("migration", () => {
     mkdirSync(join(path, ".."), { recursive: true });
     writeFileSync(path, "not-a-valid-sqlite-db");
 
-    const migrate = await import("../db/migrate.ts");
+    const migrate = await import("../src/db/migrate.ts");
     const result = await migrate.runMigration();
     expect(result.status).toBe("failed");
 
@@ -447,7 +447,7 @@ describe("migration", () => {
 
   test("static import coverage: reports failed status marker", async () => {
     createOldDb(oldDbPath(), 1);
-    const migrate = await import("../db/migrate.ts");
+    const migrate = await import("../src/db/migrate.ts");
 
     const db = getDb();
     db.query("DELETE FROM meta WHERE key = 'migration_checkpoint'").run();

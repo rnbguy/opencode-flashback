@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   embed,
   getEmbedderState,
   resetEmbedder,
-} from "../core/ai/embed.ts";
-import type { createEmbeddingProvider } from "../core/ai/providers.ts";
+} from "../src/core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../src/core/ai/providers.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const testConfig = makeTestConfig();

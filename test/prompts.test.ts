@@ -8,8 +8,8 @@ import {
   markAnalyzed,
   markCaptured,
   storePrompt,
-} from "../core/prompts.ts";
-import { closeDb, getDb } from "../db/database.ts";
+} from "../src/core/prompts.ts";
+import { closeDb, getDb } from "../src/db/database.ts";
 
 function insertPromptRow(
   overrides: Partial<Record<string, unknown>> = {},

@@ -10,42 +10,49 @@ import {
 import { tmpdir } from "os";
 import { join } from "path";
 
-import { _resetConfigForTesting, _setConfigForTesting } from "../../config.ts";
+import {
+  _resetConfigForTesting,
+  _setConfigForTesting,
+} from "../../src/config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../../core/ai/embed.ts";
+} from "../../src/core/ai/embed.ts";
 import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
-} from "../../core/ai/generate.ts";
+} from "../../src/core/ai/generate.ts";
 import type {
   createEmbeddingProvider,
   createLLMProvider,
-} from "../../core/ai/providers.ts";
+} from "../../src/core/ai/providers.ts";
 import {
   addMemory,
   forgetMemory,
   getMemoryById,
   listMemories,
   searchMemories,
-} from "../../core/memory.ts";
-import { _resetTagCache } from "../../core/tags.ts";
+} from "../../src/core/memory.ts";
+import { _resetTagCache } from "../../src/core/tags.ts";
 import {
   _setDbForTesting,
   closeDb,
   countMemories,
   getDb,
-} from "../../db/database.ts";
+} from "../../src/db/database.ts";
 import {
   getSearchState,
   initSearch,
   markStale,
   rebuildIndex,
-} from "../../search.ts";
-import { _resetSecretCache } from "../../util/secrets.ts";
-import { getServerState, startServer, stopServer } from "../../web/server.ts";
+} from "../../src/search.ts";
+import { _resetSecretCache } from "../../src/util/secrets.ts";
+import {
+  getServerState,
+  startServer,
+  stopServer,
+} from "../../src/web/server.ts";
 import { makeTestConfig } from "../fixtures/config.ts";
 import { seededVector } from "../fixtures/vectors.ts";
 

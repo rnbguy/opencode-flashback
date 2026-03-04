@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { SearchResult } from "../types";
+import type { SearchResult } from "../src/types";
 
 // -- Module mocks (hoisted by Bun) --------------------------------------------
 
@@ -15,7 +15,7 @@ const mockHybridSearch = mock(
   ): Promise<SearchResult[]> => [],
 );
 
-mock.module("../search.ts", () => ({
+mock.module("../src/search.ts", () => ({
   initSearch: async () => {},
   hybridSearch: (...args: unknown[]) =>
     mockHybridSearch(...(args as [string, number[], string, number])),
@@ -26,13 +26,13 @@ mock.module("../search.ts", () => ({
 
 // -- Imports (resolved after mocks) -------------------------------------------
 
-import { _resetConfigForTesting, _setConfigForTesting } from "../config";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../core/ai/embed";
-import type { createEmbeddingProvider } from "../core/ai/providers";
+} from "../src/core/ai/embed";
+import type { createEmbeddingProvider } from "../src/core/ai/providers";
 import {
   addMemory,
   forgetMemory,
@@ -41,13 +41,13 @@ import {
   listMemories,
   recallMemories,
   searchMemories,
-} from "../core/memory";
+} from "../src/core/memory";
 import {
   closeDb,
   getAllActiveMemories,
   getDb,
   insertMemory,
-} from "../db/database";
+} from "../src/db/database";
 import { makeTestConfig } from "./fixtures/config";
 import { makeTestMemory } from "./fixtures/memory";
 import { seededVector } from "./fixtures/vectors";

@@ -8,7 +8,7 @@ import {
   mock,
   test,
 } from "bun:test";
-import type { LLMCallResult } from "../core/ai/generate";
+import type { LLMCallResult } from "../src/core/ai/generate";
 
 // -- Mock functions (referenced in mock.module factories) ---------------------
 
@@ -81,7 +81,7 @@ import {
   initCapture,
   resetCapture,
   setCaptureNotifier,
-} from "../core/capture";
+} from "../src/core/capture";
 
 // -- Helpers ------------------------------------------------------------------
 

@@ -43,4 +43,4 @@ jobs:
         run: bun run build
 
       - name: e2e tests
-        run: bun test src/__tests__/e2e/lifecycle.test.ts
+        run: bun test test/e2e/lifecycle.test.ts

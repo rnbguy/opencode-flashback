@@ -13,8 +13,8 @@ import {
   markPromptCaptured,
   searchMemoriesByText,
   updateProfile,
-} from "../db/database";
-import type { Memory, UserProfile, UserPrompt } from "../types";
+} from "../src/db/database";
+import type { Memory, UserProfile, UserPrompt } from "../src/types";
 
 // -- Helpers ------------------------------------------------------------------
 

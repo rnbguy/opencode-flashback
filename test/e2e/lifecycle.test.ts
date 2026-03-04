@@ -10,34 +10,37 @@ import {
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { PluginConfig } from "../../config.ts";
-import { DB_FILENAME } from "../../consts.ts";
+import type { PluginConfig } from "../../src/config.ts";
+import { DB_FILENAME } from "../../src/consts.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../../core/ai/embed.ts";
-import type { createEmbeddingProvider } from "../../core/ai/providers.ts";
+} from "../../src/core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../../src/core/ai/providers.ts";
 
 const isDirectLifecycleRun =
   process.argv.some(
     (arg) =>
-      arg.endsWith("src/__tests__/e2e/lifecycle.test.ts") ||
+      arg.endsWith("test/e2e/lifecycle.test.ts") ||
       arg.endsWith("lifecycle.test.ts"),
   ) && !process.argv.some((arg) => arg.endsWith("embedder.test.ts"));
 
-import { _resetConfigForTesting, _setConfigForTesting } from "../../config.ts";
-import { addMemory } from "../../core/memory.ts";
-import { _resetTagCache, resolveContainerTag } from "../../core/tags.ts";
+import {
+  _resetConfigForTesting,
+  _setConfigForTesting,
+} from "../../src/config.ts";
+import { addMemory } from "../../src/core/memory.ts";
+import { _resetTagCache, resolveContainerTag } from "../../src/core/tags.ts";
 import {
   _setDbForTesting,
   closeDb,
   countMemories,
   getDb,
-} from "../../db/database.ts";
-import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
-import { initSearch } from "../../search.ts";
-import { startServer, stopServer } from "../../web/server.ts";
+} from "../../src/db/database.ts";
+import { OpenCodeFlashbackPlugin } from "../../src/plugin.ts";
+import { initSearch } from "../../src/search.ts";
+import { startServer, stopServer } from "../../src/web/server.ts";
 import { type DeepPartial, makeTestConfig } from "../fixtures/config.ts";
 
 type ToolRunner = {

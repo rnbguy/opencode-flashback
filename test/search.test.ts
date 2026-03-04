@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
-import { closeDb, getDb, insertMemory } from "../db/database.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
+import { closeDb, getDb, insertMemory } from "../src/db/database.ts";
 import {
   getSearchState,
   hybridSearch,
   initSearch,
   markStale,
   rebuildIndex,
-} from "../search.ts";
-import type { Memory } from "../types.ts";
+} from "../src/search.ts";
+import type { Memory } from "../src/types.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const defaultConfig = makeTestConfig();

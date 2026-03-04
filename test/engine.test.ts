@@ -2,21 +2,21 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   resetEmbedder,
-} from "../core/ai/embed.ts";
-import type { createEmbeddingProvider } from "../core/ai/providers.ts";
-import { closeDb, getDb } from "../db/database.ts";
+} from "../src/core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../src/core/ai/providers.ts";
+import { closeDb, getDb } from "../src/db/database.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 import { seededVector } from "./fixtures/vectors.ts";
 
 const defaultConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
 
 let tmpDir = "";
-let createEngine: typeof import("../engine.ts")["createEngine"];
+let createEngine: typeof import("../src/engine.ts")["createEngine"];
 
 describe("engine facade", () => {
   beforeEach(async () => {
@@ -35,7 +35,7 @@ describe("engine facade", () => {
     });
     resetEmbedder();
 
-    const engineModule = await import(`../engine.ts?eng=${Date.now()}`);
+    const engineModule = await import(`../src/engine.ts?eng=${Date.now()}`);
     createEngine = engineModule.createEngine;
   });
 

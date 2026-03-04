@@ -1,5 +1,5 @@
 import { deepmerge } from "deepmerge-ts";
-import type { PluginConfig } from "../../config.ts";
+import type { PluginConfig } from "../../src/config.ts";
 
 type DeepPartialValue<T> =
   T extends Array<infer U>

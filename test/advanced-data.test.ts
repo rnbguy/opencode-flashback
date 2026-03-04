@@ -2,22 +2,22 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import {
   _resetEmbedDepsForTesting,
   _setEmbedDepsForTesting,
   embed,
   resetEmbedder,
-} from "../core/ai/embed.ts";
-import type { createEmbeddingProvider } from "../core/ai/providers.ts";
+} from "../src/core/ai/embed.ts";
+import type { createEmbeddingProvider } from "../src/core/ai/providers.ts";
 import {
   closeDb,
   getAllActiveMemories,
   getDb,
   getMemory,
   insertMemory,
-} from "../db/database.ts";
-import type { Memory, SearchResult } from "../types.ts";
+} from "../src/db/database.ts";
+import type { Memory, SearchResult } from "../src/types.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const defaultConfig = makeTestConfig({
@@ -31,14 +31,14 @@ const defaultConfig = makeTestConfig({
 
 let tmpDir = "";
 
-let addMemory: typeof import("../core/memory.ts")["addMemory"];
-let searchMemories: typeof import("../core/memory.ts")["searchMemories"];
-let getMemoryById: typeof import("../core/memory.ts")["getMemoryById"];
+let addMemory: typeof import("../src/core/memory.ts")["addMemory"];
+let searchMemories: typeof import("../src/core/memory.ts")["searchMemories"];
+let getMemoryById: typeof import("../src/core/memory.ts")["getMemoryById"];
 
-let initSearch: typeof import("../search.ts")["initSearch"];
-let rebuildIndex: typeof import("../search.ts")["rebuildIndex"];
-let hybridSearch: typeof import("../search.ts")["hybridSearch"];
-let markStale: typeof import("../search.ts")["markStale"];
+let initSearch: typeof import("../src/search.ts")["initSearch"];
+let rebuildIndex: typeof import("../src/search.ts")["rebuildIndex"];
+let hybridSearch: typeof import("../src/search.ts")["hybridSearch"];
+let markStale: typeof import("../src/search.ts")["markStale"];
 
 function seededVector(text: string): number[] {
   const normalized = text
@@ -122,12 +122,12 @@ describe("advanced data pipeline", () => {
     });
     resetEmbedder();
 
-    const memory = await import(`../core/memory.ts?adv=${Date.now()}`);
+    const memory = await import(`../src/core/memory.ts?adv=${Date.now()}`);
     addMemory = memory.addMemory;
     searchMemories = memory.searchMemories;
     getMemoryById = memory.getMemoryById;
 
-    const search = await import(`../search.ts?adv=${Date.now()}`);
+    const search = await import(`../src/search.ts?adv=${Date.now()}`);
     initSearch = search.initSearch;
     rebuildIndex = search.rebuildIndex;
     hybridSearch = search.hybridSearch;

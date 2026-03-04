@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { LLMCallOptions, LLMCallResult } from "../core/ai/generate";
+import type { LLMCallOptions, LLMCallResult } from "../src/core/ai/generate";
 
 // -- Mock functions -----------------------------------------------------------
 
@@ -30,8 +30,8 @@ import {
   analyzeAndUpdateProfile,
   decayConfidence,
   getOrCreateProfile,
-} from "../core/profile";
-import { closeDb, getDb, getProfile, updateProfile } from "../db/database";
+} from "../src/core/profile";
+import { closeDb, getDb, getProfile, updateProfile } from "../src/db/database";
 
 // -- Helpers ------------------------------------------------------------------
 

@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
-import { MEMORY_HEADER } from "../consts.ts";
-import { getOrCreateProfile } from "../core/profile.ts";
-import { closeDb, getDb } from "../db/database.ts";
-import { startServer, stopServer } from "../web/server.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
+import { MEMORY_HEADER } from "../src/consts.ts";
+import { getOrCreateProfile } from "../src/core/profile.ts";
+import { closeDb, getDb } from "../src/db/database.ts";
+import { startServer, stopServer } from "../src/web/server.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
-const SRC_DIR = join(import.meta.dir, "..");
+const SRC_DIR = join(import.meta.dir, "../src");
 
 const defaultConfig = makeTestConfig({
   storage: { path: "" },

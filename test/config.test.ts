@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
-import type { PluginConfig } from "../config";
+import type { PluginConfig } from "../src/config";
 import {
   _resetConfigForTesting,
   ConfigSchema,
   getConfig,
   getConfigErrors,
   getHybridWeights,
-} from "../config";
+} from "../src/config";
 
 // -- ConfigSchema validation -------------------------------------------------
 

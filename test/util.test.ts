@@ -8,11 +8,11 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { LOG_FILENAME } from "../consts.ts";
-import { getLanguageName } from "../util/language";
-import { createLogger } from "../util/logger";
-import { stripPrivate } from "../util/privacy";
-import { resolveSecret } from "../util/secrets";
+import { LOG_FILENAME } from "../src/consts.ts";
+import { getLanguageName } from "../src/util/language";
+import { createLogger } from "../src/util/logger";
+import { stripPrivate } from "../src/util/privacy";
+import { resolveSecret } from "../src/util/secrets";
 
 // -- resolveSecret ------------------------------------------------------------
 

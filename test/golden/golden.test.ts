@@ -12,15 +12,15 @@ import {
   _setConfigForTesting,
   getHybridWeights,
   type PluginConfig,
-} from "../../config.ts";
+} from "../../src/config.ts";
 import {
   _setDbForTesting,
   closeDb,
   getAllActiveMemories,
   getDb,
   insertMemory,
-} from "../../db/database.ts";
-import type { Memory } from "../../types.ts";
+} from "../../src/db/database.ts";
+import type { Memory } from "../../src/types.ts";
 
 type RetrievalPreset = "fast" | "balanced" | "thorough";
 

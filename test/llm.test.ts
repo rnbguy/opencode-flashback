@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { generateText } from "ai";
 import { APICallError, NoObjectGeneratedError } from "ai";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
@@ -9,8 +9,8 @@ import {
   type LLMCallOptions,
   type ToolSchema,
   validateLLMEndpoint,
-} from "../core/ai/generate.ts";
-import type { createLLMProvider } from "../core/ai/providers.ts";
+} from "../src/core/ai/generate.ts";
+import type { createLLMProvider } from "../src/core/ai/providers.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const baseConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });

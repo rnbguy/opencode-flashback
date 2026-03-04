@@ -8,14 +8,14 @@ import {
   test,
 } from "bun:test";
 import { APICallError } from "ai";
-import { _resetConfigForTesting, _setConfigForTesting } from "../config.ts";
-import type { LLMCallOptions } from "../core/ai/generate.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
+import type { LLMCallOptions } from "../src/core/ai/generate.ts";
 import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
   callLLMWithTool,
-} from "../core/ai/generate.ts";
-import type { createLLMProvider } from "../core/ai/providers.ts";
+} from "../src/core/ai/generate.ts";
+import type { createLLMProvider } from "../src/core/ai/providers.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
 const defaultConfig = makeTestConfig({ llm: { apiKey: "test-key-1234" } });
