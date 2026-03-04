@@ -39,7 +39,7 @@
         "provider": "ollama",
         "model": "embeddinggemma:latest",
         "apiUrl": "http://127.0.0.1:11434",
-        "apiKey": "ollama"
+        "apiKey": ""
       },
       "type": "object",
       "properties": {

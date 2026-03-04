@@ -86,7 +86,7 @@ export const ConfigSchema = z
         provider: "ollama",
         model: "embeddinggemma:latest",
         apiUrl: "http://127.0.0.1:11434",
-        apiKey: "ollama",
+        apiKey: "",
       }),
     storage: z
       .object({
@@ -168,7 +168,7 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     `    \"model\": \"${defaults.embedding?.model ?? "embeddinggemma:latest"}\",`,
     `    \"apiUrl\": \"${defaults.embedding?.apiUrl ?? "http://127.0.0.1:11434"}\",`,
     "    // Placeholder for local Ollama embedding endpoint",
-    `    \"apiKey\": \"${defaults.embedding?.apiKey ?? "ollama"}\"`,
+    `    \"apiKey\": \"${defaults.embedding?.apiKey ?? ""}\"`,
     "  },",
     "",
     "  // Local storage path for memories and database",
@@ -233,20 +233,12 @@ function loadConfigFile(): PluginConfig {
   const jsonPath = join(configDir, "opencode-flashback.json");
   const jsoncPath = join(configDir, "opencode-flashback.jsonc");
 
-  const llmDefaults: LlmConfig =
-    process.env.NODE_ENV === "test"
-      ? {
-          provider: "openai-chat",
-          model: "gpt-4o-mini",
-          apiUrl: "https://api.openai.com/v1",
-          apiKey: "",
-        }
-      : {
-          provider: "ollama",
-          model: "qwen3.5:2b",
-          apiUrl: "http://127.0.0.1:11434",
-          apiKey: "ollama",
-        };
+  const llmDefaults: LlmConfig = {
+    provider: "ollama",
+    model: "kimi-k2.5:cloud",
+    apiUrl: "http://127.0.0.1:11434",
+    apiKey: "",
+  };
 
   const defaults: PluginConfig = {
     llm: llmDefaults,
@@ -254,7 +246,7 @@ function loadConfigFile(): PluginConfig {
       provider: "ollama",
       model: "embeddinggemma:latest",
       apiUrl: "http://127.0.0.1:11434",
-      apiKey: "ollama",
+      apiKey: "",
     },
     storage: {
       path: getDataDir(),
