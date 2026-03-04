@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { APICallError, NoObjectGeneratedError } from "ai";
 import type { generateText } from "ai";
+import { APICallError, NoObjectGeneratedError } from "ai";
 import {
   _resetConfigForTesting,
   _setConfigForTesting,
@@ -10,9 +10,9 @@ import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
   callLLMWithTool,
-  validateLLMEndpoint,
   type LLMCallOptions,
   type ToolSchema,
+  validateLLMEndpoint,
 } from "../core/ai/generate.ts";
 import type { createLLMProvider } from "../core/ai/providers.ts";
 
@@ -69,7 +69,9 @@ const mockGenerateText = mock(
   }): Promise<{ output: Record<string, unknown> }> =>
     Promise.resolve({ output: { result: "test" } }),
 );
-const mockCreateLLMProvider = mock(() => Promise.resolve({ chat: (_id: string) => ({}) }));
+const mockCreateLLMProvider = mock(() =>
+  Promise.resolve({ chat: (_id: string) => ({}) }),
+);
 
 function makeAbortError(): Error {
   const err = new Error("AbortError");
@@ -137,7 +139,8 @@ beforeEach(() => {
   mockCreateLLMProvider.mockResolvedValue({ chat: (_id: string) => ({}) });
   _setGenerateDepsForTesting({
     generateText: mockGenerateText as unknown as typeof generateText,
-    createLLMProvider: mockCreateLLMProvider as unknown as typeof createLLMProvider,
+    createLLMProvider:
+      mockCreateLLMProvider as unknown as typeof createLLMProvider,
   });
 });
 
@@ -166,13 +169,16 @@ describe("callLLMWithTool", () => {
       }),
     );
     expect(
-      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)
+        ?.prompt,
     ).toContain(baseOptions.userPrompt);
     expect(
-      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)
+        ?.prompt,
     ).toContain("Return only a JSON object");
     expect(
-      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)?.prompt,
+      (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)
+        ?.prompt,
     ).toContain(testToolSchema.name);
   });
 
@@ -221,7 +227,9 @@ describe("callLLMWithTool", () => {
   });
 
   test("maps APICallError 429 to rate_limit", async () => {
-    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Too many requests", 429));
+    mockGenerateText.mockRejectedValueOnce(
+      makeApiCallError("Too many requests", 429),
+    );
 
     const result = await callLLMWithTool(baseOptions);
 
@@ -230,7 +238,9 @@ describe("callLLMWithTool", () => {
   });
 
   test("maps APICallError 401 to api_error", async () => {
-    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Unauthorized", 401));
+    mockGenerateText.mockRejectedValueOnce(
+      makeApiCallError("Unauthorized", 401),
+    );
 
     const result = await callLLMWithTool(baseOptions);
 
@@ -259,7 +269,9 @@ describe("callLLMWithTool", () => {
   });
 
   test("maps ECONNREFUSED errors to network_error", async () => {
-    mockGenerateText.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1"));
+    mockGenerateText.mockRejectedValueOnce(
+      new Error("connect ECONNREFUSED 127.0.0.1"),
+    );
 
     const result = await callLLMWithTool(baseOptions);
 
@@ -285,7 +297,9 @@ describe("callLLMWithTool", () => {
       },
     });
     mockGenerateText.mockRejectedValueOnce(
-      new Error("Request failed for key secret-test-key with Bearer secret-test-key"),
+      new Error(
+        "Request failed for key secret-test-key with Bearer secret-test-key",
+      ),
     );
 
     const result = await callLLMWithTool(baseOptions);
@@ -299,7 +313,9 @@ describe("callLLMWithTool", () => {
 
 describe("validateLLMEndpoint", () => {
   test("returns ok true when endpoint responds", async () => {
-    mockGenerateText.mockResolvedValueOnce({ output: { ok: true } as Record<string, unknown> });
+    mockGenerateText.mockResolvedValueOnce({
+      output: { ok: true } as Record<string, unknown>,
+    });
 
     const result = await validateLLMEndpoint();
 
@@ -348,7 +364,9 @@ describe("validateLLMEndpoint", () => {
         apiKey: "test-key",
       },
     });
-    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Unauthorized", 401));
+    mockGenerateText.mockRejectedValueOnce(
+      makeApiCallError("Unauthorized", 401),
+    );
 
     const result = await validateLLMEndpoint();
 
@@ -365,7 +383,9 @@ describe("validateLLMEndpoint", () => {
         apiKey: "test-key",
       },
     });
-    mockGenerateText.mockRejectedValueOnce(makeApiCallError("Model not found", 404));
+    mockGenerateText.mockRejectedValueOnce(
+      makeApiCallError("Model not found", 404),
+    );
 
     const result = await validateLLMEndpoint();
 

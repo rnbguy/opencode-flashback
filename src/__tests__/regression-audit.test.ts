@@ -1,15 +1,15 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { readFileSync, mkdtempSync, rmSync } from "fs";
-import { join } from "path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
-import { MEMORY_HEADER } from "../consts.ts";
+import { join } from "path";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
-import { getDb, closeDb } from "../db/database.ts";
+import { MEMORY_HEADER } from "../consts.ts";
 import { getOrCreateProfile } from "../core/profile.ts";
+import { closeDb, getDb } from "../db/database.ts";
 import { startServer, stopServer } from "../web/server.ts";
 
 const SRC_DIR = join(import.meta.dir, "..");

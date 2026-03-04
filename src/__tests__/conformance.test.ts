@@ -1,16 +1,24 @@
-import { describe, test, expect, beforeEach, afterEach, afterAll, mock } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { APICallError } from "ai";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
-import {
-  callLLMWithTool,
-  _setGenerateDepsForTesting,
-  _resetGenerateDepsForTesting,
-} from "../core/ai/generate.ts";
 import type { LLMCallOptions } from "../core/ai/generate.ts";
+import {
+  _resetGenerateDepsForTesting,
+  _setGenerateDepsForTesting,
+  callLLMWithTool,
+} from "../core/ai/generate.ts";
 import type { createLLMProvider } from "../core/ai/providers.ts";
 
 const defaultConfig: PluginConfig = {
@@ -64,7 +72,9 @@ const baseOptions: LLMCallOptions = {
   timeout: 30_000,
 };
 
-const mockGenerateText = mock(() => Promise.resolve({ output: { result: "hello" } }));
+const mockGenerateText = mock(() =>
+  Promise.resolve({ output: { result: "hello" } }),
+);
 const mockCreateLLMProvider = mock(() =>
   Promise.resolve({ chat: (_id: string) => ({}) }),
 );
@@ -76,8 +86,10 @@ describe("provider conformance", () => {
     mockCreateLLMProvider.mockReset();
     mockCreateLLMProvider.mockResolvedValue({ chat: (_id: string) => ({}) });
     _setGenerateDepsForTesting({
-      generateText: mockGenerateText as unknown as typeof import("ai").generateText,
-      createLLMProvider: mockCreateLLMProvider as unknown as typeof createLLMProvider,
+      generateText:
+        mockGenerateText as unknown as typeof import("ai").generateText,
+      createLLMProvider:
+        mockCreateLLMProvider as unknown as typeof createLLMProvider,
     });
   });
 

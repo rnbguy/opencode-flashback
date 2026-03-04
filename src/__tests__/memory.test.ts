@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
+import { join } from "path";
 import type { Memory, SearchResult } from "../types";
 
 // -- Deterministic embedding --------------------------------------------------
@@ -43,31 +43,31 @@ mock.module("../search.ts", () => ({
 // -- Imports (resolved after mocks) -------------------------------------------
 
 import {
-  getDb,
-  closeDb,
-  insertMemory,
-  getAllActiveMemories,
-} from "../db/database";
-import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config";
 import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../core/ai/embed";
 import type { createEmbeddingProvider } from "../core/ai/providers";
 import {
   addMemory,
-  searchMemories,
-  recallMemories,
   forgetMemory,
-  listMemories,
   getContext,
   getMemoryById,
+  listMemories,
+  recallMemories,
+  searchMemories,
 } from "../core/memory";
+import {
+  closeDb,
+  getAllActiveMemories,
+  getDb,
+  insertMemory,
+} from "../db/database";
 
 // -- Helpers ------------------------------------------------------------------
 

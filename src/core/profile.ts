@@ -4,14 +4,14 @@ import {
   insertProfile,
   updateProfile,
 } from "../db/database.ts";
-import { getLogger } from "../util/logger.ts";
-import { callLLMWithTool } from "./ai/generate.ts";
 import type {
   ProfilePattern,
   ProfilePreference,
   ProfileWorkflow,
   UserProfile,
 } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
+import { callLLMWithTool } from "./ai/generate.ts";
 
 // -- Constants ----------------------------------------------------------------
 
@@ -141,7 +141,7 @@ export async function analyzeAndUpdateProfile(
   prompts: string[],
 ): Promise<{ updated: boolean }> {
   const logger = getLogger();
-  const profile = getOrCreateProfile(userId);
+  const _profile = getOrCreateProfile(userId);
 
   if (prompts.length < ANALYSIS_THRESHOLD) {
     logger.debug("analyzeAndUpdateProfile completed", {
@@ -285,7 +285,8 @@ function toPreferenceArray(value: unknown): ProfilePreference[] {
           return {
             category: String(obj.category ?? k),
             description: String(obj.description ?? ""),
-            confidence: typeof obj.confidence === "number" ? obj.confidence : 0.7,
+            confidence:
+              typeof obj.confidence === "number" ? obj.confidence : 0.7,
           };
         }
 

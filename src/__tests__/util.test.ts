@@ -1,18 +1,18 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  mkdtempSync,
-  writeFileSync,
-  rmSync,
-  readFileSync,
   existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
 } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
-import { resolveSecret } from "../util/secrets";
-import { stripPrivate } from "../util/privacy";
-import { createLogger } from "../util/logger";
-import { getLanguageName } from "../util/language";
+import { join } from "path";
 import { LOG_FILENAME } from "../consts.ts";
+import { getLanguageName } from "../util/language";
+import { createLogger } from "../util/logger";
+import { stripPrivate } from "../util/privacy";
+import { resolveSecret } from "../util/secrets";
 
 // -- resolveSecret ------------------------------------------------------------
 

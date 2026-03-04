@@ -1,19 +1,19 @@
 import type { Plugin, PluginInput, ToolContext } from "@opencode-ai/plugin";
-import type { Part } from "@opencode-ai/sdk";
 import { tool } from "@opencode-ai/plugin";
+import type { Part } from "@opencode-ai/sdk";
+import ms from "ms";
 import { getConfig, getConfigErrors, isConfigured } from "./config.ts";
-import { resolveContainerTag } from "./core/tags.ts";
+import { MEMORY_HEADER } from "./consts.ts";
+import { validateLLMEndpoint } from "./core/ai/generate.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
+import { resolveContainerTag } from "./core/tags.ts";
 import { createEngine } from "./engine.ts";
-import { validateLLMEndpoint } from "./core/ai/generate.ts";
 import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
 import { createLogger } from "./util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "./util/privacy.ts";
 import { startServer, stopServer } from "./web/server.ts";
-import { MEMORY_HEADER } from "./consts.ts";
-import ms from "ms";
 
 type ToolMode =
   | "search"
@@ -254,7 +254,9 @@ async function handleToolCall(
     case "clear": {
       const confirmed = asBoolean(args.confirmed);
       const rawDuration = asString(args.duration);
-      const durationMs = rawDuration ? ms(rawDuration as ms.StringValue) : undefined;
+      const durationMs = rawDuration
+        ? ms(rawDuration as ms.StringValue)
+        : undefined;
       if (rawDuration && !durationMs) {
         return {
           mode: "clear",
@@ -262,7 +264,9 @@ async function handleToolCall(
           message: `Invalid duration format: "${rawDuration}". Examples: "30sec", "2days", "1hour", "5min", "1w".`,
         };
       }
-      const durationSecs = durationMs ? Math.round(durationMs / 1000) : undefined;
+      const durationSecs = durationMs
+        ? Math.round(durationMs / 1000)
+        : undefined;
       if (!confirmed) {
         const durationNote = durationMs
           ? ` memories older than ${ms(durationMs, { long: true })}`
@@ -270,8 +274,7 @@ async function handleToolCall(
         return {
           mode: "clear",
           success: false,
-          message:
-            `WARNING: This will permanently delete${durationNote}. This action cannot be undone. To proceed, call again with confirmed: true.`,
+          message: `WARNING: This will permanently delete${durationNote}. This action cannot be undone. To proceed, call again with confirmed: true.`,
         };
       }
       engine.clearAllData(durationSecs);
@@ -286,7 +289,9 @@ async function handleToolCall(
     }
     case "consolidate": {
       const dryRun =
-        typeof args.dryRun === "boolean" ? asBoolean(args.dryRun) ?? true : true;
+        typeof args.dryRun === "boolean"
+          ? (asBoolean(args.dryRun) ?? true)
+          : true;
       const confirmed = asBoolean(args.confirmed);
       if (!dryRun && !confirmed) {
         return {
@@ -338,7 +343,7 @@ function getHelpText(): string {
   ].join("\n");
 }
 
-function scheduleWarmup(): void {
+function _scheduleWarmup(): void {
   if (warmupTimer) {
     return;
   }
@@ -591,14 +596,14 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
         // Fetch session messages for compaction detection (if client available)
         let isAfterCompaction = false;
-        let nonSyntheticUserMessageCount = 0;
+        let _nonSyntheticUserMessageCount = 0;
         if (input.client?.session) {
           try {
             const messagesResponse = await input.client.session.messages({
               path: { id: sessionID },
             });
             const messages = messagesResponse.data || [];
-            nonSyntheticUserMessageCount = messages.filter(
+            _nonSyntheticUserMessageCount = messages.filter(
               (message) =>
                 message.info.role === "user" &&
                 message.parts.some(

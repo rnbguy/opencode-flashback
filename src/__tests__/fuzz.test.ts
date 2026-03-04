@@ -1,30 +1,30 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
-import { APICallError, NoObjectGeneratedError } from "ai";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { generateText } from "ai";
+import { APICallError, NoObjectGeneratedError } from "ai";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   ConfigSchema,
   type PluginConfig,
 } from "../config.ts";
-import { getDb, closeDb } from "../db/database.ts";
 import {
-  callLLMWithTool,
-  _setGenerateDepsForTesting,
-  _resetGenerateDepsForTesting,
-} from "../core/ai/generate.ts";
-import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../core/ai/embed.ts";
+import {
+  _resetGenerateDepsForTesting,
+  _setGenerateDepsForTesting,
+  callLLMWithTool,
+} from "../core/ai/generate.ts";
 import type {
   createEmbeddingProvider,
   createLLMProvider,
 } from "../core/ai/providers.ts";
+import { closeDb, getDb } from "../db/database.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
@@ -87,8 +87,8 @@ const mockCreateEmbeddingProvider = mock(() =>
 );
 
 let tmpDir = "";
-let addMemory: (typeof import("../core/memory.ts"))["addMemory"];
-let searchMemories: (typeof import("../core/memory.ts"))["searchMemories"];
+let addMemory: typeof import("../core/memory.ts")["addMemory"];
+let searchMemories: typeof import("../core/memory.ts")["searchMemories"];
 
 function memoriesTableCount(): number {
   const db = getDb();
@@ -165,7 +165,8 @@ describe("fuzz", () => {
     mockCreateLLMProvider.mockResolvedValue({ chat: (_id: string) => ({}) });
     _setGenerateDepsForTesting({
       generateText: mockGenerateText as unknown as typeof generateText,
-      createLLMProvider: mockCreateLLMProvider as unknown as typeof createLLMProvider,
+      createLLMProvider:
+        mockCreateLLMProvider as unknown as typeof createLLMProvider,
     });
 
     const memory = await import(`../core/memory.ts?fuzz-test=${Date.now()}`);
@@ -216,7 +217,15 @@ describe("fuzz", () => {
       containerTag: "fuzz-search",
     });
 
-    const queries = ["", "a", "q".repeat(10_000), ".*", "[a-z]+", "(?:)", "' OR 1=1 --"];
+    const queries = [
+      "",
+      "a",
+      "q".repeat(10_000),
+      ".*",
+      "[a-z]+",
+      "(?:)",
+      "' OR 1=1 --",
+    ];
 
     for (const query of queries) {
       const results = await searchMemories(query, "fuzz-search", 10);
@@ -258,7 +267,11 @@ describe("fuzz", () => {
       },
     };
 
-    const malformedMessages = ["invalid-json", "missing-tool-calls", "wrong-argument-type"];
+    const malformedMessages = [
+      "invalid-json",
+      "missing-tool-calls",
+      "wrong-argument-type",
+    ];
 
     for (const malformed of malformedMessages) {
       mockGenerateText.mockRejectedValueOnce(

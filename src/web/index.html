@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flashback Memory Explorer</title>
     <script>
-      (function () {
+      (() => {
         var t = localStorage.getItem("flashback-theme");
         if (!t)
           t = window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -23,7 +23,7 @@
         <div class="header-top">
           <h1 class="title">FLASHBACK MEMORY EXPLORER</h1>
           <div class="header-actions">
-            <button id="theme-toggle" class="theme-toggle" title="Toggle Theme">
+            <button id="theme-toggle" class="theme-toggle" title="Toggle Theme" type="button">
               <i data-lucide="sun" class="icon sun-icon"></i>
               <i data-lucide="moon" class="icon moon-icon hidden"></i>
             </button>
@@ -55,10 +55,10 @@
                 id="search-input"
                 placeholder="Search memories..."
               />
-              <button id="search-btn">
+              <button id="search-btn" type="button">
                 <i data-lucide="search" class="icon"></i>
               </button>
-              <button id="clear-search-btn" class="hidden">
+              <button id="clear-search-btn" class="hidden" type="button">
                 <i data-lucide="x" class="icon"></i>
               </button>
             </div>
@@ -68,11 +68,11 @@
             <div class="section-header">
               <h2 id="section-title">PROJECT MEMORIES (0)</h2>
               <div class="pagination" id="pagination-top">
-                <button id="prev-page-top" disabled>
+                <button id="prev-page-top" disabled type="button">
                   <i data-lucide="chevron-left" class="icon"></i>
                 </button>
                 <span id="page-info-top">Page 1 of 1</span>
-                <button id="next-page-top" disabled>
+                <button id="next-page-top" disabled type="button">
                   <i data-lucide="chevron-right" class="icon"></i>
                 </button>
               </div>
@@ -83,11 +83,11 @@
             </div>
 
             <div class="pagination" id="pagination-bottom">
-              <button id="prev-page-bottom" disabled>
+              <button id="prev-page-bottom" disabled type="button">
                 <i data-lucide="chevron-left" class="icon"></i>
               </button>
               <span id="page-info-bottom">Page 1 of 1</span>
-              <button id="next-page-bottom" disabled>
+              <button id="next-page-bottom" disabled type="button">
                 <i data-lucide="chevron-right" class="icon"></i>
               </button>
             </div>

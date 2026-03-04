@@ -1,9 +1,9 @@
 import { mkdirSync } from "fs";
 import { appendFile } from "fs/promises";
-import { dirname, join } from "path";
 import { homedir } from "os";
-import type { LogLevel } from "../types.ts";
+import { dirname, join } from "path";
 import { LOG_FILENAME } from "../consts.ts";
+import type { LogLevel } from "../types.ts";
 
 export interface Logger {
   debug(msg: string, data?: Record<string, unknown>): void;

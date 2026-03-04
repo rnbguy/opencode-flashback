@@ -1,15 +1,15 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
-import { join } from "path";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { homedir, tmpdir } from "os";
+import { join } from "path";
+import type { PluginConfig } from "../config";
 import {
+  _resetConfigForTesting,
   ConfigSchema,
   getConfig,
+  getConfigErrors,
   getHybridWeights,
-  _resetConfigForTesting,
 } from "../config";
-import { getConfigErrors } from "../config";
-import type { PluginConfig } from "../config";
 
 // -- ConfigSchema validation -------------------------------------------------
 
@@ -365,7 +365,7 @@ describe("getConfig", () => {
       undefined,
       `{
         "llm": {
-          "model": "gpt-\\\"edge\\\""
+          "model": "gpt-\\"edge\\""
         }
       }`,
     );
@@ -450,7 +450,13 @@ describe("getConfig", () => {
     expect(config.search.retrievalQuality).toBe("balanced");
     const errors = getConfigErrors();
     expect(errors.length).toBeGreaterThanOrEqual(1);
-    expect(errors.some((e) => e.includes("validation failed") || e.includes("Config validation failed"))).toBe(true);
+    expect(
+      errors.some(
+        (e) =>
+          e.includes("validation failed") ||
+          e.includes("Config validation failed"),
+      ),
+    ).toBe(true);
   });
 
   test("deep merges nested objects for partial overrides", () => {

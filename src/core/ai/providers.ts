@@ -1,10 +1,10 @@
-import { createOpenAI } from "@ai-sdk/openai";
+import type { AnthropicProvider } from "@ai-sdk/anthropic";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import type { GoogleGenerativeAIProvider } from "@ai-sdk/google";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { OpenAIProvider } from "@ai-sdk/openai";
-import type { AnthropicProvider } from "@ai-sdk/anthropic";
-import type { GoogleGenerativeAIProvider } from "@ai-sdk/google";
-import type { LlmConfig, EmbeddingConfig, LLMProvider } from "../../types";
+import { createOpenAI } from "@ai-sdk/openai";
+import type { EmbeddingConfig, LLMProvider, LlmConfig } from "../../types";
 import { resolveSecret } from "../../util/secrets";
 
 // -- Provider name constants ------------------------------------------------

@@ -1,53 +1,53 @@
-import type {
-  ConsolidationCandidate,
-  ContainerTagInfo,
-  ContainerTagResolver,
-  Memory,
-  SearchResult,
-  UserProfile,
-  DiagnosticsResponse,
-} from "./types.ts";
+import type { Database } from "bun:sqlite";
+import { getConfig } from "./config.ts";
+import { embed, getEmbedderState, resetEmbedder } from "./core/ai/embed.ts";
 import {
-  addMemory,
-  exportMemories,
-  findRelatedMemories,
-  searchMemories,
-  recallMemories,
-  forgetMemory,
-  getMemoriesForReview,
-  listMemories,
-  getContext,
-  getMemoryById,
-  suspendMemory,
-  pinMemory,
-  rateMemory,
-  unpinMemory,
-  type AddMemoryOptions,
-} from "./core/memory.ts";
-import { getOrCreateProfile } from "./core/profile.ts";
-import { consolidateMemories } from "./core/consolidate.ts";
-import {
+  type CaptureRequest,
   enqueueCapture,
   getCaptureState,
   initCapture,
   resetCapture,
   setCaptureNotifier,
-  type CaptureRequest,
 } from "./core/capture.ts";
-import { embed, getEmbedderState, resetEmbedder } from "./core/ai/embed.ts";
-import { initSearch, getSearchState } from "./search.ts";
+import { consolidateMemories } from "./core/consolidate.ts";
 import {
-  getDb,
-  countMemories,
-  closeDb,
+  type AddMemoryOptions,
+  addMemory,
+  exportMemories,
+  findRelatedMemories,
+  forgetMemory,
+  getContext,
+  getMemoriesForReview,
+  getMemoryById,
+  listMemories,
+  pinMemory,
+  rateMemory,
+  recallMemories,
+  searchMemories,
+  suspendMemory,
+  unpinMemory,
+} from "./core/memory.ts";
+import { getOrCreateProfile } from "./core/profile.ts";
+import {
   clearAllData,
   clearOldData,
+  closeDb,
+  countMemories,
+  getDb,
   getMetaValue,
-  setMetaValue,
   META_KEY_EMBEDDING_MODEL,
+  setMetaValue,
 } from "./db/database.ts";
-import { getConfig } from "./config.ts";
-import type { Database } from "bun:sqlite";
+import { getSearchState, initSearch } from "./search.ts";
+import type {
+  ConsolidationCandidate,
+  ContainerTagInfo,
+  ContainerTagResolver,
+  DiagnosticsResponse,
+  Memory,
+  SearchResult,
+  UserProfile,
+} from "./types.ts";
 import { getLogger } from "./util/logger.ts";
 
 export interface MemoryEngine {
@@ -120,7 +120,9 @@ async function checkEmbeddingModelChange(db: Database): Promise<void> {
 
   // Model changed -- re-embed in background
   const logger = getLogger();
-  logger.info(`Re-embedding memories for model change: ${storedModel} -> ${currentModel}`);
+  logger.info(
+    `Re-embedding memories for model change: ${storedModel} -> ${currentModel}`,
+  );
 
   // Don't await -- run in background
   reembedAllMemories(db, currentModel).catch((err) => {
@@ -128,9 +130,15 @@ async function checkEmbeddingModelChange(db: Database): Promise<void> {
   });
 }
 
-async function reembedAllMemories(db: Database, newModel: string): Promise<void> {
+async function reembedAllMemories(
+  db: Database,
+  newModel: string,
+): Promise<void> {
   const logger = getLogger();
-  const memories = db.query("SELECT id, content FROM memories").all() as Array<{ id: string; content: string }>;
+  const memories = db.query("SELECT id, content FROM memories").all() as Array<{
+    id: string;
+    content: string;
+  }>;
 
   if (memories.length === 0) {
     setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
@@ -209,9 +217,15 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
       return consolidateMemories({ containerTag, dryRun });
     },
     warmup: async () => {
-      await Promise.all([initCapture(), initSearch(), embed(["warmup"], "query")]);
+      await Promise.all([
+        initCapture(),
+        initSearch(),
+        embed(["warmup"], "query"),
+      ]);
       checkEmbeddingModelChange(getDb()).catch((err) => {
-        getLogger().error("Embedding model change check failed", { error: String(err) });
+        getLogger().error("Embedding model change check failed", {
+          error: String(err),
+        });
       });
     },
     shutdown: () => {

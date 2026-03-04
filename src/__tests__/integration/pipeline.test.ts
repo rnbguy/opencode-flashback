@@ -1,14 +1,14 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
   copyFileSync,
   existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
   writeFileSync,
 } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
+import { join } from "path";
 import type { PluginConfig } from "../../config.ts";
 
 function hashCode(str: string): number {
@@ -30,42 +30,42 @@ function deterministicVector(text: string): number[] {
   return norm > 0 ? vec.map((value) => value / norm) : vec;
 }
 
+import { _resetConfigForTesting, _setConfigForTesting } from "../../config.ts";
 import {
-  addMemory,
-  searchMemories,
-  forgetMemory,
-  listMemories,
-  getMemoryById,
-} from "../../core/memory.ts";
-import {
-  initSearch,
-  markStale,
-  rebuildIndex,
-  getSearchState,
-} from "../../search.ts";
-import {
-  getDb,
-  closeDb,
-  countMemories,
-  _setDbForTesting,
-} from "../../db/database.ts";
-import { _setConfigForTesting, _resetConfigForTesting } from "../../config.ts";
-import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../../core/ai/embed.ts";
 import {
-  _setGenerateDepsForTesting,
   _resetGenerateDepsForTesting,
+  _setGenerateDepsForTesting,
 } from "../../core/ai/generate.ts";
 import type {
   createEmbeddingProvider,
   createLLMProvider,
 } from "../../core/ai/providers.ts";
+import {
+  addMemory,
+  forgetMemory,
+  getMemoryById,
+  listMemories,
+  searchMemories,
+} from "../../core/memory.ts";
 import { _resetTagCache } from "../../core/tags.ts";
+import {
+  _setDbForTesting,
+  closeDb,
+  countMemories,
+  getDb,
+} from "../../db/database.ts";
+import {
+  getSearchState,
+  initSearch,
+  markStale,
+  rebuildIndex,
+} from "../../search.ts";
 import { _resetSecretCache } from "../../util/secrets.ts";
-import { startServer, stopServer, getServerState } from "../../web/server.ts";
+import { getServerState, startServer, stopServer } from "../../web/server.ts";
 
 function makeTestConfig(tmpPath: string, port = 19747): PluginConfig {
   return {
@@ -148,7 +148,9 @@ describe("integration: memory pipeline", () => {
     });
     resetEmbedder();
     _setGenerateDepsForTesting({
-      generateText: (async () => ({ output: {} })) as unknown as typeof import("ai").generateText,
+      generateText: (async () => ({
+        output: {},
+      })) as unknown as typeof import("ai").generateText,
       createLLMProvider: (async () => ({
         chat: (_id: string) => ({}),
       })) as unknown as typeof createLLMProvider,

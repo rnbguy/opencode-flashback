@@ -1,5 +1,5 @@
-import { toJSONSchema } from "zod";
 import { writeFileSync } from "fs";
+import { toJSONSchema } from "zod";
 import { ConfigSchema } from "../src/config";
 
 const schema = toJSONSchema(ConfigSchema);

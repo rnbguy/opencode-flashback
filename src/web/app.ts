@@ -1,8 +1,11 @@
+import DOMPurify from "dompurify";
+import { jsonrepair } from "jsonrepair";
 import {
   Activity,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  createIcons,
   Folder,
   Github,
   Heart,
@@ -18,10 +21,7 @@ import {
   UserX,
   Workflow,
   X,
-  createIcons,
 } from "lucide";
-import DOMPurify from "dompurify";
-import { jsonrepair } from "jsonrepair";
 import { marked } from "marked";
 
 const API_BASE = "";
@@ -390,7 +390,8 @@ async function loadMemories(): Promise<void> {
   }
 
   const result = await fetchAPI<
-    { memories: Memory[]; total: number } | { results: SearchResult[]; count: number }
+    | { memories: Memory[]; total: number }
+    | { results: SearchResult[]; count: number }
   >(endpoint);
 
   showRefreshIndicator(false);
@@ -434,7 +435,9 @@ async function deleteMemory(id: string): Promise<void> {
 }
 
 async function togglePin(id: string, isPinned: boolean): Promise<void> {
-  const endpoint = isPinned ? `/api/memories/${id}/unpin` : `/api/memories/${id}/pin`;
+  const endpoint = isPinned
+    ? `/api/memories/${id}/unpin`
+    : `/api/memories/${id}/pin`;
   const result = await fetchAPI(endpoint, { method: "POST" });
 
   if (result.success) {
@@ -609,7 +612,8 @@ function renderUserProfile(): void {
   const profileData =
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   const preferences = parseField(profileData.preferences).sort(
-    (a, b) => (Number(b.confidence ?? 0) || 0) - (Number(a.confidence ?? 0) || 0),
+    (a, b) =>
+      (Number(b.confidence ?? 0) || 0) - (Number(a.confidence ?? 0) || 0),
   );
   const patterns = parseField(profileData.patterns);
   const workflows = parseField(profileData.workflows);
@@ -620,7 +624,10 @@ function renderUserProfile(): void {
   patternTotalPages = Math.max(1, Math.ceil(patterns.length / pageSize));
   workflowTotalPages = Math.max(1, Math.ceil(workflows.length / pageSize));
 
-  preferencePage = Math.max(0, Math.min(preferencePage, preferenceTotalPages - 1));
+  preferencePage = Math.max(
+    0,
+    Math.min(preferencePage, preferenceTotalPages - 1),
+  );
   patternPage = Math.max(0, Math.min(patternPage, patternTotalPages - 1));
   workflowPage = Math.max(0, Math.min(workflowPage, workflowTotalPages - 1));
 
@@ -801,28 +808,33 @@ function renderUserProfile(): void {
     </div>
   `;
 
-  container.querySelectorAll("button[data-profile-action]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const action = (button as HTMLButtonElement).dataset.profileAction;
-      if (!action) return;
+  container
+    .querySelectorAll("button[data-profile-action]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = (button as HTMLButtonElement).dataset.profileAction;
+        if (!action) return;
 
-      if (action === "prev-preference") {
-        preferencePage = Math.max(0, preferencePage - 1);
-      } else if (action === "next-preference") {
-        preferencePage = Math.min(preferenceTotalPages - 1, preferencePage + 1);
-      } else if (action === "prev-pattern") {
-        patternPage = Math.max(0, patternPage - 1);
-      } else if (action === "next-pattern") {
-        patternPage = Math.min(patternTotalPages - 1, patternPage + 1);
-      } else if (action === "prev-workflow") {
-        workflowPage = Math.max(0, workflowPage - 1);
-      } else if (action === "next-workflow") {
-        workflowPage = Math.min(workflowTotalPages - 1, workflowPage + 1);
-      }
+        if (action === "prev-preference") {
+          preferencePage = Math.max(0, preferencePage - 1);
+        } else if (action === "next-preference") {
+          preferencePage = Math.min(
+            preferenceTotalPages - 1,
+            preferencePage + 1,
+          );
+        } else if (action === "prev-pattern") {
+          patternPage = Math.max(0, patternPage - 1);
+        } else if (action === "next-pattern") {
+          patternPage = Math.min(patternTotalPages - 1, patternPage + 1);
+        } else if (action === "prev-workflow") {
+          workflowPage = Math.max(0, workflowPage - 1);
+        } else if (action === "next-workflow") {
+          workflowPage = Math.min(workflowTotalPages - 1, workflowPage + 1);
+        }
 
-      void loadProfile();
+        void loadProfile();
+      });
     });
-  });
 
   createIcons({ icons: lucideIcons });
 
@@ -845,7 +857,6 @@ function escapeHtml(text: string): string {
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   await loadCsrfToken();
-
 
   (document.getElementById("search-btn") as HTMLButtonElement).addEventListener(
     "click",

@@ -1,22 +1,20 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
-import type { Memory, UserProfile, UserPrompt } from "../types";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  getDb,
-  insertMemory,
-  getMemory,
-  deleteMemory,
-  listMemories,
-  searchMemoriesByText,
   countMemories,
+  deleteMemory,
   getAllActiveMemories,
-  insertProfile,
+  getMemory,
   getProfile,
-  updateProfile,
+  insertMemory,
+  insertProfile,
   insertPrompt,
+  listMemories,
   markPromptCaptured,
-  closeDb,
+  searchMemoriesByText,
+  updateProfile,
 } from "../db/database";
+import type { Memory, UserProfile, UserPrompt } from "../types";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -448,7 +446,9 @@ describe("profile CRUD", () => {
     const retrieved = getProfile(db, "user_001");
     expect(retrieved).not.toBeNull();
     expect(retrieved!.userId).toBe("user_001");
-    expect(retrieved!.profileData.preferences).toEqual([{ category: "lang", description: "en", confidence: 0.7 }]);
+    expect(retrieved!.profileData.preferences).toEqual([
+      { category: "lang", description: "en", confidence: 0.7 },
+    ]);
   });
 
   test("getProfile returns null for missing user", () => {
@@ -463,7 +463,9 @@ describe("profile CRUD", () => {
       ...prof,
       totalPromptsAnalyzed: 5,
       profileData: {
-        preferences: [{ category: "theme", description: "dark", confidence: 0.8 }],
+        preferences: [
+          { category: "theme", description: "dark", confidence: 0.8 },
+        ],
         patterns: [{ category: "freq", description: "daily" }],
         workflows: [],
       },
@@ -472,7 +474,9 @@ describe("profile CRUD", () => {
 
     const retrieved = getProfile(db, "user_001")!;
     expect(retrieved.totalPromptsAnalyzed).toBe(5);
-    expect(retrieved.profileData.preferences).toEqual([{ category: "theme", description: "dark", confidence: 0.8 }]);
+    expect(retrieved.profileData.preferences).toEqual([
+      { category: "theme", description: "dark", confidence: 0.8 },
+    ]);
   });
 
   test("insertProfile upserts on same id", () => {

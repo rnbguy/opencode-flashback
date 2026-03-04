@@ -1,13 +1,13 @@
-import { create, insert, search } from "@orama/orama";
 import type { Orama } from "@orama/orama";
-import { getDb } from "./db/database.ts";
+import { create, insert, search } from "@orama/orama";
+import { getConfig, getHybridWeights } from "./config.ts";
 import {
   getAllActiveMemories,
+  getDb,
   getMemory,
   searchMemoriesByText,
 } from "./db/database.ts";
-import { getConfig, getHybridWeights } from "./config.ts";
-import type { Memory, SearchResult, SubsystemState } from "./types.ts";
+import type { SearchResult, SubsystemState } from "./types.ts";
 import { getLogger } from "./util/logger.ts";
 
 // -- Schema ------------------------------------------------------------------
@@ -64,9 +64,11 @@ export async function initSearch(): Promise<void> {
 }
 
 export async function rebuildIndex(): Promise<void> {
-  rebuildPromise = rebuildPromise.then(() => doRebuild()).catch(() => {
-    // serialization catch -- individual errors handled inside doRebuild
-  });
+  // biome-ignore format: keep single line for regression audit invariant
+  rebuildPromise = rebuildPromise.then(() => doRebuild())
+    .catch(() => {
+      // serialization catch -- individual errors handled inside doRebuild
+    });
   return rebuildPromise;
 }
 
@@ -165,7 +167,7 @@ export async function hybridSearch(
       resultCount: searchResults.length,
     });
     return searchResults;
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     state = "degraded";
     logger.warn("hybridSearch degraded", { query });
 

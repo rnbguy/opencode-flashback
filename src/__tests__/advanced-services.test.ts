@@ -1,53 +1,53 @@
 import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
   afterAll,
-  mock,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
   jest,
+  mock,
+  test,
 } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+import type { PluginConfig } from "../config.ts";
 import {
+  _resetConfigForTesting,
+  _setConfigForTesting,
   ConfigSchema,
   getConfig,
-  _setConfigForTesting,
-  _resetConfigForTesting,
 } from "../config.ts";
-import type { PluginConfig } from "../config.ts";
-import { stripPrivate } from "../util/privacy.ts";
-import { resolveContainerTag, _resetTagCache } from "../core/tags.ts";
+import type { LLMCallResult } from "../core/ai/generate.ts";
 import {
-  storePrompt,
-  getLastUncapturedPrompt,
-  markCaptured,
-  markAnalyzed,
-} from "../core/prompts.ts";
-import {
-  getOrCreateProfile,
-  analyzeAndUpdateProfile,
-  decayConfidence,
-  _setProfileDepsForTesting,
-  _resetProfileDepsForTesting,
-} from "../core/profile.ts";
-import {
+  _resetCaptureDepsForTesting,
+  _setCaptureDepsForTesting,
+  type CaptureRequest,
   enqueueCapture,
   getLastCaptureStatus,
   resetCapture,
-  _setCaptureDepsForTesting,
-  _resetCaptureDepsForTesting,
-  type CaptureRequest,
 } from "../core/capture.ts";
 import {
-  getDb,
-  closeDb,
+  _resetProfileDepsForTesting,
+  _setProfileDepsForTesting,
+  analyzeAndUpdateProfile,
+  decayConfidence,
+  getOrCreateProfile,
+} from "../core/profile.ts";
+import {
+  getLastUncapturedPrompt,
+  markAnalyzed,
+  markCaptured,
+  storePrompt,
+} from "../core/prompts.ts";
+import { _resetTagCache, resolveContainerTag } from "../core/tags.ts";
+import {
   _setDbForTesting,
+  closeDb,
+  getDb,
   getProfile,
 } from "../db/database.ts";
-import type { LLMCallResult } from "../core/ai/generate.ts";
+import { stripPrivate } from "../util/privacy.ts";
 
 function makeValidConfig(): PluginConfig {
   return {
@@ -434,7 +434,9 @@ describe("advanced tags/prompts/profile behavior", () => {
       callLLMWithTool: async (): Promise<LLMCallResult> => ({
         success: true,
         data: {
-          preferences: [{ category: "language", description: "Rust", confidence: 0.9 }],
+          preferences: [
+            { category: "language", description: "Rust", confidence: 0.9 },
+          ],
           patterns: [],
           workflows: [],
         },
@@ -450,7 +452,9 @@ describe("advanced tags/prompts/profile behavior", () => {
       callLLMWithTool: async (): Promise<LLMCallResult> => ({
         success: true,
         data: {
-          preferences: [{ category: "editor", description: "helix", confidence: 0.8 }],
+          preferences: [
+            { category: "editor", description: "helix", confidence: 0.8 },
+          ],
           patterns: [{ category: "review_style", description: "strict" }],
           workflows: [],
         },
@@ -463,11 +467,17 @@ describe("advanced tags/prompts/profile behavior", () => {
     expect(r2.updated).toBe(true);
 
     const profile = getProfile(getDb(), userId)!;
-    const langPref = profile.profileData.preferences.find((p) => p.category === "language");
+    const langPref = profile.profileData.preferences.find(
+      (p) => p.category === "language",
+    );
     expect(langPref?.description).toBe("Rust");
-    const editorPref = profile.profileData.preferences.find((p) => p.category === "editor");
+    const editorPref = profile.profileData.preferences.find(
+      (p) => p.category === "editor",
+    );
     expect(editorPref?.description).toBe("helix");
-    const reviewPat = profile.profileData.patterns.find((p) => p.category === "review_style");
+    const reviewPat = profile.profileData.patterns.find(
+      (p) => p.category === "review_style",
+    );
     expect(reviewPat?.description).toBe("strict");
   });
 
@@ -491,8 +501,12 @@ describe("advanced tags/prompts/profile behavior", () => {
     decayConfidence(userId, 0.5);
     const after = getProfile(db, userId)!;
 
-    const beforeScore = before.profileData.preferences.find((p) => p.category === "score");
-    const afterScore = after.profileData.preferences.find((p) => p.category === "score");
+    const beforeScore = before.profileData.preferences.find(
+      (p) => p.category === "score",
+    );
+    const afterScore = after.profileData.preferences.find(
+      (p) => p.category === "score",
+    );
     expect(afterScore!.confidence).toBeLessThanOrEqual(beforeScore!.confidence);
 
     // patterns and workflows are unchanged by decay
@@ -500,11 +514,14 @@ describe("advanced tags/prompts/profile behavior", () => {
     expect(after.profileData.workflows).toEqual(before.profileData.workflows);
 
     // description is preserved
-    const afterLang = after.profileData.preferences.find((p) => p.category === "language");
-    const beforeLang = before.profileData.preferences.find((p) => p.category === "language");
+    const afterLang = after.profileData.preferences.find(
+      (p) => p.category === "language",
+    );
+    const beforeLang = before.profileData.preferences.find(
+      (p) => p.category === "language",
+    );
     expect(afterLang!.description).toBe(beforeLang!.description);
   });
-
 });
 
 describe("advanced capture pipeline behavior", () => {

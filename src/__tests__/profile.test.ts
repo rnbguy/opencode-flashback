@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
-import type { LLMCallResult, LLMCallOptions } from "../core/ai/generate";
+import { join } from "path";
+import type { LLMCallOptions, LLMCallResult } from "../core/ai/generate";
 
 // -- Mock functions -----------------------------------------------------------
 
@@ -24,14 +24,14 @@ const mockCallLLM = mock(
   }),
 );
 
-import { getDb, closeDb, getProfile, updateProfile } from "../db/database";
 import {
-  getOrCreateProfile,
+  _resetProfileDepsForTesting,
+  _setProfileDepsForTesting,
   analyzeAndUpdateProfile,
   decayConfidence,
-  _setProfileDepsForTesting,
-  _resetProfileDepsForTesting,
+  getOrCreateProfile,
 } from "../core/profile";
+import { closeDb, getDb, getProfile, updateProfile } from "../db/database";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -270,7 +270,10 @@ describe("decayConfidence", () => {
     );
     expect(decayed.profileData.patterns).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ category: "frequency", description: "often" }),
+        expect.objectContaining({
+          category: "frequency",
+          description: "often",
+        }),
       ]),
     );
     expect(decayed.profileData.workflows).toEqual(
@@ -289,7 +292,9 @@ describe("decayConfidence", () => {
     updateProfile(db, {
       ...profile,
       profileData: {
-        preferences: [{ category: "score", description: "high", confidence: 1.0 }],
+        preferences: [
+          { category: "score", description: "high", confidence: 1.0 },
+        ],
         patterns: [],
         workflows: [],
       },

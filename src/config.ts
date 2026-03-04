@@ -1,19 +1,11 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { deepmerge } from "deepmerge-ts";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import type { ParseError } from "jsonc-parser";
 import { parse as parseJsonc } from "jsonc-parser";
 import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
-import type {
-  CompactionConfig,
-  LlmConfig,
-  MemoryConfig,
-  SearchConfig,
-  StorageConfig,
-  ToastsConfig,
-  WebConfig,
-} from "./types";
+import type { LlmConfig } from "./types";
 import { getLogger } from "./util/logger.ts";
 import { expandPath } from "./util/path";
 
@@ -155,20 +147,20 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "",
     "  // LLM provider for auto-capture and summarization",
     '  "llm": {',
-    `    \"provider\": \"${defaults.llm.provider}\",`,
-    `    \"model\": \"${defaults.llm.model}\",`,
-    `    \"apiUrl\": \"${defaults.llm.apiUrl}\",`,
+    `    "provider": "${defaults.llm.provider}",`,
+    `    "model": "${defaults.llm.model}",`,
+    `    "apiUrl": "${defaults.llm.apiUrl}",`,
     '    // Use "env://OPENAI_API_KEY" or "file://~/.secrets/openai.txt"',
-    `    \"apiKey\": \"${defaults.llm.apiKey}\"`,
+    `    "apiKey": "${defaults.llm.apiKey}"`,
     "  },",
     "",
     "  // Embedding provider for semantic search vectors",
     '  "embedding": {',
-    `    \"provider\": \"${defaults.embedding?.provider ?? "ollama"}\",`,
-    `    \"model\": \"${defaults.embedding?.model ?? "embeddinggemma:latest"}\",`,
-    `    \"apiUrl\": \"${defaults.embedding?.apiUrl ?? "http://127.0.0.1:11434"}\",`,
+    `    "provider": "${defaults.embedding?.provider ?? "ollama"}",`,
+    `    "model": "${defaults.embedding?.model ?? "embeddinggemma:latest"}",`,
+    `    "apiUrl": "${defaults.embedding?.apiUrl ?? "http://127.0.0.1:11434"}",`,
     "    // Placeholder for local Ollama embedding endpoint",
-    `    \"apiKey\": \"${defaults.embedding?.apiKey ?? ""}\"`,
+    `    "apiKey": "${defaults.embedding?.apiKey ?? ""}"`,
     "  },",
     "",
     "  // Local storage path for memories and database",
@@ -177,44 +169,44 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "  },",
     "",
     "  // Logging level: debug, info, warn, error",
-    `  \"logLevel\": \"${defaults.logLevel}\",`,
+    `  "logLevel": "${defaults.logLevel}",`,
     "",
     "  // Memory retrieval settings",
     '  "memory": {',
-    `    \"maxResults\": ${defaults.memory.maxResults},`,
-    `    \"autoCapture\": ${defaults.memory.autoCapture},`,
-    `    \"injection\": \"${defaults.memory.injection}\",`,
-    `    \"excludeCurrentSession\": ${defaults.memory.excludeCurrentSession}`,
+    `    "maxResults": ${defaults.memory.maxResults},`,
+    `    "autoCapture": ${defaults.memory.autoCapture},`,
+    `    "injection": "${defaults.memory.injection}",`,
+    `    "excludeCurrentSession": ${defaults.memory.excludeCurrentSession}`,
     "  },",
     "",
     "  // Web UI settings",
     '  "web": {',
-    `    \"port\": ${defaults.web.port},`,
-    `    \"enabled\": ${defaults.web.enabled}`,
+    `    "port": ${defaults.web.port},`,
+    `    "enabled": ${defaults.web.enabled}`,
     "  },",
     "",
     "  // Search quality preset: fast, balanced, thorough, custom",
     '  "search": {',
-    `    \"retrievalQuality\": \"${defaults.search.retrievalQuality}\"`,
+    `    "retrievalQuality": "${defaults.search.retrievalQuality}"`,
     "  },",
     "",
     "  // Toast notification toggles",
     '  "toasts": {',
-    `    \"autoCapture\": ${defaults.toasts.autoCapture},`,
-    `    \"userProfile\": ${defaults.toasts.userProfile},`,
-    `    \"errors\": ${defaults.toasts.errors}`,
+    `    "autoCapture": ${defaults.toasts.autoCapture},`,
+    `    "userProfile": ${defaults.toasts.userProfile},`,
+    `    "errors": ${defaults.toasts.errors}`,
     "  },",
     "",
     "  // Post-compaction memory re-injection",
     '  "compaction": {',
-    `    \"enabled\": ${defaults.compaction.enabled},`,
-    `    \"memoryLimit\": ${defaults.compaction.memoryLimit}`,
+    `    "enabled": ${defaults.compaction.enabled},`,
+    `    "memoryLimit": ${defaults.compaction.memoryLimit}`,
     "  }",
     "}",
   ];
 
   try {
-    mkdirSync(path.replace(/\/[^\/]+$/, ""), { recursive: true });
+    mkdirSync(path.replace(/\/[^/]+$/, ""), { recursive: true });
     writeFileSync(path, lines.join("\n") + "\n", "utf-8");
   } catch {
     // Best-effort -- read-only filesystem or permissions issue
@@ -291,7 +283,9 @@ function loadConfigFile(): PluginConfig {
   _configErrors = [];
 
   if (jsonExists && jsoncExists) {
-    _configErrors.push("Both opencode-flashback.json and .jsonc found. Using .jsonc values where they overlap.");
+    _configErrors.push(
+      "Both opencode-flashback.json and .jsonc found. Using .jsonc values where they overlap.",
+    );
     logger.warn("Both opencode-flashback.json and .jsonc found");
 
     try {
@@ -302,7 +296,9 @@ function loadConfigFile(): PluginConfig {
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
       _configErrors.push(msg);
-      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.json" });
+      logger.error("loadConfigFile parse failed", {
+        source: "opencode-flashback.json",
+      });
     }
 
     try {
@@ -313,7 +309,9 @@ function loadConfigFile(): PluginConfig {
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
       _configErrors.push(msg);
-      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.jsonc" });
+      logger.error("loadConfigFile parse failed", {
+        source: "opencode-flashback.jsonc",
+      });
     }
   } else if (jsoncExists) {
     try {
@@ -324,7 +322,9 @@ function loadConfigFile(): PluginConfig {
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.jsonc: ${err instanceof Error ? err.message : String(err)}`;
       _configErrors.push(msg);
-      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.jsonc" });
+      logger.error("loadConfigFile parse failed", {
+        source: "opencode-flashback.jsonc",
+      });
     }
   } else if (jsonExists) {
     try {
@@ -335,12 +335,16 @@ function loadConfigFile(): PluginConfig {
     } catch (err) {
       const msg = `Failed to parse opencode-flashback.json: ${err instanceof Error ? err.message : String(err)}`;
       _configErrors.push(msg);
-      logger.error("loadConfigFile parse failed", { source: "opencode-flashback.json" });
+      logger.error("loadConfigFile parse failed", {
+        source: "opencode-flashback.json",
+      });
     }
   }
 
   if (loadedConfigFiles.length > 0) {
-    logger.debug("loadConfigFile loaded config", { source: loadedConfigFiles.join(", ") });
+    logger.debug("loadConfigFile loaded config", {
+      source: loadedConfigFiles.join(", "),
+    });
   } else {
     logger.debug("loadConfigFile using defaults", { source: "using defaults" });
   }
@@ -357,7 +361,9 @@ function loadConfigFile(): PluginConfig {
   // Validate against schema
   const result = ConfigSchema.safeParse(configWithoutSchema);
   if (!result.success) {
-    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const issues = result.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
     _configErrors.push(`Config validation failed: ${issues}`);
     logger.error("loadConfigFile validation failed", { issues });
 
@@ -368,7 +374,10 @@ function loadConfigFile(): PluginConfig {
       try {
         const content = readFileSync(sourcePath, "utf-8");
         writeFileSync(bakPath, content, "utf-8");
-        logger.warn("loadConfigFile backed up invalid config", { source: sourcePath, backup: bakPath });
+        logger.warn("loadConfigFile backed up invalid config", {
+          source: sourcePath,
+          backup: bakPath,
+        });
       } catch {
         // best-effort backup -- read-only filesystem or permissions issue
       }

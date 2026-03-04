@@ -1,4 +1,4 @@
-import { normalize, resolve, isAbsolute, basename, dirname, sep } from "path";
+import { basename, dirname, isAbsolute, normalize, resolve, sep } from "path";
 import type { ContainerTagInfo } from "../types";
 
 // -- Tag caching ----------------------------------------------------------

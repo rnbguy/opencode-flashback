@@ -1,16 +1,16 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from "fs";
-import { join } from "path";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { getDb, closeDb } from "../db/database.ts";
+import { join } from "path";
 import { DB_FILENAME } from "../consts.ts";
 import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../core/ai/providers.ts";
+import { closeDb, getDb } from "../db/database.ts";
 
 const OLD_SCHEMA_SQL = `
 CREATE TABLE memories (
@@ -38,12 +38,13 @@ let embedCalls = 0;
 let failEmbedOnCall = Number.POSITIVE_INFINITY;
 let tmpHome = "";
 
-let runMigration: (typeof import("../db/migrate.ts"))["runMigration"];
-let getMigrationStatus: (typeof import("../db/migrate.ts"))["getMigrationStatus"];
+let runMigration: typeof import("../db/migrate.ts")["runMigration"];
+let getMigrationStatus: typeof import("../db/migrate.ts")["getMigrationStatus"];
 
 function seededVector(text: string): number[] {
-  const vector = Array.from({ length: 768 }, (_, j) =>
-    Math.sin(j + text.length) * 0.5,
+  const vector = Array.from(
+    { length: 768 },
+    (_, j) => Math.sin(j + text.length) * 0.5,
   );
   return vector;
 }

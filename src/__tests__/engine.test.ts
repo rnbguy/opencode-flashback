@@ -1,19 +1,19 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
+import { join } from "path";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
 import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../core/ai/providers.ts";
-import { getDb, closeDb } from "../db/database.ts";
+import { closeDb, getDb } from "../db/database.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
@@ -63,7 +63,7 @@ function seededVector(text: string): number[] {
 }
 
 let tmpDir = "";
-let createEngine: (typeof import("../engine.ts"))["createEngine"];
+let createEngine: typeof import("../engine.ts")["createEngine"];
 
 describe("engine facade", () => {
   beforeEach(async () => {

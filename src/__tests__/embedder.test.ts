@@ -55,7 +55,9 @@ beforeEach(() => {
   _setConfigForTesting(testConfig);
   mockEmbedMany.mockReset();
   mockCreateEmbeddingProvider.mockReset();
-  mockCreateEmbeddingProvider.mockResolvedValue({ embedding: (_id: string) => ({}) });
+  mockCreateEmbeddingProvider.mockResolvedValue({
+    embedding: (_id: string) => ({}),
+  });
   _setEmbedDepsForTesting({
     embedMany: mockEmbedMany as unknown as typeof import("ai").embedMany,
     createEmbeddingProvider:
@@ -143,7 +145,9 @@ describe("embed()", () => {
   });
 
   test("propagates provider creation errors", async () => {
-    mockCreateEmbeddingProvider.mockRejectedValueOnce(new Error("provider failed"));
+    mockCreateEmbeddingProvider.mockRejectedValueOnce(
+      new Error("provider failed"),
+    );
 
     await expect(embed(["x"], "query")).rejects.toThrow("provider failed");
     expect(mockEmbedMany).not.toHaveBeenCalled();

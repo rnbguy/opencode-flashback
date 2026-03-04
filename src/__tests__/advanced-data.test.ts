@@ -1,25 +1,25 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
 import { tmpdir } from "os";
+import { join } from "path";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
 import {
+  _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   embed,
   resetEmbedder,
-  _setEmbedDepsForTesting,
-  _resetEmbedDepsForTesting,
 } from "../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../core/ai/providers.ts";
 import {
-  getDb,
   closeDb,
-  insertMemory,
-  getMemory,
   getAllActiveMemories,
+  getDb,
+  getMemory,
+  insertMemory,
 } from "../db/database.ts";
 import type { Memory, SearchResult } from "../types.ts";
 
@@ -62,14 +62,14 @@ const defaultConfig: PluginConfig = {
 
 let tmpDir = "";
 
-let addMemory: (typeof import("../core/memory.ts"))["addMemory"];
-let searchMemories: (typeof import("../core/memory.ts"))["searchMemories"];
-let getMemoryById: (typeof import("../core/memory.ts"))["getMemoryById"];
+let addMemory: typeof import("../core/memory.ts")["addMemory"];
+let searchMemories: typeof import("../core/memory.ts")["searchMemories"];
+let getMemoryById: typeof import("../core/memory.ts")["getMemoryById"];
 
-let initSearch: (typeof import("../search.ts"))["initSearch"];
-let rebuildIndex: (typeof import("../search.ts"))["rebuildIndex"];
-let hybridSearch: (typeof import("../search.ts"))["hybridSearch"];
-let markStale: (typeof import("../search.ts"))["markStale"];
+let initSearch: typeof import("../search.ts")["initSearch"];
+let rebuildIndex: typeof import("../search.ts")["rebuildIndex"];
+let hybridSearch: typeof import("../search.ts")["hybridSearch"];
+let markStale: typeof import("../search.ts")["markStale"];
 
 function seededVector(text: string): number[] {
   const normalized = text
@@ -163,7 +163,6 @@ describe("advanced data pipeline", () => {
     rebuildIndex = search.rebuildIndex;
     hybridSearch = search.hybridSearch;
     markStale = search.markStale;
-
   });
 
   afterEach(() => {

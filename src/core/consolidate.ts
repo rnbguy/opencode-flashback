@@ -1,14 +1,14 @@
-import type { ConsolidationCandidate, Memory } from "../types.ts";
 import {
   getAllActiveMemories,
   getDb,
   getMemory,
   insertMemory,
 } from "../db/database.ts";
+import { markStale } from "../search.ts";
+import type { ConsolidationCandidate, Memory } from "../types.ts";
+import { getLogger } from "../util/logger.ts";
 import { embed } from "./ai/embed.ts";
 import { cosineSimilarity } from "./memory.ts";
-import { markStale } from "../search.ts";
-import { getLogger } from "../util/logger.ts";
 
 const DUPLICATE_THRESHOLD = 0.92;
 const NEAR_DUPLICATE_THRESHOLD = 0.85;
@@ -95,13 +95,15 @@ function buildCandidate(memories: Memory[]): ConsolidationCandidate {
 
   const reason =
     groupSimilarity >= DUPLICATE_THRESHOLD ? "duplicate" : "near-duplicate";
-  const unionTags = [...new Set(memories.flatMap((memory) => memory.tags))].sort(
-    (a, b) => a.localeCompare(b),
-  );
+  const unionTags = [
+    ...new Set(memories.flatMap((memory) => memory.tags)),
+  ].sort((a, b) => a.localeCompare(b));
   const confidence = survivor.epistemicStatus.confidence.toFixed(2);
 
   return {
-    memoryIds: memories.map((memory) => memory.id).sort((a, b) => a.localeCompare(b)),
+    memoryIds: memories
+      .map((memory) => memory.id)
+      .sort((a, b) => a.localeCompare(b)),
     reason,
     similarity: groupSimilarity,
     suggestion: `Keep ${survivor.id} (confidence: ${confidence}). Merge ${memories.length - 1} duplicates. Tags: ${unionTags.join(", ")}`,
@@ -114,7 +116,8 @@ export async function consolidateMemories(
   const logger = getLogger();
   const db = getDb();
   const memories = getAllActiveMemories(db).filter(
-    (memory) => memory.containerTag === opts.containerTag && memory.evictedAt === null,
+    (memory) =>
+      memory.containerTag === opts.containerTag && memory.evictedAt === null,
   );
 
   if (memories.length < 2) {
@@ -137,9 +140,11 @@ export async function consolidateMemories(
   const byId = new Map(memories.map((memory) => [memory.id, memory]));
   const candidates = [...uf.groups().values()]
     .filter((group) => group.length >= 2)
-    .map((group) => group
-      .map((id) => byId.get(id))
-      .filter((memory): memory is Memory => memory !== undefined))
+    .map((group) =>
+      group
+        .map((id) => byId.get(id))
+        .filter((memory): memory is Memory => memory !== undefined),
+    )
     .filter((group) => group.length >= 2)
     .map((group) => buildCandidate(group))
     .sort((a, b) => b.similarity - a.similarity);
@@ -166,7 +171,10 @@ export async function applyConsolidation(
   for (const candidate of candidates) {
     const memories = candidate.memoryIds
       .map((id) => getMemory(db, id))
-      .filter((memory): memory is Memory => memory !== null && memory.evictedAt === null);
+      .filter(
+        (memory): memory is Memory =>
+          memory !== null && memory.evictedAt === null,
+      );
 
     if (memories.length < 2) {
       continue;
@@ -174,14 +182,18 @@ export async function applyConsolidation(
 
     const survivor = chooseSurvivor(memories);
     const losers = memories.filter((memory) => memory.id !== survivor.id);
-    const tags = [...new Set(memories.flatMap((memory) => memory.tags))].sort((a, b) =>
-      a.localeCompare(b),
+    const tags = [...new Set(memories.flatMap((memory) => memory.tags))].sort(
+      (a, b) => a.localeCompare(b),
     );
     const maxConfidence = Math.max(
       ...memories.map((memory) => memory.epistemicStatus.confidence),
     );
-    const maxAccessCount = Math.max(...memories.map((memory) => memory.accessCount));
-    const earliestCreatedAt = Math.min(...memories.map((memory) => memory.createdAt));
+    const maxAccessCount = Math.max(
+      ...memories.map((memory) => memory.accessCount),
+    );
+    const earliestCreatedAt = Math.min(
+      ...memories.map((memory) => memory.createdAt),
+    );
     const now = Date.now();
 
     const vectors = await embed([survivor.content], "document");
@@ -204,7 +216,10 @@ export async function applyConsolidation(
 
     insertMemory(db, updated);
     for (const loser of losers) {
-      db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(now, loser.id);
+      db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
+        now,
+        loser.id,
+      );
       merged += 1;
     }
     markStale();

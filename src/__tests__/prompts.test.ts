@@ -1,15 +1,15 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { getDb, closeDb } from "../db/database.ts";
+import { join } from "node:path";
 import {
-  storePrompt,
   getLastUncapturedPrompt,
-  markCaptured,
-  markAnalyzed,
   getUnanalyzedPrompts,
+  markAnalyzed,
+  markCaptured,
+  storePrompt,
 } from "../core/prompts.ts";
+import { closeDb, getDb } from "../db/database.ts";
 
 function insertPromptRow(
   overrides: Partial<Record<string, unknown>> = {},

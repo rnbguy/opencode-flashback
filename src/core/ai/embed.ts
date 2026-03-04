@@ -18,8 +18,7 @@ const FAILURE_THRESHOLD = 3;
 const DEGRADED_COOLDOWN_MS = 30_000;
 
 const CIRCUIT_OPEN_MESSAGE = "Embedder circuit breaker is open";
-const EMBED_DIMENSION_MISMATCH_PREFIX =
-  "Unexpected embedding dimension: got ";
+const EMBED_DIMENSION_MISMATCH_PREFIX = "Unexpected embedding dimension: got ";
 const EMBED_CONFIG_REQUIRED = "Embedding configuration is required";
 const EMBED_FAILED_MESSAGE =
   "Embedding generation failed for one or more inputs";
@@ -93,9 +92,7 @@ export function resetEmbedder(): void {
   });
 }
 
-export function _setEmbedDepsForTesting(
-  overrides: Partial<EmbedDeps>,
-): void {
+export function _setEmbedDepsForTesting(overrides: Partial<EmbedDeps>): void {
   deps = { ...deps, ...overrides };
 }
 
@@ -103,10 +100,7 @@ export function _resetEmbedDepsForTesting(): void {
   deps = { ...defaultDeps };
 }
 
-export async function embed(
-  texts: string[],
-  mode: Mode,
-): Promise<number[][]> {
+export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
   const logger = getLogger();
   const start = Date.now();
 

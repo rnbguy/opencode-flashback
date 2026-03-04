@@ -1,12 +1,12 @@
 import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
   afterAll,
-  mock,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
   jest,
+  mock,
+  test,
 } from "bun:test";
 import type { LLMCallResult } from "../core/ai/generate";
 
@@ -72,15 +72,15 @@ const mockGetLanguageName = mock((_code: string) => "English");
 // -- Imports (resolved after mocks) -------------------------------------------
 
 import {
+  _resetCaptureDepsForTesting,
+  _setCaptureDepsForTesting,
+  type CaptureRequest,
   enqueueCapture,
   getCaptureState,
   getLastCaptureStatus,
   initCapture,
   resetCapture,
   setCaptureNotifier,
-  _setCaptureDepsForTesting,
-  _resetCaptureDepsForTesting,
-  type CaptureRequest,
 } from "../core/capture";
 
 // -- Helpers ------------------------------------------------------------------

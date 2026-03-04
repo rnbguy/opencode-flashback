@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { resolveContainerTag, resolveUserTag } from "../core/tags";
 
 // -- sha256hex16 determinism (tested via resolveContainerTag / resolveUserTag) -
@@ -29,7 +29,6 @@ describe("resolveContainerTag", () => {
     expect(typeof result.userEmail).toBe("string");
   });
 
-
   test("gitRepoUrl is a string", () => {
     const result = resolveContainerTag(process.cwd());
     expect(typeof result.gitRepoUrl).toBe("string");
@@ -59,7 +58,6 @@ describe("resolveUserTag", () => {
     const b = resolveUserTag();
     expect(a.tag).toBe(b.tag);
   });
-
 
   test("projectPath and projectName are empty for user tag", () => {
     const result = resolveUserTag();

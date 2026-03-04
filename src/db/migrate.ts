@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
-import { existsSync, copyFileSync, renameSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { copyFileSync, existsSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
-import { getDb, insertMemory } from "./database.ts";
+import { dirname, join } from "node:path";
 import { embed } from "../core/ai/embed.ts";
 import { initialSchedule } from "../core/fsrs.ts";
 import type { Memory } from "../types.ts";
+import { getDb, insertMemory } from "./database.ts";
 
 interface MigrationCheckpoint {
   phase: "backup" | "copy" | "reembed" | "verify" | "switchover" | "done";

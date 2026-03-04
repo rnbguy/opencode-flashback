@@ -1,11 +1,4 @@
-import { addMemory } from "./memory.ts";
-import { callLLMWithTool, type ToolSchema } from "./ai/generate.ts";
-import {
-  storePrompt,
-  getLastUncapturedPrompt,
-  markCaptured,
-  markAnalyzed,
-} from "./prompts.ts";
+import { z } from "zod";
 import type { SubsystemState } from "../types.ts";
 import {
   detectLanguage,
@@ -13,7 +6,14 @@ import {
   type LanguageDetectionResult,
 } from "../util/language.ts";
 import { getLogger } from "../util/logger.ts";
-import { z } from "zod";
+import { callLLMWithTool, type ToolSchema } from "./ai/generate.ts";
+import { addMemory } from "./memory.ts";
+import {
+  getLastUncapturedPrompt,
+  markAnalyzed,
+  markCaptured,
+  storePrompt,
+} from "./prompts.ts";
 
 // -- State ---------------------------------------------------------------------
 
@@ -166,11 +166,16 @@ export function enqueueCapture(opts: CaptureRequest): void {
 
   const timer = setTimeout(() => {
     debounceTimers.delete(opts.sessionId);
-    queuePromise = queuePromise.then(() => runCapture(opts)).catch((err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error("Capture pipeline error (unhandled)", { error: msg, sessionId: opts.sessionId });
-      notifier?.("failed", msg);
-    });
+    queuePromise = queuePromise
+      .then(() => runCapture(opts))
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error("Capture pipeline error (unhandled)", {
+          error: msg,
+          sessionId: opts.sessionId,
+        });
+        notifier?.("failed", msg);
+      });
   }, DEBOUNCE_MS);
 
   debounceTimers.set(opts.sessionId, timer);
@@ -215,7 +220,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   const lastUserMessage = findLastUserMessage(opts.messages);
   if (!lastUserMessage) {
     lastCaptureStatus = "skipped";
-    logger.debug("Capture skipped: no user message", { sessionId: opts.sessionId });
+    logger.debug("Capture skipped: no user message", {
+      sessionId: opts.sessionId,
+    });
     return;
   }
 
@@ -228,7 +235,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   const uncaptured = deps.getLastUncapturedPrompt(opts.sessionId);
   if (!uncaptured) {
     lastCaptureStatus = "skipped";
-    logger.debug("Capture skipped: no uncaptured prompt", { sessionId: opts.sessionId });
+    logger.debug("Capture skipped: no uncaptured prompt", {
+      sessionId: opts.sessionId,
+    });
     return;
   }
 
@@ -237,7 +246,6 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
     .map((m) => `**${m.role}**: ${m.content.slice(0, 4000)}`)
     .join("\n\n");
 
-  let lastError: string | undefined;
   const result = await deps.callLLMWithTool({
     systemPrompt: getSystemPrompt(langName),
     userPrompt: context,
@@ -246,14 +254,20 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   if (result.success) {
     await processResult(result.data, uncaptured.id, opts);
-    logger.debug("Capture completed", { sessionId: opts.sessionId, status: lastCaptureStatus });
+    logger.debug("Capture completed", {
+      sessionId: opts.sessionId,
+      status: lastCaptureStatus,
+    });
     notifier?.(lastCaptureStatus);
     return;
   }
 
-  lastError = result.error;
+  const lastError = result.error;
 
-  logger.error("Capture failed after retries", { error: lastError, sessionId: opts.sessionId });
+  logger.error("Capture failed after retries", {
+    error: lastError,
+    sessionId: opts.sessionId,
+  });
   state = "degraded";
   lastCaptureStatus = "failed";
   notifier?.("failed", lastError);
@@ -333,4 +347,3 @@ function findLastUserMessage(
   }
   return undefined;
 }
-

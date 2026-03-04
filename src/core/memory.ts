@@ -1,22 +1,22 @@
+import { similarity as mlSimilarity } from "ml-distance";
+import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
+import { MEMORY_HEADER } from "../consts.ts";
 import {
   countMemories,
+  listMemories as dbListMemories,
   deleteMemory,
   getAllActiveMemories,
   getDb,
   getMemory,
   insertMemory,
-  listMemories as dbListMemories,
   searchMemoriesByText,
 } from "../db/database.ts";
-import { similarity as mlSimilarity } from "ml-distance";
-import { embed } from "./ai/embed.ts";
-import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search.ts";
-import { resolveContainerTag } from "./tags.ts";
-import { initialSchedule, updateAfterRating } from "./fsrs.ts";
 import type { ContainerTagInfo, Memory, SearchResult } from "../types.ts";
-import { MEMORY_HEADER } from "../consts.ts";
 import { getLogger } from "../util/logger.ts";
+import { embed } from "./ai/embed.ts";
+import { initialSchedule, updateAfterRating } from "./fsrs.ts";
+import { resolveContainerTag } from "./tags.ts";
 
 const DEDUP_SIMILARITY_THRESHOLD = 0.9;
 const DEFAULT_IMPORTANCE = 5;
@@ -66,7 +66,10 @@ export async function addMemory(
 
   const now = Date.now();
   const id = crypto.randomUUID();
-  const schedule = initialSchedule(now, opts.epistemicStatus?.confidence ?? 0.7);
+  const schedule = initialSchedule(
+    now,
+    opts.epistemicStatus?.confidence ?? 0.7,
+  );
   const importance = clampImportance(opts.importance);
   const metadata = {
     ...(opts.metadata ?? {}),
@@ -545,8 +548,14 @@ function findDuplicateMemory(
   let best: { memory: Memory; similarity: number } | null = null;
 
   for (const memory of memories) {
-    const similarity = mlSimilarity.cosine(vector, Array.from(memory.embedding));
-    if (!Number.isFinite(similarity) || similarity <= DEDUP_SIMILARITY_THRESHOLD) {
+    const similarity = mlSimilarity.cosine(
+      vector,
+      Array.from(memory.embedding),
+    );
+    if (
+      !Number.isFinite(similarity) ||
+      similarity <= DEDUP_SIMILARITY_THRESHOLD
+    ) {
       continue;
     }
     if (!best || similarity > best.similarity) {
@@ -654,7 +663,6 @@ function parsePreferenceLines(profileDataRaw: string | null): string[] {
     // JSON parse failed on preference data -- skip malformed entries
     return [];
   }
-
 }
 
 function trackAccess(results: SearchResult[]): void {

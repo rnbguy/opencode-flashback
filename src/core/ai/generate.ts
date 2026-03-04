@@ -1,4 +1,10 @@
-import { APICallError, generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
+import {
+  APICallError,
+  generateText,
+  jsonSchema,
+  NoObjectGeneratedError,
+  Output,
+} from "ai";
 import { getConfig } from "../../config";
 import type { LLMProvider } from "../../types";
 import { resolveSecret } from "../../util/secrets";
@@ -18,14 +24,13 @@ const ERROR_NETWORK = "network_error" as const;
 const MESSAGE_REQUEST_TIMEOUT = "Request timed out";
 const MESSAGE_LLM_REQUEST_FAILED = "LLM request failed";
 const MESSAGE_API_KEY_NOT_CONFIGURED = "LLM API key is not configured";
-const MESSAGE_VALIDATION_FAILED_PREFIX = "LLM validation failed: ";
+const _MESSAGE_VALIDATION_FAILED_PREFIX = "LLM validation failed: ";
 const MESSAGE_VALIDATION_TIMEOUT = "LLM endpoint validation timed out";
 const MESSAGE_VALIDATION_UNREACHABLE_PREFIX = "LLM endpoint unreachable: ";
 const MESSAGE_INVALID_API_KEY = "Invalid or unauthorized API key";
 const MESSAGE_MODEL_NOT_FOUND = "Model not found";
 
-
-const VALIDATION_PROMPT = "Return the JSON object {\"ok\":true}.";
+const VALIDATION_PROMPT = 'Return the JSON object {"ok":true}.';
 const VALIDATION_SYSTEM_PROMPT = "You are a health check assistant.";
 
 export interface ToolSchema {
@@ -77,7 +82,9 @@ let deps: GenerateDeps = {
   createLLMProvider,
 };
 
-export function _setGenerateDepsForTesting(overrides: Partial<GenerateDeps>): void {
+export function _setGenerateDepsForTesting(
+  overrides: Partial<GenerateDeps>,
+): void {
   deps = { ...deps, ...overrides };
 }
 
@@ -177,7 +184,10 @@ export async function validateLLMEndpoint(): Promise<{
       temperature: 0,
       abortSignal: AbortSignal.timeout(VALIDATE_TIMEOUT_MS),
       output: Output.object({
-        schema: jsonSchema({ type: "object", properties: { ok: { type: "boolean" } } }),
+        schema: jsonSchema({
+          type: "object",
+          properties: { ok: { type: "boolean" } },
+        }),
       }),
     });
 
@@ -217,7 +227,6 @@ function buildStructuredPrompt(options: LLMCallOptions): string {
   ];
   return lines.join("\n");
 }
-
 
 function mapGenerateError(error: unknown): {
   error: string;

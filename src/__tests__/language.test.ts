@@ -1,14 +1,14 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import ISO6391 from "iso-639-1";
-import { detectLanguage, getLanguageName } from "../util/language";
+import type { LLMCallResult } from "../core/ai/generate";
 import {
+  _resetCaptureDepsForTesting,
+  _setCaptureDepsForTesting,
+  type CaptureRequest,
   enqueueCapture,
   resetCapture,
-  _setCaptureDepsForTesting,
-  _resetCaptureDepsForTesting,
-  type CaptureRequest,
 } from "../core/capture";
-import type { LLMCallResult } from "../core/ai/generate";
+import { detectLanguage, getLanguageName } from "../util/language";
 
 function makeRequest(overrides?: Partial<CaptureRequest>): CaptureRequest {
   return {

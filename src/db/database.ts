@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync, chmodSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { getConfig } from "../config.ts";
+import { DB_FILENAME } from "../consts.ts";
 import type { Memory, UserProfile, UserPrompt } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
-import { DB_FILENAME } from "../consts.ts";
-import { getConfig } from "../config.ts";
 
 // -- DB row shapes (internal) ------------------------------------------------
 
@@ -242,12 +242,17 @@ function parseJson<T>(value: string | null, fallback: T): T {
 export const META_KEY_EMBEDDING_MODEL = "embedding_model";
 
 export function getMetaValue(db: Database, key: string): string | null {
-  const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | null;
+  const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as {
+    value: string;
+  } | null;
   return row?.value ?? null;
 }
 
 export function setMetaValue(db: Database, key: string, value: string): void {
-  db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(key, value);
+  db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+    key,
+    value,
+  );
 }
 
 function rowToMemory(row: MemoryRow): Memory {
@@ -313,7 +318,7 @@ function rowToProfile(row: ProfileRow): UserProfile {
   };
 }
 
-function rowToPrompt(row: PromptRow): UserPrompt {
+function _rowToPrompt(row: PromptRow): UserPrompt {
   return {
     id: row.id,
     sessionId: row.session_id,

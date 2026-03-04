@@ -1,20 +1,20 @@
 import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
   afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
   mock,
+  test,
 } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, copyFileSync, existsSync } from "fs";
-import { join } from "path";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
+import { join } from "path";
 import type { PluginConfig } from "../../config.ts";
 import { DB_FILENAME } from "../../consts.ts";
 import {
-  _setEmbedDepsForTesting,
   _resetEmbedDepsForTesting,
+  _setEmbedDepsForTesting,
   resetEmbedder,
 } from "../../core/ai/embed.ts";
 import type { createEmbeddingProvider } from "../../core/ai/providers.ts";
@@ -26,18 +26,18 @@ const isDirectLifecycleRun =
       arg.endsWith("lifecycle.test.ts"),
   ) && !process.argv.some((arg) => arg.endsWith("embedder.test.ts"));
 
-import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
+import { _resetConfigForTesting, _setConfigForTesting } from "../../config.ts";
+import { addMemory } from "../../core/memory.ts";
+import { _resetTagCache, resolveContainerTag } from "../../core/tags.ts";
 import {
-  getDb,
-  closeDb,
   _setDbForTesting,
+  closeDb,
   countMemories,
+  getDb,
 } from "../../db/database.ts";
-import { _setConfigForTesting, _resetConfigForTesting } from "../../config.ts";
+import { OpenCodeFlashbackPlugin } from "../../plugin.ts";
 import { initSearch } from "../../search.ts";
 import { startServer, stopServer } from "../../web/server.ts";
-import { _resetTagCache, resolveContainerTag } from "../../core/tags.ts";
-import { addMemory } from "../../core/memory.ts";
 
 type ToolRunner = {
   execute: (
@@ -121,9 +121,10 @@ function makeTestConfig(
   };
 }
 
-
 async function createHooks(directory: string): Promise<Hooks> {
-  const hooks = await OpenCodeFlashbackPlugin({ directory } as unknown as never);
+  const hooks = await OpenCodeFlashbackPlugin({
+    directory,
+  } as unknown as never);
   return hooks as unknown as Hooks;
 }
 
@@ -132,7 +133,7 @@ async function runMemoryTool(
   args: Record<string, unknown>,
   context: { directory: string; sessionID: string },
 ): Promise<Record<string, unknown>> {
-    const raw = await hooks.tool.flashback.execute(args, context);
+  const raw = await hooks.tool.flashback.execute(args, context);
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
@@ -553,12 +554,12 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
     // Regression: GitHub link must point to correct owner (rnbguy, not ranadeep)
     const indexHtml = await (await httpFetch(`${baseUrl}/`)).text();
-    expect(indexHtml).toContain('github.com/rnbguy/opencode-flashback');
-    expect(indexHtml).not.toContain('github.com/ranadeep/');
+    expect(indexHtml).toContain("github.com/rnbguy/opencode-flashback");
+    expect(indexHtml).not.toContain("github.com/ranadeep/");
 
     // Regression: styles.css must have overflow:hidden on memory-card to prevent hover overflow
     const stylesCss = await (await httpFetch(`${baseUrl}/styles.css`)).text();
-    expect(stylesCss).toContain('overflow');
+    expect(stylesCss).toContain("overflow");
 
     stopServer();
   });

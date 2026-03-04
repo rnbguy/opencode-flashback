@@ -1,25 +1,25 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import {
-  readFileSync,
   existsSync,
-  writeFileSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  closeDb,
-  getAllActiveMemories,
-  getDb,
-  insertMemory,
-  _setDbForTesting,
-} from "../../db/database.ts";
+import { join } from "node:path";
 import {
   _setConfigForTesting,
   getHybridWeights,
   type PluginConfig,
 } from "../../config.ts";
+import {
+  _setDbForTesting,
+  closeDb,
+  getAllActiveMemories,
+  getDb,
+  insertMemory,
+} from "../../db/database.ts";
 import type { Memory } from "../../types.ts";
 
 type RetrievalPreset = "fast" | "balanced" | "thorough";

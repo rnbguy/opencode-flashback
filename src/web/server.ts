@@ -1,25 +1,24 @@
-import { join } from "path";
 import { readFileSync, statSync } from "fs";
-import { getDb, countMemories } from "../db/database.ts";
+import { join } from "path";
+import { getConfig } from "../config.ts";
+import { DB_FILENAME } from "../consts.ts";
+import { getEmbedderState } from "../core/ai/embed.ts";
+import { getCaptureState } from "../core/capture.ts";
 import {
   addMemory,
-  searchMemories,
   forgetMemory,
-  listMemories,
   getMemoryById,
-  getContext,
+  listMemories,
   pinMemory,
+  searchMemories,
   unpinMemory,
 } from "../core/memory.ts";
 import { getOrCreateProfile } from "../core/profile.ts";
 import { resolveContainerTag } from "../core/tags.ts";
-import { getEmbedderState } from "../core/ai/embed.ts";
+import { countMemories, getDb } from "../db/database.ts";
 import { getSearchState } from "../search.ts";
-import { getCaptureState } from "../core/capture.ts";
-import { getConfig } from "../config.ts";
-import type { SubsystemState, DiagnosticsResponse } from "../types.ts";
+import type { DiagnosticsResponse, SubsystemState } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
-import { DB_FILENAME } from "../consts.ts";
 import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
 
 // -- State ------------------------------------------------------------------
@@ -52,7 +51,9 @@ const rateLimiter = {
 // -- Public API -------------------------------------------------------------
 
 export async function startServer(directory: string): Promise<number> {
-  if (server) { stopServer(); }
+  if (server) {
+    stopServer();
+  }
   const logger = getLogger();
   csrfToken = crypto.randomUUID();
   cspScriptHash = computeCspHash();
@@ -239,9 +240,11 @@ async function handleListMemories(
   directory: string,
 ): Promise<Response> {
   const rawLimit = parseInt(url.searchParams.get("limit") ?? "50");
-  const limit = isNaN(rawLimit) ? 50 : Math.max(1, Math.min(100, rawLimit));
+  const limit = Number.isNaN(rawLimit)
+    ? 50
+    : Math.max(1, Math.min(100, rawLimit));
   const rawOffset = parseInt(url.searchParams.get("offset") ?? "0");
-  const offset = isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
+  const offset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
   const containerTag = getContainerTag(
     directory,
     url.searchParams.get("containerTag") ?? undefined,
@@ -338,7 +341,9 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
   }
 
   const rawLimit = parseInt(url.searchParams.get("limit") ?? "10");
-  const limit = isNaN(rawLimit) ? 10 : Math.max(1, Math.min(100, rawLimit));
+  const limit = Number.isNaN(rawLimit)
+    ? 10
+    : Math.max(1, Math.min(100, rawLimit));
   const containerTag = getContainerTag(
     directory,
     url.searchParams.get("containerTag") ?? undefined,

@@ -8,7 +8,10 @@ export function initialStabilityDays(confidence: number): number {
   return 0.25 + 1.75 * clamp(confidence, 0, 1);
 }
 
-export function initialSchedule(createdAt: number, confidence: number): {
+export function initialSchedule(
+  createdAt: number,
+  confidence: number,
+): {
   stability: number;
   difficulty: number;
   nextReviewAt: number;

@@ -63,7 +63,6 @@ export interface ProfileWorkflow {
   steps: string[];
 }
 
-
 export interface UserProfile {
   id: string;
   userId: string;

@@ -1,21 +1,21 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { insertMemory, getDb, closeDb } from "../db/database.ts";
+import { join } from "node:path";
 import {
-  _setConfigForTesting,
   _resetConfigForTesting,
+  _setConfigForTesting,
   type PluginConfig,
 } from "../config.ts";
-import type { Memory } from "../types.ts";
+import { closeDb, getDb, insertMemory } from "../db/database.ts";
 import {
-  initSearch,
-  hybridSearch,
-  rebuildIndex,
-  markStale,
   getSearchState,
+  hybridSearch,
+  initSearch,
+  markStale,
+  rebuildIndex,
 } from "../search.ts";
+import type { Memory } from "../types.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {
