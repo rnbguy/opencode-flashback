@@ -34,7 +34,7 @@ import {
   setCaptureNotifier,
   type CaptureRequest,
 } from "./core/capture.ts";
-import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
+import { embed, getEmbedderState, resetEmbedder } from "./core/ai/embed.ts";
 import { initSearch, getSearchState } from "./search.ts";
 import {
   getDb,

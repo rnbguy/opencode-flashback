@@ -5,7 +5,7 @@ import {
   getMemory,
   insertMemory,
 } from "../db/database.ts";
-import { embed } from "../embed/embedder.ts";
+import { embed } from "./ai/embed.ts";
 import { cosineSimilarity } from "./memory.ts";
 import { markStale } from "../search.ts";
 import { getLogger } from "../util/logger.ts";

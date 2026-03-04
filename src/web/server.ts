@@ -13,7 +13,7 @@ import {
 } from "../core/memory.ts";
 import { getOrCreateProfile } from "../core/profile.ts";
 import { resolveContainerTag } from "../core/tags.ts";
-import { getEmbedderState } from "../embed/embedder.ts";
+import { getEmbedderState } from "../core/ai/embed.ts";
 import { getSearchState } from "../search.ts";
 import { getCaptureState } from "../core/capture.ts";
 import { getConfig } from "../config.ts";

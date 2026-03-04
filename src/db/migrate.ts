@@ -3,7 +3,7 @@ import { existsSync, copyFileSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { getDb, insertMemory } from "./database.ts";
-import { embed } from "../embed/embedder.ts";
+import { embed } from "../core/ai/embed.ts";
 import { initialSchedule } from "../core/fsrs.ts";
 import type { Memory } from "../types.ts";
 

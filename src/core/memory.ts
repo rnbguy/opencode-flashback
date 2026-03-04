@@ -9,7 +9,7 @@ import {
   searchMemoriesByText,
 } from "../db/database.ts";
 import { similarity as mlSimilarity } from "ml-distance";
-import { embed } from "../embed/embedder.ts";
+import { embed } from "./ai/embed.ts";
 import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { hybridSearch, initSearch, markStale } from "../search.ts";
 import { resolveContainerTag } from "./tags.ts";
