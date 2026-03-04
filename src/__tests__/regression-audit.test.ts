@@ -111,7 +111,7 @@ describe("regression: audit fixes", () => {
   });
 
   test("T15: rebuildIndex chains via rebuildPromise.then", () => {
-    const src = readFileSync(join(SRC_DIR, "search", "index.ts"), "utf-8");
+    const src = readFileSync(join(SRC_DIR, "search.ts"), "utf-8");
     expect(src).toContain("rebuildPromise = rebuildPromise.then(");
     expect(src).toContain("doRebuild");
   });
@@ -156,7 +156,7 @@ describe("regression: audit fixes", () => {
   });
 
   test("T9: search index does not increment access_count", () => {
-    const src = readFileSync(join(SRC_DIR, "search", "index.ts"), "utf-8");
+    const src = readFileSync(join(SRC_DIR, "search.ts"), "utf-8");
     expect(src).not.toContain("access_count");
   });
 

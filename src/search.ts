@@ -1,14 +1,14 @@
 import { create, insert, search } from "@orama/orama";
 import type { Orama } from "@orama/orama";
-import { getDb } from "../db/database.ts";
+import { getDb } from "./db/database.ts";
 import {
   getAllActiveMemories,
   getMemory,
   searchMemoriesByText,
-} from "../db/database.ts";
-import { getConfig, getHybridWeights } from "../config.ts";
-import type { Memory, SearchResult, SubsystemState } from "../types.ts";
-import { getLogger } from "../util/logger.ts";
+} from "./db/database.ts";
+import { getConfig, getHybridWeights } from "./config.ts";
+import type { Memory, SearchResult, SubsystemState } from "./types.ts";
+import { getLogger } from "./util/logger.ts";
 
 // -- Schema ------------------------------------------------------------------
 
@@ -159,7 +159,6 @@ export async function hybridSearch(
         _debug: { oramaScore: hit.score },
       });
     }
-
 
     logger.debug("hybridSearch completed", {
       query,

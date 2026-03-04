@@ -1,18 +1,7 @@
 import { existsSync, readFileSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+import { expandPath } from "./path";
 
 const secretCache = new Map<string, string>();
-
-function expandPath(path: string): string {
-  if (path.startsWith("~/")) {
-    return join(homedir(), path.slice(2));
-  }
-  if (path === "~") {
-    return homedir();
-  }
-  return path;
-}
 
 export async function resolveSecret(value: string): Promise<string> {
   if (!value) {

@@ -7,7 +7,7 @@ import {
 } from "../db/database.ts";
 import { embed } from "../embed/embedder.ts";
 import { cosineSimilarity } from "./memory.ts";
-import { markStale } from "../search/index.ts";
+import { markStale } from "../search.ts";
 import { getLogger } from "../util/logger.ts";
 
 const DUPLICATE_THRESHOLD = 0.92;

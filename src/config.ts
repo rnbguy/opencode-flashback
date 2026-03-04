@@ -15,6 +15,7 @@ import type {
   WebConfig,
 } from "./types";
 import { getLogger } from "./util/logger.ts";
+import { expandPath } from "./util/path";
 
 // -- XDG path helpers ---------------------------------------------------------
 
@@ -32,16 +33,6 @@ function getDataDir(): string {
     return join(xdgDataHome, "opencode-flashback");
   }
   return join(homedir(), ".local", "share", "opencode-flashback");
-}
-
-function expandPath(path: string): string {
-  if (path.startsWith("~/")) {
-    return join(homedir(), path.slice(2));
-  }
-  if (path === "~") {
-    return homedir();
-  }
-  return path;
 }
 
 function parseJsoncStrict(content: string): Record<string, unknown> {

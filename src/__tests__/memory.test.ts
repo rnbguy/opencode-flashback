@@ -38,7 +38,7 @@ mock.module("../embed/embedder.ts", () => ({
   resetEmbedder: () => {},
 }));
 
-mock.module("../search/index.ts", () => ({
+mock.module("../search.ts", () => ({
   initSearch: async () => {},
   hybridSearch: (...args: unknown[]) =>
     mockHybridSearch(...(args as [string, number[], string, number])),

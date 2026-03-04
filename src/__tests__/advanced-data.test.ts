@@ -53,10 +53,10 @@ let addMemory: (typeof import("../core/memory.ts"))["addMemory"];
 let searchMemories: (typeof import("../core/memory.ts"))["searchMemories"];
 let getMemoryById: (typeof import("../core/memory.ts"))["getMemoryById"];
 
-let initSearch: (typeof import("../search/index.ts"))["initSearch"];
-let rebuildIndex: (typeof import("../search/index.ts"))["rebuildIndex"];
-let hybridSearch: (typeof import("../search/index.ts"))["hybridSearch"];
-let markStale: (typeof import("../search/index.ts"))["markStale"];
+let initSearch: (typeof import("../search.ts"))["initSearch"];
+let rebuildIndex: (typeof import("../search.ts"))["rebuildIndex"];
+let hybridSearch: (typeof import("../search.ts"))["hybridSearch"];
+let markStale: (typeof import("../search.ts"))["markStale"];
 
 let embed: (typeof import("../embed/embedder.ts"))["embed"];
 let resetEmbedder: (typeof import("../embed/embedder.ts"))["resetEmbedder"];
@@ -152,7 +152,7 @@ describe("advanced data pipeline", () => {
     searchMemories = memory.searchMemories;
     getMemoryById = memory.getMemoryById;
 
-    const search = await import(`../search/index.ts?adv=${Date.now()}`);
+    const search = await import(`../search.ts?adv=${Date.now()}`);
     initSearch = search.initSearch;
     rebuildIndex = search.rebuildIndex;
     hybridSearch = search.hybridSearch;

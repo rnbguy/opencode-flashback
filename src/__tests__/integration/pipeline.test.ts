@@ -54,7 +54,7 @@ import {
   markStale,
   rebuildIndex,
   getSearchState,
-} from "../../search/index.ts";
+} from "../../search.ts";
 import {
   getDb,
   closeDb,

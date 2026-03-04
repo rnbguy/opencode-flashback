@@ -43,7 +43,7 @@ import {
   countMemories,
 } from "../../db/database.ts";
 import { _setConfigForTesting, _resetConfigForTesting } from "../../config.ts";
-import { initSearch } from "../../search/index.ts";
+import { initSearch } from "../../search.ts";
 import { startServer, stopServer } from "../../web/server.ts";
 import { _resetTagCache, resolveContainerTag } from "../../core/tags.ts";
 import { addMemory } from "../../core/memory.ts";

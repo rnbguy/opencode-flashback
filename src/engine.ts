@@ -35,7 +35,7 @@ import {
   type CaptureRequest,
 } from "./core/capture.ts";
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
-import { initSearch, getSearchState } from "./search/index.ts";
+import { initSearch, getSearchState } from "./search.ts";
 import { getDb, countMemories, closeDb, clearAllData, clearOldData } from "./db/database.ts";
 import { getConfig } from "./config.ts";
 

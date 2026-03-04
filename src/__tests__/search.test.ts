@@ -15,7 +15,7 @@ import {
   rebuildIndex,
   markStale,
   getSearchState,
-} from "../search/index.ts";
+} from "../search.ts";
 
 const defaultConfig: PluginConfig = {
   llm: {

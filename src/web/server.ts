@@ -14,7 +14,7 @@ import {
 import { getOrCreateProfile } from "../core/profile.ts";
 import { resolveContainerTag } from "../core/tags.ts";
 import { getEmbedderState } from "../embed/embedder.ts";
-import { getSearchState } from "../search/index.ts";
+import { getSearchState } from "../search.ts";
 import { getCaptureState } from "../core/capture.ts";
 import { getConfig } from "../config.ts";
 import type { SubsystemState, DiagnosticsResponse } from "../types.ts";

@@ -11,7 +11,7 @@ import {
 import { similarity as mlSimilarity } from "ml-distance";
 import { embed } from "../embed/embedder.ts";
 import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
-import { hybridSearch, initSearch, markStale } from "../search/index.ts";
+import { hybridSearch, initSearch, markStale } from "../search.ts";
 import { resolveContainerTag } from "./tags.ts";
 import { initialSchedule, updateAfterRating } from "./fsrs.ts";
 import type { ContainerTagInfo, Memory, SearchResult } from "../types.ts";
