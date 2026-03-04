@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
-import deepmerge from "deepmerge";
+import { deepmerge } from "deepmerge-ts";
 import type { ParseError } from "jsonc-parser";
 import { parse as parseJsonc } from "jsonc-parser";
 import { homedir } from "os";
