@@ -16,6 +16,11 @@ jobs:
   e2e:
     name: e2e tests
     runs-on: ubuntu-latest
+    services:
+      ollama:
+        image: ollama/ollama
+        ports:
+          - 11434:11434
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -29,15 +34,10 @@ jobs:
       - name: install
         run: bun install --frozen-lockfile
 
-      - name: setup ollama
-        shell: bash
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+      - name: pull ollama models
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          ollama serve &
-          sleep 2
-          ollama pull embeddinggemma:latest && ollama pull kimi-k2.5:cloud
+          curl -sf http://localhost:11434/api/pull -d '{"name":"embeddinggemma:latest"}' > /dev/null
+          curl -sf http://localhost:11434/api/pull -d '{"name":"kimi-k2.5:cloud"}' > /dev/null
 
       - name: build
         run: bun run build

@@ -15,6 +15,11 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      ollama:
+        image: ollama/ollama
+        ports:
+          - 11434:11434
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -28,15 +33,10 @@ jobs:
       - name: install
         run: bun install --frozen-lockfile
 
-      - name: setup ollama
-        shell: bash
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+      - name: pull ollama models
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          ollama serve &
-          sleep 2
-          ollama pull embeddinggemma:latest && ollama pull kimi-k2.5:cloud
+          curl -sf http://localhost:11434/api/pull -d '{"name":"embeddinggemma:latest"}' > /dev/null
+          curl -sf http://localhost:11434/api/pull -d '{"name":"kimi-k2.5:cloud"}' > /dev/null
 
       - name: biome check
         run: bunx biome check .
@@ -54,10 +54,10 @@ jobs:
         shell: bash
         run: |
           bun test --coverage 2>&1 | tee coverage-output.txt
-          AVG=$(awk -F'|' '/^ src\//{gsub(/ /,"",$3); sum+=$3; n++} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
+          AVG=$(awk -F'|' '/^ src\//{if($1 !~ /plugin\.ts/) {gsub(/ /,"",$3); sum+=$3; n++}} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
           echo "Average line coverage: ${AVG}%"
-          if [ "$AVG" -lt 75 ]; then
-            echo "ERROR: Coverage ${AVG}% is below 75% threshold"
+          if [ "$AVG" -lt 90 ]; then
+            echo "ERROR: Coverage ${AVG}% is below 90% threshold"
             exit 1
           fi
 
