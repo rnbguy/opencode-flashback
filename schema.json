@@ -26,12 +26,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "provider",
-        "model",
-        "apiUrl",
-        "apiKey"
-      ],
+      "required": ["provider", "model", "apiUrl", "apiKey"],
       "additionalProperties": false
     },
     "embedding": {
@@ -64,12 +59,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "provider",
-        "model",
-        "apiUrl",
-        "apiKey"
-      ],
+      "required": ["provider", "model", "apiUrl", "apiKey"],
       "additionalProperties": false
     },
     "storage": {
@@ -79,19 +69,12 @@
           "type": "string"
         }
       },
-      "required": [
-        "path"
-      ],
+      "required": ["path"],
       "additionalProperties": false
     },
     "logLevel": {
       "type": "string",
-      "enum": [
-        "debug",
-        "info",
-        "warn",
-        "error"
-      ]
+      "enum": ["debug", "info", "warn", "error"]
     },
     "memory": {
       "type": "object",
@@ -104,10 +87,7 @@
         },
         "injection": {
           "type": "string",
-          "enum": [
-            "first",
-            "every"
-          ]
+          "enum": ["first", "every"]
         },
         "excludeCurrentSession": {
           "type": "boolean"
@@ -134,10 +114,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "port",
-        "enabled"
-      ],
+      "required": ["port", "enabled"],
       "additionalProperties": false
     },
     "search": {
@@ -145,12 +122,7 @@
       "properties": {
         "retrievalQuality": {
           "type": "string",
-          "enum": [
-            "fast",
-            "balanced",
-            "thorough",
-            "custom"
-          ]
+          "enum": ["fast", "balanced", "thorough", "custom"]
         },
         "hybridWeights": {
           "type": "object",
@@ -162,10 +134,7 @@
               "type": "number"
             }
           },
-          "required": [
-            "semantic",
-            "keyword"
-          ],
+          "required": ["semantic", "keyword"],
           "additionalProperties": false
         },
         "rankingWeights": {
@@ -181,17 +150,11 @@
               "type": "number"
             }
           },
-          "required": [
-            "recency",
-            "importance",
-            "semantic"
-          ],
+          "required": ["recency", "importance", "semantic"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "retrievalQuality"
-      ],
+      "required": ["retrievalQuality"],
       "additionalProperties": false
     },
     "toasts": {
@@ -207,11 +170,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "autoCapture",
-        "userProfile",
-        "errors"
-      ],
+      "required": ["autoCapture", "userProfile", "errors"],
       "additionalProperties": false
     },
     "compaction": {
@@ -224,10 +183,7 @@
           "type": "number"
         }
       },
-      "required": [
-        "enabled",
-        "memoryLimit"
-      ],
+      "required": ["enabled", "memoryLimit"],
       "additionalProperties": false
     }
   },
