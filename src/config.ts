@@ -368,6 +368,21 @@ function loadConfigFile(): PluginConfig {
     const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     _configErrors.push(`Config validation failed: ${issues}`);
     logger.error("loadConfigFile validation failed", { issues });
+
+    // Backup invalid config files and regenerate defaults
+    for (const source of loadedConfigFiles) {
+      const sourcePath = join(configDir, source);
+      const bakPath = sourcePath + ".bak";
+      try {
+        const content = readFileSync(sourcePath, "utf-8");
+        writeFileSync(bakPath, content, "utf-8");
+        logger.warn("loadConfigFile backed up invalid config", { source: sourcePath, backup: bakPath });
+      } catch {
+        // best-effort backup -- read-only filesystem or permissions issue
+      }
+    }
+    generateDefaultConfig(jsoncPath, defaults);
+
     return defaults;
   }
 
