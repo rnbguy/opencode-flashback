@@ -223,7 +223,7 @@ function handleDiagnostics(directory: string): Response {
     memoryCount: memCount,
     dbSizeBytes,
     dbPath,
-    embeddingModel: "onnx-community/embeddinggemma-300m-ONNX",
+    embeddingModel: config.embedding?.model ?? "embeddinggemma:latest",
     subsystems,
     version: "0.1.0",
   };

@@ -112,6 +112,13 @@ export interface LlmConfig {
   apiKey: string;
 }
 
+export interface EmbeddingConfig {
+  provider: LLMProvider;
+  model: string;
+  apiUrl: string;
+  apiKey: string;
+}
+
 export interface StorageConfig {
   path: string;
 }
@@ -162,7 +169,8 @@ export type LLMProvider =
   | "openai-responses"
   | "anthropic"
   | "gemini"
-  | "generic";
+  | "generic"
+  | "ollama";
 export type ExportFormat = "json" | "markdown";
 
 // -- API response types ----------------------------------------------------

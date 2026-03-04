@@ -37,6 +37,7 @@ import {
 import { embed, getEmbedderState, resetEmbedder } from "./embed/embedder.ts";
 import { initSearch, getSearchState } from "./search/index.ts";
 import { getDb, countMemories, closeDb, clearAllData, clearOldData } from "./db/database.ts";
+import { getConfig } from "./config.ts";
 
 export interface MemoryEngine {
   addMemory(
@@ -127,7 +128,7 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
         memoryCount,
         dbSizeBytes,
         dbPath,
-        embeddingModel: "onnx-community/embeddinggemma-300m-ONNX",
+        embeddingModel: getConfig().embedding?.model ?? "embeddinggemma:latest",
         subsystems: {
           embedder: getEmbedderState(),
           search: getSearchState(),

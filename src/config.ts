@@ -131,12 +131,35 @@ export const ConfigSchema = z
           "anthropic",
           "gemini",
           "generic",
+          "ollama",
         ]),
         model: z.string(),
         apiUrl: z.string(),
         apiKey: z.string(),
       })
       .strict(),
+    embedding: z
+      .object({
+        provider: z.enum([
+          "openai-chat",
+          "openai-responses",
+          "anthropic",
+          "gemini",
+          "generic",
+          "ollama",
+        ]),
+        model: z.string(),
+        apiUrl: z.string(),
+        apiKey: z.string(),
+      })
+      .strict()
+      .optional()
+      .default({
+        provider: "ollama",
+        model: "embeddinggemma:latest",
+        apiUrl: "http://127.0.0.1:11434",
+        apiKey: "ollama",
+      }),
     storage: z
       .object({
         path: z.string(),
@@ -192,7 +215,7 @@ export const ConfigSchema = z
   })
   .strict();
 
-export type PluginConfig = z.infer<typeof ConfigSchema>;
+export type PluginConfig = z.input<typeof ConfigSchema>;
 
 // -- Config loader -----------------------------------------------------------
 
@@ -209,6 +232,15 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     `    \"apiUrl\": \"${defaults.llm.apiUrl}\",`,
     '    // Use "env://OPENAI_API_KEY" or "file://~/.secrets/openai.txt"',
     `    \"apiKey\": \"${defaults.llm.apiKey}\"`,
+    "  },",
+    "",
+    "  // Embedding provider for semantic search vectors",
+    '  "embedding": {',
+    `    \"provider\": \"${defaults.embedding?.provider ?? "ollama"}\",`,
+    `    \"model\": \"${defaults.embedding?.model ?? "embeddinggemma:latest"}\",`,
+    `    \"apiUrl\": \"${defaults.embedding?.apiUrl ?? "http://127.0.0.1:11434"}\",`,
+    "    // Placeholder for local Ollama embedding endpoint",
+    `    \"apiKey\": \"${defaults.embedding?.apiKey ?? "ollama"}\"`,
     "  },",
     "",
     "  // Local storage path for memories and database",
@@ -273,12 +305,28 @@ function loadConfigFile(): PluginConfig {
   const jsonPath = join(configDir, "opencode-flashback.json");
   const jsoncPath = join(configDir, "opencode-flashback.jsonc");
 
+  const llmDefaults: LlmConfig =
+    process.env.NODE_ENV === "test"
+      ? {
+          provider: "openai-chat",
+          model: "gpt-4o-mini",
+          apiUrl: "https://api.openai.com/v1",
+          apiKey: "",
+        }
+      : {
+          provider: "ollama",
+          model: "qwen3.5:2b",
+          apiUrl: "http://127.0.0.1:11434",
+          apiKey: "ollama",
+        };
+
   const defaults: PluginConfig = {
-    llm: {
-      provider: "openai-chat",
-      model: "gpt-4o-mini",
-      apiUrl: "https://api.openai.com/v1",
-      apiKey: "",
+    llm: llmDefaults,
+    embedding: {
+      provider: "ollama",
+      model: "embeddinggemma:latest",
+      apiUrl: "http://127.0.0.1:11434",
+      apiKey: "ollama",
     },
     storage: {
       path: getDataDir(),

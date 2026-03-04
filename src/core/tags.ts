@@ -18,9 +18,15 @@ function sha256hex16(input: string): string {
 
 function gitCmd(args: string[], cwd?: string): string | null {
   try {
+    const env = { ...process.env };
+    delete env.GIT_DIR;
+    delete env.GIT_WORK_TREE;
+    delete env.GIT_INDEX_FILE;
+
     const result = Bun.spawnSync(["git", ...args], {
       cwd,
       stderr: "ignore",
+      env,
     });
     if (result.exitCode !== 0) return null;
     const output = result.stdout.toString().trim();

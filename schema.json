@@ -12,7 +12,46 @@
             "openai-responses",
             "anthropic",
             "gemini",
-            "generic"
+            "generic",
+            "ollama"
+          ]
+        },
+        "model": {
+          "type": "string"
+        },
+        "apiUrl": {
+          "type": "string"
+        },
+        "apiKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "apiUrl",
+        "apiKey"
+      ],
+      "additionalProperties": false
+    },
+    "embedding": {
+      "default": {
+        "provider": "ollama",
+        "model": "embeddinggemma:latest",
+        "apiUrl": "http://127.0.0.1:11434",
+        "apiKey": "ollama"
+      },
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "openai-chat",
+            "openai-responses",
+            "anthropic",
+            "gemini",
+            "generic",
+            "ollama"
           ]
         },
         "model": {
@@ -194,6 +233,7 @@
   },
   "required": [
     "llm",
+    "embedding",
     "storage",
     "memory",
     "web",

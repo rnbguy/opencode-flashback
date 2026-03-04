@@ -157,6 +157,7 @@ async function callProvider(
     case "gemini":
       return callGemini(options);
     case "generic":
+    case "ollama":
       return callGeneric(options);
   }
 }
@@ -764,6 +765,7 @@ async function validateProvider(
     case "openai-chat":
     case "openai-responses":
     case "generic":
+    case "ollama":
       return validateOpenAICompatible(apiUrl, apiKey, model);
     case "anthropic":
       return validateAnthropic(apiUrl, apiKey, model);
