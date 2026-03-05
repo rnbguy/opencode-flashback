@@ -38,6 +38,9 @@ jobs:
           curl -sf http://localhost:11434/api/pull -d '{"name":"embeddinggemma:latest"}' > /dev/null
           curl -sf http://localhost:11434/api/pull -d '{"name":"kimi-k2.5:cloud"}' > /dev/null
 
+      - name: build
+        run: bun run build
+
       - name: test with coverage
         run: bun run test:coverage
 
