@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS memories (
   container_tag TEXT NOT NULL,
   tags TEXT,
   type TEXT,
-  is_PINNED INTEGER DEFAULT 0,
+  is_starred INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   metadata TEXT,
@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS memories (
 CREATE INDEX IF NOT EXISTS idx_memories_container_tag ON memories(container_tag);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type);
 CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_memories_is_PINNED ON memories(is_PINNED);
+CREATE INDEX IF NOT EXISTS idx_memories_is_starred ON memories(is_starred);
 CREATE INDEX IF NOT EXISTS idx_memories_last_accessed ON memories(last_accessed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_evicted ON memories(evicted_at);
 CREATE INDEX IF NOT EXISTS idx_memories_suspended ON memories(suspended);
@@ -203,13 +203,6 @@ SET
     ELSE next_review_at
   END
 WHERE next_review_at IS NULL OR stability <= 0.0;`,
-  },
-  {
-    version: 3,
-    sql: `
-DROP INDEX IF EXISTS idx_memories_is_PINNED;
-ALTER TABLE memories RENAME COLUMN is_PINNED TO is_starred;
-CREATE INDEX IF NOT EXISTS idx_memories_is_starred ON memories(is_starred);`,
   },
 ];
 
