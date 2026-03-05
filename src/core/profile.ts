@@ -31,16 +31,19 @@ const PreferenceSchema = z.object({
   description: z.string().min(1),
   confidence: z.number().min(0).max(1),
   evidence: z.array(z.string()).optional(),
+  isStarred: z.boolean().optional().default(false),
 });
 
 const PatternSchema = z.object({
   category: z.string().min(1),
   description: z.string().min(1),
+  isStarred: z.boolean().optional().default(false),
 });
 
 const WorkflowSchema = z.object({
   description: z.string().min(1),
   steps: z.array(z.string().min(1)).min(2),
+  isStarred: z.boolean().optional().default(false),
 });
 
 const ProfileDataSchema = z.object({
@@ -58,6 +61,8 @@ type NormalizedProfileData = {
   patterns: ProfilePattern[];
   workflows: ProfileWorkflow[];
 };
+
+type ProfileSection = "preferences" | "patterns" | "workflows";
 
 const defaultDeps: ProfileDeps = {
   callLLMWithTool,
@@ -183,11 +188,83 @@ export function decayConfidence(userId: string, decayFactor = 0.95): void {
       ...preference,
       confidence: preference.confidence * decayFactor,
     })),
-    patterns: normalized.patterns,
-    workflows: normalized.workflows,
+    patterns: profile.profileData.patterns,
+    workflows: profile.profileData.workflows,
   };
 
   updateProfile(db, { ...profile, profileData: decayed });
+}
+
+export function starProfileItem(
+  userId: string,
+  section: ProfileSection,
+  index: number,
+): boolean {
+  const logger = getLogger();
+  const updated = updateProfileItemByIndex(userId, section, index, (item) => ({
+    ...item,
+    isStarred: true,
+  }));
+  logger.debug("starProfileItem completed", {
+    userId,
+    section,
+    index,
+    success: updated,
+  });
+  return updated;
+}
+
+export function unstarProfileItem(
+  userId: string,
+  section: ProfileSection,
+  index: number,
+): boolean {
+  const logger = getLogger();
+  const updated = updateProfileItemByIndex(userId, section, index, (item) => ({
+    ...item,
+    isStarred: false,
+  }));
+  logger.debug("unstarProfileItem completed", {
+    userId,
+    section,
+    index,
+    success: updated,
+  });
+  return updated;
+}
+
+export function deleteProfileItem(
+  userId: string,
+  section: ProfileSection,
+  index: number,
+): boolean {
+  const logger = getLogger();
+  const db = getDb();
+  const profile = getOrCreateProfile(userId);
+  const normalized = sortProfileDataForDisplay(
+    normalizeProfileData(profile.profileData),
+  );
+  const items = getSectionItems(normalized, section);
+  if (index < 0 || index >= items.length) {
+    logger.debug("deleteProfileItem completed", {
+      userId,
+      section,
+      index,
+      success: false,
+    });
+    return false;
+  }
+
+  items.splice(index, 1);
+  setSectionItems(normalized, section, items);
+  updateProfile(db, { ...profile, profileData: normalized });
+  logger.debug("deleteProfileItem completed", {
+    userId,
+    section,
+    index,
+    success: true,
+  });
+  return true;
 }
 
 // -- Internal helpers ---------------------------------------------------------
@@ -237,6 +314,77 @@ function normalizeProfileData(
   };
 }
 
+function sortProfileDataForDisplay(
+  profileData: NormalizedProfileData,
+): NormalizedProfileData {
+  return {
+    preferences: [...profileData.preferences].sort(
+      (a, b) =>
+        Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)) ||
+        b.confidence - a.confidence,
+    ),
+    patterns: [...profileData.patterns].sort(
+      (a, b) => Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)),
+    ),
+    workflows: [...profileData.workflows].sort(
+      (a, b) => Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)),
+    ),
+  };
+}
+
+function getSectionItems(
+  profileData: NormalizedProfileData,
+  section: ProfileSection,
+): (ProfilePreference | ProfilePattern | ProfileWorkflow)[] {
+  if (section === "preferences") {
+    return profileData.preferences;
+  }
+  if (section === "patterns") {
+    return profileData.patterns;
+  }
+  return profileData.workflows;
+}
+
+function setSectionItems(
+  profileData: NormalizedProfileData,
+  section: ProfileSection,
+  items: (ProfilePreference | ProfilePattern | ProfileWorkflow)[],
+): void {
+  if (section === "preferences") {
+    profileData.preferences = items as ProfilePreference[];
+    return;
+  }
+  if (section === "patterns") {
+    profileData.patterns = items as ProfilePattern[];
+    return;
+  }
+  profileData.workflows = items as ProfileWorkflow[];
+}
+
+function updateProfileItemByIndex(
+  userId: string,
+  section: ProfileSection,
+  index: number,
+  updater: (
+    item: ProfilePreference | ProfilePattern | ProfileWorkflow,
+  ) => ProfilePreference | ProfilePattern | ProfileWorkflow,
+): boolean {
+  const db = getDb();
+  const profile = getOrCreateProfile(userId);
+  const normalized = sortProfileDataForDisplay(
+    normalizeProfileData(profile.profileData),
+  );
+  const items = getSectionItems(normalized, section);
+  if (index < 0 || index >= items.length) {
+    return false;
+  }
+
+  items[index] = updater(items[index]);
+  setSectionItems(normalized, section, items);
+  updateProfile(db, { ...profile, profileData: normalized });
+  return true;
+}
+
 function toPreferenceArray(value: unknown): ProfilePreference[] {
   const isCorruptedPreference = (item: ProfilePreference): boolean => {
     const hasNumericCategory = /^\d+$/.test(item.category);
@@ -255,6 +403,7 @@ function toPreferenceArray(value: unknown): ProfilePreference[] {
         category: String(item.category ?? "General"),
         description: String(item.description ?? ""),
         confidence: typeof item.confidence === "number" ? item.confidence : 0.7,
+        isStarred: item.isStarred === true,
         ...(Array.isArray(item.evidence)
           ? { evidence: item.evidence.map(String) }
           : {}),
@@ -271,6 +420,7 @@ function toPreferenceArray(value: unknown): ProfilePreference[] {
             description: String(obj.description ?? ""),
             confidence:
               typeof obj.confidence === "number" ? obj.confidence : 0.7,
+            isStarred: obj.isStarred === true,
           };
         }
 
@@ -278,6 +428,7 @@ function toPreferenceArray(value: unknown): ProfilePreference[] {
           category: k,
           description: String(v ?? ""),
           confidence: typeof v === "number" ? v : 0.7,
+          isStarred: false,
         };
       })
       .filter((item) => !isCorruptedPreference(item));
@@ -302,6 +453,7 @@ function toPatternArray(value: unknown): ProfilePattern[] {
       .map((item) => ({
         category: String(item.category ?? "General"),
         description: String(item.description ?? ""),
+        isStarred: item.isStarred === true,
       }))
       .filter((item) => !isCorruptedPattern(item));
   }
@@ -313,12 +465,14 @@ function toPatternArray(value: unknown): ProfilePattern[] {
           return {
             category: String(obj.category ?? k),
             description: String(obj.description ?? ""),
+            isStarred: obj.isStarred === true,
           };
         }
 
         return {
           category: k,
           description: String(v ?? ""),
+          isStarred: false,
         };
       })
       .filter((item) => !isCorruptedPattern(item));
@@ -340,6 +494,7 @@ function toWorkflowArray(value: unknown): ProfileWorkflow[] {
       .map((item) => ({
         description: String(item.description ?? ""),
         steps: Array.isArray(item.steps) ? item.steps.map(String) : [],
+        isStarred: item.isStarred === true,
       }))
       .filter((item) => !isCorruptedWorkflow(item));
   }
@@ -351,12 +506,14 @@ function toWorkflowArray(value: unknown): ProfileWorkflow[] {
           return {
             description: String(obj.description ?? k),
             steps: Array.isArray(obj.steps) ? obj.steps.map(String) : [],
+            isStarred: obj.isStarred === true,
           };
         }
 
         return {
           description: k,
           steps: typeof v === "string" ? [v] : [],
+          isStarred: false,
         };
       })
       .filter((item) => !isCorruptedWorkflow(item));

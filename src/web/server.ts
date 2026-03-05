@@ -13,7 +13,12 @@ import {
   starMemory,
   unstarMemory,
 } from "../core/memory.ts";
-import { getOrCreateProfile } from "../core/profile.ts";
+import {
+  deleteProfileItem,
+  getOrCreateProfile,
+  starProfileItem,
+  unstarProfileItem,
+} from "../core/profile.ts";
 import { resolveContainerTag } from "../core/tags.ts";
 import { countMemories, getDb } from "../db/database.ts";
 import { getSearchState } from "../search.ts";
@@ -179,6 +184,33 @@ async function handleRequest(
 
     if (path === "/api/profile" && method === "GET") {
       return handleGetProfile(directory);
+    }
+
+    if (
+      path.match(
+        /^\/api\/profile\/items\/(preferences|patterns|workflows)\/\d+\/star$/,
+      ) &&
+      method === "POST"
+    ) {
+      return handleStarProfileItem(path, directory);
+    }
+
+    if (
+      path.match(
+        /^\/api\/profile\/items\/(preferences|patterns|workflows)\/\d+\/unstar$/,
+      ) &&
+      method === "POST"
+    ) {
+      return handleUnstarProfileItem(path, directory);
+    }
+
+    if (
+      path.match(
+        /^\/api\/profile\/items\/(preferences|patterns|workflows)\/\d+$/,
+      ) &&
+      method === "DELETE"
+    ) {
+      return handleDeleteProfileItem(path, directory);
     }
 
     // Static files
@@ -360,6 +392,54 @@ function handleGetProfile(directory: string): Response {
   return jsonResponse(profile);
 }
 
+function handleStarProfileItem(path: string, directory: string): Response {
+  const parsed = parseProfileItemPath(path, true);
+  if (!parsed) {
+    return jsonResponse({ error: "Invalid section or index" }, 400);
+  }
+
+  const tagInfo = resolveContainerTag(directory);
+  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const success = starProfileItem(userId, parsed.section, parsed.index);
+  if (!success) {
+    return jsonResponse({ error: "Profile item not found" }, 404);
+  }
+
+  return jsonResponse({ success: true });
+}
+
+function handleUnstarProfileItem(path: string, directory: string): Response {
+  const parsed = parseProfileItemPath(path, true);
+  if (!parsed) {
+    return jsonResponse({ error: "Invalid section or index" }, 400);
+  }
+
+  const tagInfo = resolveContainerTag(directory);
+  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const success = unstarProfileItem(userId, parsed.section, parsed.index);
+  if (!success) {
+    return jsonResponse({ error: "Profile item not found" }, 404);
+  }
+
+  return jsonResponse({ success: true });
+}
+
+function handleDeleteProfileItem(path: string, directory: string): Response {
+  const parsed = parseProfileItemPath(path, false);
+  if (!parsed) {
+    return jsonResponse({ error: "Invalid section or index" }, 400);
+  }
+
+  const tagInfo = resolveContainerTag(directory);
+  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const success = deleteProfileItem(userId, parsed.section, parsed.index);
+  if (!success) {
+    return jsonResponse({ error: "Profile item not found" }, 404);
+  }
+
+  return jsonResponse({ success: true });
+}
+
 // -- Security helpers -------------------------------------------------------
 
 function isLocalhostRequest(req: Request): boolean {
@@ -445,4 +525,34 @@ function extractIdFromPath(path: string): string | null {
   const parts = path.split("/");
   const id = parts[3];
   return id && id.length > 0 ? id : null;
+}
+
+function parseProfileItemPath(
+  path: string,
+  hasActionSuffix: boolean,
+): {
+  section: "preferences" | "patterns" | "workflows";
+  index: number;
+} | null {
+  const parts = path.split("/");
+  const section = parts[4];
+  const indexRaw = parts[5];
+  const suffix = hasActionSuffix ? parts[6] : "";
+  if (
+    section !== "preferences" &&
+    section !== "patterns" &&
+    section !== "workflows"
+  ) {
+    return null;
+  }
+
+  const index = Number.parseInt(indexRaw ?? "", 10);
+  if (!Number.isInteger(index) || index < 0) {
+    return null;
+  }
+  if (hasActionSuffix && suffix !== "star" && suffix !== "unstar") {
+    return null;
+  }
+
+  return { section, index };
 }

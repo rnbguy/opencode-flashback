@@ -451,6 +451,41 @@ async function toggleStar(id: string, isStarred: boolean): Promise<void> {
   }
 }
 
+type ProfileSection = "preferences" | "patterns" | "workflows";
+type ProfileItemAction = "star" | "unstar" | "delete";
+
+async function mutateProfileItem(
+  section: ProfileSection,
+  index: number,
+  action: ProfileItemAction,
+): Promise<void> {
+  let endpoint = `/api/profile/items/${section}/${index}`;
+  let method: "POST" | "DELETE" = "POST";
+
+  if (action === "star") {
+    endpoint += "/star";
+  } else if (action === "unstar") {
+    endpoint += "/unstar";
+  } else {
+    method = "DELETE";
+  }
+
+  const result = await fetchAPI(endpoint, { method });
+  if (result.success) {
+    showToast(
+      action === "delete"
+        ? "Profile item deleted"
+        : action === "star"
+          ? "Profile item starred"
+          : "Profile item unstarred",
+      "success",
+    );
+    await loadProfile();
+  } else {
+    showToast(result.error || "Failed to update profile item", "error");
+  }
+}
+
 function performSearch(): void {
   const query = (
     document.getElementById("search-input") as HTMLInputElement
@@ -617,10 +652,15 @@ function renderUserProfile(): void {
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   const preferences = parseField(profileData.preferences).sort(
     (a, b) =>
+      Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)) ||
       (Number(b.confidence ?? 0) || 0) - (Number(a.confidence ?? 0) || 0),
   );
-  const patterns = parseField(profileData.patterns);
-  const workflows = parseField(profileData.workflows);
+  const patterns = parseField(profileData.patterns).sort(
+    (a, b) => Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)),
+  );
+  const workflows = parseField(profileData.workflows).sort(
+    (a, b) => Number(Boolean(b.isStarred)) - Number(Boolean(a.isStarred)),
+  );
 
   const pageSize = getProfilePageSize();
 
@@ -687,11 +727,20 @@ function renderUserProfile(): void {
             : `
           <div class="cards-grid">
             ${prefSlice
-              .map(
-                (p) => `
+              .map((p, i) => {
+                const isStarred = p.isStarred === true;
+                return `
               <div class="compact-card preference-card">
                 <div class="card-top">
                   <span class="category-tag">${escapeHtml(String(p.category ?? "General"))}</span>
+                  <div class="profile-item-actions">
+                    <button class="btn-star-profile${isStarred ? " starred" : ""}" data-profile-action="${isStarred ? "unstar-preference" : "star-preference"}" data-index="${prefStart + i}" title="${isStarred ? "Unstar" : "Star"} preference">
+                      <i data-lucide="star" class="icon icon-sm${isStarred ? " icon-filled" : ""}"></i>
+                    </button>
+                    <button class="btn-delete-profile" data-profile-action="delete-preference" data-index="${prefStart + i}" title="Delete preference">
+                      <i data-lucide="trash-2" class="icon icon-sm"></i>
+                    </button>
+                  </div>
                   <div class="confidence-ring" style="--p:${Math.round((Number(p.confidence ?? 0) || 0) * 100)}">
                     <span>${Math.round((Number(p.confidence ?? 0) || 0) * 100)}%</span>
                   </div>
@@ -712,8 +761,8 @@ function renderUserProfile(): void {
                     : ""
                 }
               </div>
-            `,
-              )
+            `;
+              })
               .join("")}
           </div>
         `
@@ -743,18 +792,27 @@ function renderUserProfile(): void {
             : `
           <div class="cards-grid">
             ${patternSlice
-              .map(
-                (p) => `
+              .map((p, i) => {
+                const isStarred = p.isStarred === true;
+                return `
               <div class="compact-card pattern-card">
                 <div class="card-top">
                   <span class="category-tag">${escapeHtml(String(p.category ?? "General"))}</span>
+                  <div class="profile-item-actions">
+                    <button class="btn-star-profile${isStarred ? " starred" : ""}" data-profile-action="${isStarred ? "unstar-pattern" : "star-pattern"}" data-index="${patternStart + i}" title="${isStarred ? "Unstar" : "Star"} pattern">
+                      <i data-lucide="star" class="icon icon-sm${isStarred ? " icon-filled" : ""}"></i>
+                    </button>
+                    <button class="btn-delete-profile" data-profile-action="delete-pattern" data-index="${patternStart + i}" title="Delete pattern">
+                      <i data-lucide="trash-2" class="icon icon-sm"></i>
+                    </button>
+                  </div>
                 </div>
                 <div class="card-body">
                   <p class="card-text">${escapeHtml(String(p.description ?? ""))}</p>
                 </div>
               </div>
-            `,
-              )
+            `;
+              })
               .join("")}
           </div>
         `
@@ -784,10 +842,21 @@ function renderUserProfile(): void {
             : `
           <div class="workflows-grid">
             ${workflowSlice
-              .map(
-                (w) => `
+              .map((w, i) => {
+                const isStarred = w.isStarred === true;
+                return `
               <div class="workflow-row">
-                <div class="workflow-title">${escapeHtml(String(w.description ?? ""))}</div>
+                <div class="card-top">
+                  <div class="workflow-title">${escapeHtml(String(w.description ?? ""))}</div>
+                  <div class="profile-item-actions">
+                    <button class="btn-star-profile${isStarred ? " starred" : ""}" data-profile-action="${isStarred ? "unstar-workflow" : "star-workflow"}" data-index="${workflowStart + i}" title="${isStarred ? "Unstar" : "Star"} workflow">
+                      <i data-lucide="star" class="icon icon-sm${isStarred ? " icon-filled" : ""}"></i>
+                    </button>
+                    <button class="btn-delete-profile" data-profile-action="delete-workflow" data-index="${workflowStart + i}" title="Delete workflow">
+                      <i data-lucide="trash-2" class="icon icon-sm"></i>
+                    </button>
+                  </div>
+                </div>
                 <div class="workflow-steps-horizontal">
                   ${(Array.isArray(w.steps) ? w.steps : [])
                     .map(
@@ -802,8 +871,8 @@ function renderUserProfile(): void {
                     .join("")}
                 </div>
               </div>
-            `,
-              )
+            `;
+              })
               .join("")}
           </div>
         `
@@ -815,9 +884,13 @@ function renderUserProfile(): void {
   container
     .querySelectorAll("button[data-profile-action]")
     .forEach((button) => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const action = (button as HTMLButtonElement).dataset.profileAction;
         if (!action) return;
+        const index = Number.parseInt(
+          (button as HTMLButtonElement).dataset.index ?? "",
+          10,
+        );
 
         if (action === "prev-preference") {
           preferencePage = Math.max(0, preferencePage - 1);
@@ -836,7 +909,44 @@ function renderUserProfile(): void {
           workflowPage = Math.min(workflowTotalPages - 1, workflowPage + 1);
         }
 
-        void loadProfile();
+        if (
+          action === "prev-preference" ||
+          action === "next-preference" ||
+          action === "prev-pattern" ||
+          action === "next-pattern" ||
+          action === "prev-workflow" ||
+          action === "next-workflow"
+        ) {
+          void loadProfile();
+          return;
+        }
+
+        if (!Number.isInteger(index) || index < 0) {
+          return;
+        }
+
+        if (action === "star-preference") {
+          await mutateProfileItem("preferences", index, "star");
+        } else if (action === "unstar-preference") {
+          await mutateProfileItem("preferences", index, "unstar");
+        } else if (action === "delete-preference") {
+          if (!confirm("Delete this item?")) return;
+          await mutateProfileItem("preferences", index, "delete");
+        } else if (action === "star-pattern") {
+          await mutateProfileItem("patterns", index, "star");
+        } else if (action === "unstar-pattern") {
+          await mutateProfileItem("patterns", index, "unstar");
+        } else if (action === "delete-pattern") {
+          if (!confirm("Delete this item?")) return;
+          await mutateProfileItem("patterns", index, "delete");
+        } else if (action === "star-workflow") {
+          await mutateProfileItem("workflows", index, "star");
+        } else if (action === "unstar-workflow") {
+          await mutateProfileItem("workflows", index, "unstar");
+        } else if (action === "delete-workflow") {
+          if (!confirm("Delete this item?")) return;
+          await mutateProfileItem("workflows", index, "delete");
+        }
       });
     });
 

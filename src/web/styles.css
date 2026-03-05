@@ -1027,6 +1027,44 @@ textarea:focus-visible {
   margin-bottom: 8px;
 }
 
+.profile-item-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.profile-item-actions button {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.2s;
+}
+
+.profile-item-actions button .icon {
+  margin-right: 0;
+}
+
+.profile-item-actions button:hover {
+  opacity: 1;
+}
+
+.profile-item-actions .btn-star-profile {
+  color: var(--warning);
+}
+
+.profile-item-actions .btn-star-profile.starred {
+  opacity: 1;
+}
+
+.profile-item-actions .btn-delete-profile {
+  color: var(--danger);
+}
+
 .category-tag {
   font-size: 9px;
   text-transform: uppercase;

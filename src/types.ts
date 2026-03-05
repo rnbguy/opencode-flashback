@@ -51,16 +51,19 @@ export interface ProfilePreference {
   description: string;
   confidence: number;
   evidence?: string[];
+  isStarred?: boolean;
 }
 
 export interface ProfilePattern {
   category: string;
   description: string;
+  isStarred?: boolean;
 }
 
 export interface ProfileWorkflow {
   description: string;
   steps: string[];
+  isStarred?: boolean;
 }
 
 export interface UserProfile {
