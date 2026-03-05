@@ -322,7 +322,7 @@ describe("starMemory", () => {
 // -- unstarMemory --------------------------------------------------------------
 
 describe("unstarMemory", () => {
-  test("unpins an existing memory", async () => {
+  test("unstars an existing memory", async () => {
     const db = getDb();
     insertMemory(
       db,

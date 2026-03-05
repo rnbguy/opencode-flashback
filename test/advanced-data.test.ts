@@ -260,7 +260,7 @@ describe("advanced data pipeline", () => {
 
       for (let i = 0; i < 590; i++) {
         await addMemory({
-          content: `unpinned-${i}`,
+          content: `unstarred-${i}`,
           containerTag: tag,
           isStarred: false,
         });
