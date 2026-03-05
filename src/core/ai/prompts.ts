@@ -7,12 +7,6 @@
 
 import type { ToolSchema } from "./generate.ts";
 
-// -- Validation (health check) ------------------------------------------------
-
-export const VALIDATION_SYSTEM_PROMPT = "You are a health check assistant.";
-
-export const VALIDATION_PROMPT = 'Return the JSON object {"ok":true}.';
-
 // -- Capture (memory extraction) ----------------------------------------------
 
 export const getCaptureSystemPrompt = (langName: string): string =>

@@ -6,6 +6,7 @@ import {
   _resetGenerateDepsForTesting,
   _setGenerateDepsForTesting,
   callLLMWithTool,
+  getAvailableModels,
   type LLMCallOptions,
   type ToolSchema,
   validateLLMEndpoint,
@@ -285,86 +286,167 @@ describe("callLLMWithTool", () => {
 });
 
 describe("validateLLMEndpoint", () => {
-  test("returns ok true when endpoint responds", async () => {
-    mockGenerateText.mockResolvedValueOnce({
-      output: { ok: true } as Record<string, unknown>,
-    });
+  const mockFetch = mock((_url: string | URL | Request, _init?: RequestInit) =>
+    Promise.resolve(new Response(null, { status: 200 })),
+  );
 
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    _setGenerateDepsForTesting({
+      fetch: mockFetch as unknown as typeof fetch,
+    });
+  });
+
+  test("returns ok true when endpoint responds with 200", async () => {
     const result = await validateLLMEndpoint();
 
     expect(result).toEqual({ ok: true });
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  test("returns timeout on AbortError", async () => {
-    _setConfigForTesting({
-      ...baseConfig,
-      llm: {
-        ...baseConfig.llm,
-        apiKey: "test-key",
-      },
-    });
-    mockGenerateText.mockRejectedValueOnce(makeAbortError());
+  test("calls correct URL for ollama provider", async () => {
+    _setConfigForTesting(
+      makeTestConfig({
+        llm: { provider: "ollama", apiUrl: "http://localhost:11434" },
+      }),
+    );
+
+    await validateLLMEndpoint();
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe("http://localhost:11434/v1/models");
+  });
+
+  test("calls correct URL for openai-chat provider", async () => {
+    _setConfigForTesting(
+      makeTestConfig({
+        llm: {
+          provider: "openai-chat",
+          apiUrl: "https://api.openai.com/v1",
+          apiKey: "sk-test",
+        },
+      }),
+    );
+
+    await validateLLMEndpoint();
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe("https://api.openai.com/v1/models");
+  });
+
+  test("returns timeout on TimeoutError", async () => {
+    const err = new Error("TimeoutError");
+    err.name = "TimeoutError";
+    mockFetch.mockRejectedValueOnce(err);
 
     const result = await validateLLMEndpoint();
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("timed out");
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
   test("returns invalid API key for 401", async () => {
-    _setConfigForTesting({
-      ...baseConfig,
-      llm: {
-        ...baseConfig.llm,
-        apiKey: "test-key",
-      },
-    });
-    mockGenerateText.mockRejectedValueOnce(
-      makeApiCallError("Unauthorized", 401),
+    mockFetch.mockResolvedValueOnce(
+      new Response(null, { status: 401, statusText: "Unauthorized" }),
     );
 
     const result = await validateLLMEndpoint();
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Invalid or unauthorized API key");
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
   test("returns model not found for 404", async () => {
-    _setConfigForTesting({
-      ...baseConfig,
-      llm: {
-        ...baseConfig.llm,
-        apiKey: "test-key",
-      },
-    });
-    mockGenerateText.mockRejectedValueOnce(
-      makeApiCallError("Model not found", 404),
+    mockFetch.mockResolvedValueOnce(
+      new Response(null, { status: 404, statusText: "Not Found" }),
     );
 
     const result = await validateLLMEndpoint();
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Model not found");
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
   test("returns endpoint unreachable for network errors", async () => {
-    _setConfigForTesting({
-      ...baseConfig,
-      llm: {
-        ...baseConfig.llm,
-        apiKey: "test-key",
-      },
-    });
-    mockGenerateText.mockRejectedValueOnce(new Error("ECONNREFUSED 127.0.0.1"));
+    mockFetch.mockRejectedValueOnce(new Error("ECONNREFUSED 127.0.0.1"));
 
     const result = await validateLLMEndpoint();
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("LLM endpoint unreachable");
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("getAvailableModels", () => {
+  const mockFetch = mock((_url: string | URL | Request, _init?: RequestInit) =>
+    Promise.resolve(new Response(null, { status: 200 })),
+  );
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    _setGenerateDepsForTesting({
+      fetch: mockFetch as unknown as typeof fetch,
+    });
+  });
+
+  test("sends Authorization header for openai providers", async () => {
+    _setConfigForTesting(
+      makeTestConfig({
+        llm: {
+          provider: "openai-chat",
+          apiUrl: "https://api.openai.com/v1",
+          apiKey: "sk-test-key",
+        },
+      }),
+    );
+
+    await getAvailableModels();
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer sk-test-key",
+    );
+  });
+
+  test("sends x-api-key header for anthropic", async () => {
+    _setConfigForTesting(
+      makeTestConfig({
+        llm: {
+          provider: "anthropic",
+          apiUrl: "https://api.anthropic.com/v1",
+          apiKey: "sk-ant-test",
+        },
+      }),
+    );
+
+    await getAvailableModels();
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(url).toBe("https://api.anthropic.com/v1/models");
+    expect((init.headers as Record<string, string>)["x-api-key"]).toBe(
+      "sk-ant-test",
+    );
+  });
+
+  test("sends key as query param for gemini", async () => {
+    _setConfigForTesting(
+      makeTestConfig({
+        llm: {
+          provider: "gemini",
+          apiUrl: "https://generativelanguage.googleapis.com/v1beta",
+          apiKey: "gemini-key",
+        },
+      }),
+    );
+
+    await getAvailableModels();
+
+    const url = mockFetch.mock.calls[0]?.[0] as string;
+    expect(url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models?key=gemini-key",
+    );
   });
 });

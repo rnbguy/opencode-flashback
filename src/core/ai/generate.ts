@@ -8,11 +8,7 @@ import {
 import { getConfig } from "../../config";
 import type { LLMProvider } from "../../types";
 import { resolveSecret } from "../../util/secrets";
-import {
-  buildStructuredPrompt,
-  VALIDATION_PROMPT,
-  VALIDATION_SYSTEM_PROMPT,
-} from "./prompts";
+import { buildStructuredPrompt } from "./prompts";
 import { createLLMProvider } from "./providers";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -75,11 +71,13 @@ type LLMErrorCode =
 interface GenerateDeps {
   generateText: typeof generateText;
   createLLMProvider: typeof createLLMProvider;
+  fetch: typeof fetch;
 }
 
 let deps: GenerateDeps = {
   generateText,
   createLLMProvider,
+  fetch: globalThis.fetch,
 };
 
 export function _setGenerateDepsForTesting(
@@ -92,6 +90,7 @@ export function _resetGenerateDepsForTesting(): void {
   deps = {
     generateText,
     createLLMProvider,
+    fetch: globalThis.fetch,
   };
 }
 
@@ -156,63 +155,97 @@ export async function callLLMWithTool(
   }
 }
 
-export async function validateLLMEndpoint(): Promise<{
+// -- Lightweight fetch-based endpoint validation -----------------------------
+
+const ANTHROPIC_VERSION = "2023-06-01";
+const OLLAMA_V1_SUFFIX = "/v1";
+
+function buildModelsRequest(
+  provider: LLMProvider,
+  apiUrl: string,
+  apiKey: string,
+): { url: string; headers: Record<string, string> } {
+  switch (provider) {
+    case "ollama":
+      return {
+        url: `${apiUrl}${OLLAMA_V1_SUFFIX}/models`,
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      };
+    case "openai-chat":
+    case "openai-responses":
+    case "generic":
+      return {
+        url: `${apiUrl}/models`,
+        headers: { Authorization: `Bearer ${apiKey}` },
+      };
+    case "anthropic":
+      return {
+        url: `${apiUrl}/models`,
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+        },
+      };
+    case "gemini":
+      return {
+        url: `${apiUrl}/models?key=${apiKey}`,
+        headers: {},
+      };
+    default: {
+      const _unreachable: never = provider;
+      throw new Error(`Unsupported provider: ${_unreachable}`);
+    }
+  }
+}
+
+export async function getAvailableModels(): Promise<{
   ok: boolean;
   error?: string;
 }> {
   const config = getConfig();
-  const provider = config.llm.provider;
-  const model = config.llm.model;
-  const apiUrl = config.llm.apiUrl;
-  const rawApiKey = config.llm.apiKey;
-  const resolvedApiKey = await resolveSecret(rawApiKey);
+  const resolvedKey = await resolveSecret(config.llm.apiKey);
+  const { url, headers } = buildModelsRequest(
+    config.llm.provider,
+    config.llm.apiUrl,
+    resolvedKey,
+  );
 
   try {
-    const providerFactory = await deps.createLLMProvider({
-      provider,
-      model,
-      apiUrl,
-      apiKey: rawApiKey,
+    const response = await deps.fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(VALIDATE_TIMEOUT_MS),
     });
 
-    await deps.generateText({
-      model: providerFactory.chat(model),
-      system: VALIDATION_SYSTEM_PROMPT,
-      prompt: VALIDATION_PROMPT,
-      maxRetries: 0,
-      temperature: 0,
-      abortSignal: AbortSignal.timeout(VALIDATE_TIMEOUT_MS),
-      output: Output.object({
-        schema: jsonSchema({
-          type: "object",
-          properties: { ok: { type: "boolean" } },
-        }),
-      }),
-    });
+    if (response.ok) {
+      return { ok: true };
+    }
 
-    return { ok: true };
+    return {
+      ok: false,
+      error: formatValidationError(
+        response.status,
+        response.statusText,
+        resolvedKey,
+      ),
+    };
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
+    if (error instanceof Error && error.name === "TimeoutError") {
       return { ok: false, error: MESSAGE_VALIDATION_TIMEOUT };
     }
 
-    if (error instanceof APICallError && typeof error.statusCode === "number") {
-      return {
-        ok: false,
-        error: formatValidationError(
-          error.statusCode,
-          error.message,
-          resolvedApiKey,
-        ),
-      };
-    }
-
-    const message = sanitizeError(errorMessage(error), resolvedApiKey);
+    const message = sanitizeError(errorMessage(error), resolvedKey);
     return {
       ok: false,
       error: `${MESSAGE_VALIDATION_UNREACHABLE_PREFIX}${message}`,
     };
   }
+}
+
+export async function validateLLMEndpoint(): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  return getAvailableModels();
 }
 
 function mapGenerateError(error: unknown): {
