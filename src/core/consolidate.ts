@@ -12,6 +12,7 @@ import { cosineSimilarity } from "./memory.ts";
 
 const DUPLICATE_THRESHOLD = 0.92;
 const NEAR_DUPLICATE_THRESHOLD = 0.85;
+const CONSOLIDATION_CAP = 500;
 
 export interface ConsolidateOptions {
   containerTag: string;
@@ -124,12 +125,23 @@ export async function consolidateMemories(
     return { candidates: [], merged: 0 };
   }
 
+  let pool = memories;
+  if (pool.length > CONSOLIDATION_CAP) {
+    logger.warn("consolidateMemories capped input", {
+      total: pool.length,
+      cap: CONSOLIDATION_CAP,
+    });
+    pool = [...pool]
+      .sort((a, b) => b.lastAccessedAt - a.lastAccessedAt)
+      .slice(0, CONSOLIDATION_CAP);
+  }
+
   const uf = new UnionFind();
-  for (let i = 0; i < memories.length; i++) {
-    const a = memories[i];
+  for (let i = 0; i < pool.length; i++) {
+    const a = pool[i];
     const aEmbedding = Array.from(a.embedding);
-    for (let j = i + 1; j < memories.length; j++) {
-      const b = memories[j];
+    for (let j = i + 1; j < pool.length; j++) {
+      const b = pool[j];
       const similarity = cosineSimilarity(aEmbedding, Array.from(b.embedding));
       if (similarity >= NEAR_DUPLICATE_THRESHOLD) {
         uf.union(a.id, b.id);
