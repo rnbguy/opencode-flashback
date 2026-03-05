@@ -435,5 +435,15 @@ export function getHybridWeights(config: PluginConfig): {
 
 export function isConfigured(): boolean {
   const config = getConfig();
-  return config.llm.provider === "ollama" || config.llm.apiKey.length > 0;
+  if (config.llm.provider === "ollama") return true;
+  const key = config.llm.apiKey;
+  if (key.length === 0) return false;
+  // Check if secret reference resolves to a non-empty value
+  if (key.startsWith("env://")) {
+    return (process.env[key.slice(6)] ?? "").length > 0;
+  }
+  if (key.startsWith("file://")) {
+    return existsSync(expandPath(key.slice(7)));
+  }
+  return true;
 }
