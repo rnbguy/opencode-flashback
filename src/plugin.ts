@@ -4,7 +4,7 @@ import type { Part } from "@opencode-ai/sdk";
 import ms from "ms";
 import { getConfig, getConfigErrors, isConfigured } from "./config.ts";
 import { MEMORY_HEADER } from "./consts.ts";
-import { validateLLMEndpoint } from "./core/ai/generate.ts";
+import { getAvailableModels, validateLLMEndpoint } from "./core/ai/generate.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
 import { resolveContainerTag } from "./core/tags.ts";
@@ -416,7 +416,19 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             error: result.error,
           });
         } else {
-          logger?.debug("LLM endpoint validated");
+          logger?.info("LLM endpoint validated");
+        }
+      })
+      .catch(() => undefined);
+
+    getAvailableModels(config.embedding)
+      .then((result) => {
+        if (!result.ok) {
+          logger?.error("Embedding endpoint validation failed", {
+            error: result.error,
+          });
+        } else {
+          logger?.info("Embedding endpoint validated");
         }
       })
       .catch(() => undefined);

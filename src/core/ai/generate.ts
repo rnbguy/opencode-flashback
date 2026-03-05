@@ -6,7 +6,7 @@ import {
   Output,
 } from "ai";
 import { getConfig } from "../../config";
-import type { LLMProvider } from "../../types";
+import type { LLMProvider, LlmConfig } from "../../types";
 import { resolveSecret } from "../../util/secrets";
 import { buildStructuredPrompt } from "./prompts";
 import { createLLMProvider } from "./providers";
@@ -198,15 +198,16 @@ function buildModelsRequest(
   }
 }
 
-export async function getAvailableModels(): Promise<{
+export async function getAvailableModels(overrideConfig?: LlmConfig): Promise<{
   ok: boolean;
   error?: string;
 }> {
   const config = getConfig();
-  const resolvedKey = await resolveSecret(config.llm.apiKey);
+  const effective = overrideConfig ?? config.llm;
+  const resolvedKey = await resolveSecret(effective.apiKey);
   const { url, headers } = buildModelsRequest(
-    config.llm.provider,
-    config.llm.apiUrl,
+    effective.provider,
+    effective.apiUrl,
     resolvedKey,
   );
 
