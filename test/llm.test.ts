@@ -148,7 +148,7 @@ describe("callLLMWithTool", () => {
     expect(
       (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)
         ?.prompt,
-    ).toContain("Return only a JSON object");
+    ).toContain("Return ONLY a raw JSON object");
     expect(
       (mockGenerateText.mock.lastCall?.[0] as { prompt: string } | undefined)
         ?.prompt,

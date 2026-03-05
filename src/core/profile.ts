@@ -12,88 +12,15 @@ import type {
 } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
 import { callLLMWithTool } from "./ai/generate.ts";
+import {
+  getProfileUserPrompt,
+  PROFILE_SYSTEM_PROMPT,
+  profileToolSchema,
+} from "./ai/prompts.ts";
 
 // -- Constants ----------------------------------------------------------------
 
 const ANALYSIS_THRESHOLD = 10;
-
-const PROFILE_SYSTEM_PROMPT = `You are analyzing user conversation prompts to learn about their preferences, patterns, and workflows.
-Extract ONLY factual observations. Do NOT infer personality traits.
-Focus on: programming languages, tools, frameworks, coding style, project patterns, common workflows.
-If a prompt contains no learnable information, return empty arrays.`;
-
-const profileToolSchema = {
-  name: "update_profile",
-  description:
-    "Extract user preferences, patterns, and workflows from conversation prompts",
-  parameters: {
-    type: "object",
-    properties: {
-      preferences: {
-        type: "array",
-        description: "User preferences like coding style, tools, languages",
-        items: {
-          type: "object",
-          properties: {
-            category: {
-              type: "string",
-              description: "Category name (e.g. Language, Editor, Testing)",
-            },
-            description: {
-              type: "string",
-              description: "What the user prefers",
-            },
-            confidence: {
-              type: "number",
-              description: "Confidence 0.0-1.0",
-            },
-            evidence: {
-              type: "array",
-              items: { type: "string" },
-              description: "Supporting evidence for this preference",
-            },
-          },
-          required: ["category", "description", "confidence"],
-        },
-      },
-      patterns: {
-        type: "array",
-        description: "Recurring patterns in user behavior",
-        items: {
-          type: "object",
-          properties: {
-            category: { type: "string", description: "Pattern category" },
-            description: {
-              type: "string",
-              description: "What the pattern is",
-            },
-          },
-          required: ["category", "description"],
-        },
-      },
-      workflows: {
-        type: "array",
-        description: "Common workflows and processes the user follows",
-        items: {
-          type: "object",
-          properties: {
-            description: {
-              type: "string",
-              description: "Workflow description",
-            },
-            steps: {
-              type: "array",
-              items: { type: "string" },
-              description: "Ordered steps",
-            },
-          },
-          required: ["description", "steps"],
-        },
-      },
-    },
-    required: ["preferences", "patterns", "workflows"],
-  },
-};
 
 type ProfileDeps = {
   callLLMWithTool: typeof callLLMWithTool;
@@ -154,7 +81,7 @@ export async function analyzeAndUpdateProfile(
 
   const result = await deps.callLLMWithTool({
     systemPrompt: PROFILE_SYSTEM_PROMPT,
-    userPrompt: `Analyze these user prompts:\n${prompts.join("\n---\n")}`,
+    userPrompt: getProfileUserPrompt(prompts),
     toolSchema: profileToolSchema,
   });
 

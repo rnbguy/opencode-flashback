@@ -6,7 +6,12 @@ import {
   type LanguageDetectionResult,
 } from "../util/language.ts";
 import { getLogger } from "../util/logger.ts";
-import { callLLMWithTool, type ToolSchema } from "./ai/generate.ts";
+import { callLLMWithTool } from "./ai/generate.ts";
+import {
+  captureToolSchema,
+  getCaptureSystemPrompt,
+  getCaptureUserPrompt,
+} from "./ai/prompts.ts";
 import { addMemory } from "./memory.ts";
 import {
   getLastUncapturedPrompt,
@@ -66,77 +71,7 @@ export interface CaptureRequest {
   gitRepoUrl?: string;
 }
 
-// -- Extraction tool schema ----------------------------------------------------
-
-const extractionToolSchema: ToolSchema = {
-  name: "save_memory",
-  description: "Save the conversation summary as a memory",
-  parameters: {
-    type: "object",
-    properties: {
-      summary: {
-        type: "string",
-        description: "Markdown-formatted summary of the conversation",
-      },
-      type: {
-        type: "string",
-        enum: [
-          "feature",
-          "bug-fix",
-          "refactor",
-          "analysis",
-          "configuration",
-          "discussion",
-          "skip",
-          "other",
-        ],
-        description:
-          "Type of memory. Use 'skip' for non-technical conversations.",
-      },
-      tags: {
-        type: "array",
-        items: { type: "string" },
-        description: "2-4 technical tags related to the memory",
-      },
-      importance: {
-        type: "number",
-        description:
-          "Importance score 1-10 (10 = critical architectural decision, 1 = trivial)",
-      },
-      confidence: {
-        type: "number",
-        description: "Your confidence in this memory 0.0-1.0",
-      },
-      evidenceCount: {
-        type: "integer",
-        description: "How many conversation turns support this memory",
-      },
-    },
-    required: ["summary", "type", "tags", "importance"],
-  },
-};
-
-function getSystemPrompt(langName: string): string {
-  return `You are a technical memory recorder for a software development project.
-
-RULES:
-1. ONLY capture technical work (code, bugs, features, architecture, config)
-2. SKIP non-technical by returning type="skip"
-3. NO meta-commentary or behavior analysis
-4. Include specific file names, functions, technical details
-5. Generate 2-4 technical tags (e.g., "react", "auth", "bug-fix")
-6. You MUST write the summary in ${langName}.
-
-FORMAT for summary:
-## Request
-[1-2 sentences: what was requested, in ${langName}]
-
-## Outcome
-[1-2 sentences: what was done, include files/functions, in ${langName}]
-
-SKIP if: greetings, casual chat, no code/decisions made
-CAPTURE if: code changed, bug fixed, feature added, decision made`;
-}
+// -- Core exports --------------------------------------------------------------
 
 // -- Core exports --------------------------------------------------------------
 
@@ -247,9 +182,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
     .join("\n\n");
 
   const result = await deps.callLLMWithTool({
-    systemPrompt: getSystemPrompt(langName),
-    userPrompt: context,
-    toolSchema: extractionToolSchema,
+    systemPrompt: getCaptureSystemPrompt(langName),
+    userPrompt: getCaptureUserPrompt(context),
+    toolSchema: captureToolSchema,
   });
 
   if (result.success) {

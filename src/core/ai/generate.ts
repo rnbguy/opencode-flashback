@@ -8,6 +8,11 @@ import {
 import { getConfig } from "../../config";
 import type { LLMProvider } from "../../types";
 import { resolveSecret } from "../../util/secrets";
+import {
+  buildStructuredPrompt,
+  VALIDATION_PROMPT,
+  VALIDATION_SYSTEM_PROMPT,
+} from "./prompts";
 import { createLLMProvider } from "./providers";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -27,9 +32,6 @@ const MESSAGE_VALIDATION_TIMEOUT = "LLM endpoint validation timed out";
 const MESSAGE_VALIDATION_UNREACHABLE_PREFIX = "LLM endpoint unreachable: ";
 const MESSAGE_INVALID_API_KEY = "Invalid or unauthorized API key";
 const MESSAGE_MODEL_NOT_FOUND = "Model not found";
-
-const VALIDATION_PROMPT = 'Return the JSON object {"ok":true}.';
-const VALIDATION_SYSTEM_PROMPT = "You are a health check assistant.";
 
 export interface ToolSchema {
   name: string;
@@ -115,7 +117,10 @@ export async function callLLMWithTool(
       apiKey: rawApiKey,
     });
 
-    const prompt = buildStructuredPrompt(options);
+    const prompt = buildStructuredPrompt(
+      options.userPrompt,
+      options.toolSchema,
+    );
 
     const result = await deps.generateText({
       model: providerFactory.chat(model),
@@ -208,18 +213,6 @@ export async function validateLLMEndpoint(): Promise<{
       error: `${MESSAGE_VALIDATION_UNREACHABLE_PREFIX}${message}`,
     };
   }
-}
-
-function buildStructuredPrompt(options: LLMCallOptions): string {
-  const schemaJson = JSON.stringify(options.toolSchema.parameters);
-  const lines = [
-    options.userPrompt,
-    "",
-    `Return only a JSON object for tool '${options.toolSchema.name}'.`,
-    `Tool description: ${options.toolSchema.description}`,
-    `JSON schema: ${schemaJson}`,
-  ];
-  return lines.join("\n");
 }
 
 function mapGenerateError(error: unknown): {
