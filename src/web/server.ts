@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
 import { getConfig } from "../config.ts";
 import { DB_FILENAME } from "../consts.ts";
@@ -242,8 +242,7 @@ function handleDiagnostics(directory: string): Response {
 
   let dbSizeBytes = 0;
   try {
-    const stat = statSync(dbPath);
-    dbSizeBytes = stat.size;
+    dbSizeBytes = Bun.file(dbPath).size;
   } catch {
     // DB file may not exist yet
   }
