@@ -646,7 +646,11 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             ].join("\n");
           }
         } else {
-          contextText = await engine.getContext(tagInfo.tag, sessionID);
+          contextText = await engine.getContext(
+            tagInfo.tag,
+            sessionID,
+            userMessage,
+          );
         }
 
         if (contextText.length === 0) {

@@ -75,7 +75,11 @@ export interface MemoryEngine {
     limit?: number,
     offset?: number,
   ): Promise<{ memories: Memory[]; total: number }>;
-  getContext(containerTag: string, sessionId?: string): Promise<string>;
+  getContext(
+    containerTag: string,
+    sessionId?: string,
+    queryHint?: string,
+  ): Promise<string>;
   getMemoryById(id: string): Promise<Memory | null>;
   exportMemories(
     containerTag: string,

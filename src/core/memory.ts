@@ -246,13 +246,35 @@ export async function listMemories(
 export async function getContext(
   containerTag: string,
   sessionId?: string,
+  queryHint?: string,
 ): Promise<string> {
   const logger = getLogger();
   const db = getDb();
   const config = getConfig();
-  const topMemories = dbListMemories(db, containerTag, 5, 0).filter(
-    (memory) => memory.evictedAt === null,
-  );
+
+  let topMemories: Memory[];
+  if (queryHint && queryHint.trim().length > 0) {
+    try {
+      const results = await searchMemories(queryHint, containerTag, 5);
+      topMemories = results
+        .map((r) => r.memory)
+        .filter((memory) => memory.evictedAt === null);
+      logger.debug("getContext used semantic search", {
+        containerTag,
+        resultCount: topMemories.length,
+      });
+    } catch {
+      // Semantic search failed -- fall back to recency
+      topMemories = dbListMemories(db, containerTag, 5, 0).filter(
+        (memory) => memory.evictedAt === null,
+      );
+      logger.debug("getContext fell back to recency", { containerTag });
+    }
+  } else {
+    topMemories = dbListMemories(db, containerTag, 5, 0).filter(
+      (memory) => memory.evictedAt === null,
+    );
+  }
 
   if (topMemories.length === 0) {
     logger.debug("getContext completed", { containerTag, contextLength: 0 });
