@@ -23,7 +23,6 @@ const ERROR_NETWORK = "network_error" as const;
 
 const MESSAGE_REQUEST_TIMEOUT = "Request timed out";
 const MESSAGE_LLM_REQUEST_FAILED = "LLM request failed";
-const MESSAGE_API_KEY_NOT_CONFIGURED = "LLM API key is not configured";
 const _MESSAGE_VALIDATION_FAILED_PREFIX = "LLM validation failed: ";
 const MESSAGE_VALIDATION_TIMEOUT = "LLM endpoint validation timed out";
 const MESSAGE_VALIDATION_UNREACHABLE_PREFIX = "LLM endpoint unreachable: ";
@@ -163,10 +162,6 @@ export async function validateLLMEndpoint(): Promise<{
   const apiUrl = config.llm.apiUrl;
   const rawApiKey = config.llm.apiKey;
   const resolvedApiKey = await resolveSecret(rawApiKey);
-
-  if (!resolvedApiKey) {
-    return { ok: false, error: MESSAGE_API_KEY_NOT_CONFIGURED };
-  }
 
   try {
     const providerFactory = await deps.createLLMProvider({

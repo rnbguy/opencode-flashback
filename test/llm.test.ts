@@ -296,22 +296,6 @@ describe("validateLLMEndpoint", () => {
     expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
-  test("returns missing API key error when apiKey is empty", async () => {
-    _setConfigForTesting({
-      ...baseConfig,
-      llm: {
-        ...baseConfig.llm,
-        apiKey: "",
-      },
-    });
-
-    const result = await validateLLMEndpoint();
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("not configured");
-    expect(mockGenerateText).not.toHaveBeenCalled();
-  });
-
   test("returns timeout on AbortError", async () => {
     _setConfigForTesting({
       ...baseConfig,
