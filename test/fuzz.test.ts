@@ -84,7 +84,7 @@ function makeNoObjectGeneratedError(message: string): NoObjectGeneratedError {
     response: {
       id: "resp_fuzz_1",
       timestamp: new Date(),
-      modelId: "kimi-k2.5:cloud",
+      modelId: "glm-4.6:cloud",
     },
     usage: {
       inputTokens: 1,
@@ -253,7 +253,7 @@ describe("fuzz", () => {
         userPrompt: "user",
         toolSchema,
         provider: "ollama",
-        model: "kimi-k2.5:cloud",
+        model: "glm-4.6:cloud",
         apiUrl: "http://127.0.0.1:11434",
         apiKey: "test-key-1234",
       });
@@ -280,7 +280,7 @@ describe("fuzz", () => {
       userPrompt: "user",
       toolSchema,
       provider: "ollama",
-      model: "kimi-k2.5:cloud",
+      model: "glm-4.6:cloud",
       apiUrl: "http://127.0.0.1:11434",
       apiKey: "test-key-1234",
     });

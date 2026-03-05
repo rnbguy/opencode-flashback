@@ -53,7 +53,7 @@ function makeValidConfig(): PluginConfig {
   return {
     llm: {
       provider: "ollama",
-      model: "kimi-k2.5:cloud",
+      model: "glm-4.6:cloud",
       apiUrl: "http://127.0.0.1:11434",
       apiKey: "",
     },
@@ -137,7 +137,7 @@ describe("advanced config behavior", () => {
     }`);
 
     const cfg = getConfig();
-    expect(cfg.llm.model).toBe("kimi-k2.5:cloud");
+    expect(cfg.llm.model).toBe("glm-4.6:cloud");
     expect(ConfigSchema.safeParse(cfg).success).toBe(true);
   });
 

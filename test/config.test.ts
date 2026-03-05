@@ -17,7 +17,7 @@ describe("ConfigSchema", () => {
   const validConfig: PluginConfig = {
     llm: {
       provider: "ollama",
-      model: "kimi-k2.5:cloud",
+      model: "glm-4.6:cloud",
       apiUrl: "http://127.0.0.1:11434",
       apiKey: "",
     },
@@ -187,7 +187,7 @@ describe("getHybridWeights", () => {
     return {
       llm: {
         provider: "ollama",
-        model: "kimi-k2.5:cloud",
+        model: "glm-4.6:cloud",
         apiUrl: "http://127.0.0.1:11434",
         apiKey: "",
       },
@@ -422,7 +422,7 @@ describe("getConfig", () => {
     writeConfigFiles("{ invalid");
     const config = getConfig();
     expect(config).toMatchObject({
-      llm: { provider: "ollama", model: "kimi-k2.5:cloud" },
+      llm: { provider: "ollama", model: "glm-4.6:cloud" },
       search: { retrievalQuality: "balanced" },
     });
     expect(config.storage.path).toBe(
@@ -505,7 +505,7 @@ describe("getConfig", () => {
 
     const config = getConfig();
     expect(config.web.enabled).toBe(true);
-    expect(config.llm.model).toBe("kimi-k2.5:cloud");
+    expect(config.llm.model).toBe("glm-4.6:cloud");
   });
 
   test("returns cached reference until reset", () => {

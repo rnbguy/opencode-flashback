@@ -235,7 +235,7 @@ function makeConfig(retrievalQuality: RetrievalPreset): PluginConfig {
   return {
     llm: {
       provider: "ollama",
-      model: "kimi-k2.5:cloud",
+      model: "glm-4.6:cloud",
       apiUrl: "http://127.0.0.1:11434",
       apiKey: "",
     },
