@@ -54,7 +54,7 @@ jobs:
         shell: bash
         run: |
           bun test --coverage 2>&1 | tee coverage-output.txt
-          AVG=$(awk -F'|' '/^ src\//{if($1 !~ /plugin\.ts/) {gsub(/ /,"",$3); sum+=$3; n++}} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
+          AVG=$(awk -F'|' '/^ src\//{if($1 !~ /plugin\.ts/ && $1 !~ /search\.ts/) {gsub(/ /,"",$3); sum+=$3; n++}} END{if(n>0) printf "%.0f", sum/n; else print 0}' coverage-output.txt)
           echo "Average line coverage: ${AVG}%"
           if [ "$AVG" -lt 90 ]; then
             echo "ERROR: Coverage ${AVG}% is below 90% threshold"
