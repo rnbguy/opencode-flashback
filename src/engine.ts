@@ -1,6 +1,11 @@
 import type { Database } from "bun:sqlite";
 import { getConfig } from "./config.ts";
-import { embed, getEmbedderState, resetEmbedder } from "./core/ai/embed.ts";
+import {
+  embed,
+  getEmbedderState,
+  getEmbeddingDimension,
+  resetEmbedder,
+} from "./core/ai/embed.ts";
 import {
   type CaptureRequest,
   enqueueCapture,
@@ -34,10 +39,11 @@ import {
   countMemories,
   getDb,
   getMetaValue,
+  META_KEY_EMBEDDING_DIMENSION,
   META_KEY_EMBEDDING_MODEL,
   setMetaValue,
 } from "./db/database.ts";
-import { getSearchState, initSearch } from "./search.ts";
+import { getSearchState, initSearch, markStale } from "./search.ts";
 import type {
   ConsolidationCandidate,
   ContainerTagInfo,
@@ -156,6 +162,7 @@ async function reembedAllMemories(
 
   setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
   logger.info(`Re-embedding complete: ${memories.length} memories updated`);
+  markStale();
 }
 
 export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
@@ -219,6 +226,10 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
         initSearch(),
         embed(["warmup"], "query"),
       ]);
+      const dim = getEmbeddingDimension();
+      if (dim !== null) {
+        setMetaValue(getDb(), META_KEY_EMBEDDING_DIMENSION, String(dim));
+      }
       checkEmbeddingModelChange(getDb()).catch((err) => {
         getLogger().error("Embedding model change check failed", {
           error: String(err),

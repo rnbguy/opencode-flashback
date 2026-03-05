@@ -1,10 +1,13 @@
 import type { Orama } from "@orama/orama";
 import { create, insert, search } from "@orama/orama";
 import { getConfig, getHybridWeights } from "./config.ts";
+import { getEmbeddingDimension } from "./core/ai/embed.ts";
 import {
   getAllActiveMemories,
   getDb,
   getMemory,
+  getMetaValue,
+  META_KEY_EMBEDDING_DIMENSION,
   searchMemoriesByText,
 } from "./db/database.ts";
 import type { SearchResult, SubsystemState } from "./types.ts";
@@ -72,14 +75,29 @@ export function getSearchState(): SubsystemState {
 
 // -- Schema ------------------------------------------------------------------
 
-const schema = {
-  memoryId: "string",
-  content: "string",
-  tags: "string",
-  containerTag: "enum",
-  isStarred: "boolean",
-  embedding: "vector[768]",
-} as const;
+const DEFAULT_EMBEDDING_DIMENSION = 768;
+
+function resolveEmbeddingDimension(): number {
+  const detected = getEmbeddingDimension();
+  if (detected !== null) return detected;
+  const stored = getMetaValue(getDb(), META_KEY_EMBEDDING_DIMENSION);
+  if (stored !== null) {
+    const parsed = parseInt(stored, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return DEFAULT_EMBEDDING_DIMENSION;
+}
+
+function createSchema(dimension: number) {
+  return {
+    memoryId: "string",
+    content: "string",
+    tags: "string",
+    containerTag: "enum",
+    isStarred: "boolean",
+    embedding: `vector[${dimension}]`,
+  } as const;
+}
 
 type SearchDoc = {
   memoryId: string;
@@ -93,7 +111,7 @@ type SearchDoc = {
 // -- State -------------------------------------------------------------------
 
 let state: SubsystemState = "uninitialized";
-let oramaDb: Orama<typeof schema> | null = null;
+let oramaDb: Orama<ReturnType<typeof createSchema>> | null = null;
 let isStale = false;
 let rebuildPromise: Promise<void> = Promise.resolve();
 
@@ -110,7 +128,7 @@ async function initSearchImpl(): Promise<void> {
       from: previousState,
       to: state,
     });
-    oramaDb = create({ schema });
+    oramaDb = create({ schema: createSchema(resolveEmbeddingDimension()) });
     await deps.rebuildIndex();
     const fromState = state;
     state = "ready";
@@ -137,7 +155,7 @@ async function doRebuild(): Promise<void> {
   const start = Date.now();
   try {
     // Recreate to guarantee a clean index
-    oramaDb = create({ schema });
+    oramaDb = create({ schema: createSchema(resolveEmbeddingDimension()) });
     isStale = false;
 
     const db = getDb();

@@ -6,6 +6,7 @@ import {
   type LanguageDetectionResult,
 } from "../util/language.ts";
 import { getLogger } from "../util/logger.ts";
+import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
 import { callLLMWithTool } from "./ai/generate.ts";
 import {
   captureToolSchema,
@@ -220,8 +221,16 @@ async function processResult(
     return;
   }
 
+  const sanitizedSummary = stripPrivate(parsed.data.summary);
+  if (isFullyPrivate(sanitizedSummary)) {
+    logger.debug("Capture skipped: content is fully private");
+    deps.markCaptured(promptId, "");
+    lastCaptureStatus = "skipped";
+    return;
+  }
+
   const result = await deps.addMemory({
-    content: parsed.data.summary,
+    content: sanitizedSummary,
     containerTag: opts.containerTag,
     tags: parsed.data.tags,
     type: memoryType,

@@ -12,7 +12,7 @@ import type { SubsystemState } from "../../types";
 import { getLogger } from "../../util/logger.ts";
 import { createEmbeddingProvider } from "./providers";
 
-const EMBEDDING_DIMENSION = 768;
+let embeddingDimension: number | null = null;
 const CACHE_MAX_SIZE = 100;
 const FAILURE_THRESHOLD = 3;
 const DEGRADED_COOLDOWN_MS = 30_000;
@@ -85,6 +85,7 @@ export function getEmbedderState(): SubsystemState {
 
 export function resetEmbedder(): void {
   initialized = false;
+  embeddingDimension = null;
   cache = new LRUCache<string, number[]>({ max: CACHE_MAX_SIZE });
   breaker = circuitBreaker(handleAll, {
     halfOpenAfter: DEGRADED_COOLDOWN_MS,
@@ -155,9 +156,11 @@ export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
 
     for (let i = 0; i < missingIndices.length; i++) {
       const vector = embeddings[i];
-      if (vector.length !== EMBEDDING_DIMENSION) {
+      if (embeddingDimension === null) {
+        embeddingDimension = vector.length;
+      } else if (vector.length !== embeddingDimension) {
         throw new Error(
-          `${EMBED_DIMENSION_MISMATCH_PREFIX}${vector.length}, expected ${EMBEDDING_DIMENSION}`,
+          `${EMBED_DIMENSION_MISMATCH_PREFIX}${vector.length}, expected ${embeddingDimension}`,
         );
       }
       const index = missingIndices[i];
@@ -186,4 +189,8 @@ export async function embed(texts: string[], mode: Mode): Promise<number[][]> {
     durationMs: Date.now() - start,
   });
   return finalized;
+}
+
+export function getEmbeddingDimension(): number | null {
+  return embeddingDimension;
 }

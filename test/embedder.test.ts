@@ -110,9 +110,14 @@ describe("embed()", () => {
   });
 
   test("throws on wrong embedding dimension", async () => {
+    // First call establishes the dimension at 768
+    mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(10, 768)] });
+    await embed(["first"], "query");
+
+    // Second call with different dimension should throw
     mockEmbedMany.mockResolvedValueOnce({ embeddings: [makeVector(30, 32)] });
 
-    await expect(embed(["bad"], "query")).rejects.toThrow(
+    await expect(embed(["bad"], "document")).rejects.toThrow(
       "Unexpected embedding dimension",
     );
   });
