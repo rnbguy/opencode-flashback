@@ -48,18 +48,6 @@ const ProfileDataSchema = z.object({
   workflows: z.array(WorkflowSchema),
 });
 
-// -- Profile notifier (for toast) ---------------------------------------------
-
-type ProfileNotifier = (
-  event: "validation_error" | "updated",
-  detail?: string,
-) => void;
-let notifier: ProfileNotifier | null = null;
-
-export function setProfileNotifier(fn: ProfileNotifier): void {
-  notifier = fn;
-}
-
 type ProfileDeps = {
   callLLMWithTool: typeof callLLMWithTool;
 };
@@ -217,7 +205,6 @@ function extractProfileData(
     (i) => `${i.path.join(".")}: ${i.message}`,
   );
   logger.error("Profile validation errors", { errors });
-  notifier?.("validation_error", errors.join("; "));
 
   // Fall back: validate each item individually, keep only valid ones
   const preferences = raw.preferences.filter(

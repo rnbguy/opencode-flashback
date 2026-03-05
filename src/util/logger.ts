@@ -12,6 +12,12 @@ export interface Logger {
   error(msg: string, data?: Record<string, unknown>): void;
 }
 
+export type ToastSink = (
+  level: LogLevel,
+  msg: string,
+  data?: Record<string, unknown>,
+) => void;
+
 const noopLogger: Logger = {
   debug: () => {},
   info: () => {},
@@ -20,6 +26,7 @@ const noopLogger: Logger = {
 };
 
 let singleton: Logger = noopLogger;
+let toastSink: ToastSink | null = null;
 
 const levelPriority: Record<LogLevel, number> = {
   debug: 0,
@@ -27,6 +34,10 @@ const levelPriority: Record<LogLevel, number> = {
   warn: 2,
   error: 3,
 };
+
+export function setToastSink(sink: ToastSink | null): void {
+  toastSink = sink;
+}
 
 export function createLogger(
   storagePath: string,
@@ -71,6 +82,11 @@ export function createLogger(
     writeQueue = writeQueue
       .then(() => appendFile(logPath, payload, "utf-8"))
       .catch(() => {});
+
+    // Emit toast for non-debug levels
+    if (level !== "debug" && toastSink) {
+      toastSink(level, msg, data);
+    }
   };
 
   const loggerInstance: Logger = {

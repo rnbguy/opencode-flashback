@@ -80,7 +80,6 @@ import {
   getLastCaptureStatus,
   initCapture,
   resetCapture,
-  setCaptureNotifier,
 } from "../src/core/capture";
 
 // -- Helpers ------------------------------------------------------------------
@@ -452,43 +451,6 @@ describe("state management", () => {
 
     resetCapture();
     expect(getCaptureState()).toBe("uninitialized");
-  });
-
-  // Regression: capture notifier fires on failure
-  test("notifier fires on capture failure", async () => {
-    const notifications: Array<{ status: string; error?: string }> = [];
-    setCaptureNotifier((status, error) => {
-      notifications.push({ status, error });
-    });
-
-    mockCallLLM.mockResolvedValue({
-      success: false as const,
-      error: "LLM unavailable",
-      code: "parse_error" as const,
-    });
-
-    enqueueCapture(makeRequest());
-    jest.advanceTimersByTime(5000);
-    await flushPromises();
-
-    expect(notifications.length).toBe(1);
-    expect(notifications[0].status).toBe("failed");
-    expect(notifications[0].error).toBe("LLM unavailable");
-  });
-
-  // Regression: capture notifier fires on success
-  test("notifier fires on stored capture", async () => {
-    const notifications: Array<{ status: string; error?: string }> = [];
-    setCaptureNotifier((status, error) => {
-      notifications.push({ status, error });
-    });
-
-    enqueueCapture(makeRequest());
-    jest.advanceTimersByTime(5000);
-    await flushPromises();
-
-    expect(notifications.length).toBe(1);
-    expect(notifications[0].status).toBe("stored");
   });
 });
 

@@ -30,9 +30,6 @@ const DEBOUNCE_MS = 5_000;
 type CaptureStatus = "stored" | "duplicate" | "skipped" | "failed";
 let lastCaptureStatus: CaptureStatus = "skipped";
 
-type CaptureNotifier = (status: CaptureStatus, error?: string) => void;
-let notifier: CaptureNotifier | null = null;
-
 type CaptureDeps = {
   addMemory: typeof addMemory;
   callLLMWithTool: typeof callLLMWithTool;
@@ -82,10 +79,6 @@ export function initCapture(): void {
   }
 }
 
-export function setCaptureNotifier(fn: CaptureNotifier): void {
-  notifier = fn;
-}
-
 export function enqueueCapture(opts: CaptureRequest): void {
   const existing = debounceTimers.get(opts.sessionId);
   if (existing) {
@@ -109,7 +102,6 @@ export function enqueueCapture(opts: CaptureRequest): void {
           error: msg,
           sessionId: opts.sessionId,
         });
-        notifier?.("failed", msg);
       });
   }, DEBOUNCE_MS);
 
@@ -130,7 +122,6 @@ export function resetCapture(): void {
   }
   debounceTimers.clear();
   state = "uninitialized";
-  notifier = null;
 }
 
 export function _setCaptureDepsForTesting(
@@ -193,7 +184,9 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
       sessionId: opts.sessionId,
       status: lastCaptureStatus,
     });
-    notifier?.(lastCaptureStatus);
+    if (lastCaptureStatus === "stored") {
+      logger.info("Memory auto-captured", { sessionId: opts.sessionId });
+    }
     return;
   }
 
@@ -205,7 +198,6 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
   });
   state = "degraded";
   lastCaptureStatus = "failed";
-  notifier?.("failed", lastError);
 }
 
 const ExtractionResultSchema = z.object({

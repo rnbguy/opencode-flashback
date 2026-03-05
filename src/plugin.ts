@@ -11,7 +11,7 @@ import { resolveContainerTag } from "./core/tags.ts";
 import { createEngine } from "./engine.ts";
 import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
-import { createLogger } from "./util/logger.ts";
+import { createLogger, setToastSink } from "./util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "./util/privacy.ts";
 import { startServer, stopServer } from "./web/server.ts";
 
@@ -388,18 +388,24 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
     config.logLevel ?? "info",
   );
 
+  // Wire toast sink: non-debug logs trigger TUI toasts
+  if (input.client?.tui) {
+    const tui = input.client.tui;
+    setToastSink((level, msg) => {
+      const variant =
+        level === "error" || level === "warn" ? "error" : "success";
+      const duration = level === "error" ? 10000 : 5000;
+      tui
+        .showToast({
+          body: { title: "Flashback", message: msg, variant, duration },
+        })
+        .catch(() => undefined);
+    });
+  }
+
   const configErrors = getConfigErrors();
-  if (configErrors.length > 0 && input.client?.tui) {
-    input.client.tui
-      .showToast({
-        body: {
-          title: "Flashback Config Error",
-          message: configErrors.join(" | "),
-          variant: "error",
-          duration: 10000,
-        },
-      })
-      .catch(() => undefined);
+  if (configErrors.length > 0) {
+    logger.error(`Config errors: ${configErrors.join(" | ")}`);
   }
 
   if (isConfigured()) {
@@ -409,18 +415,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           logger?.error("LLM endpoint validation failed", {
             error: result.error,
           });
-          if (input.client?.tui && config.toasts.errors) {
-            input.client.tui
-              .showToast({
-                body: {
-                  title: "Flashback LLM Error",
-                  message: result.error ?? "LLM endpoint unreachable",
-                  variant: "error",
-                  duration: 10000,
-                },
-              })
-              .catch(() => undefined);
-          }
         } else {
           logger?.debug("LLM endpoint validated");
         }
@@ -430,51 +424,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
   installLifecycleHooks();
 
-  engine.setCaptureNotifier((status, error) => {
-    if (status === "failed" && input.client?.tui && config.toasts.errors) {
-      input.client.tui
-        .showToast({
-          body: {
-            title: "Flashback Error",
-            message: `Auto-capture failed: ${error || "unknown error"}`,
-            variant: "error",
-            duration: 5000,
-          },
-        })
-        .catch(() => undefined);
-    }
-    if (status === "stored" && input.client?.tui && config.toasts.autoCapture) {
-      input.client.tui
-        .showToast({
-          body: {
-            title: "Flashback",
-            message: "Memory auto-captured",
-            variant: "success",
-            duration: 3000,
-          },
-        })
-        .catch(() => undefined);
-    }
-  });
-
-  engine.setProfileNotifier((event, detail) => {
-    if (
-      event === "validation_error" &&
-      input.client?.tui &&
-      config.toasts.errors
-    ) {
-      input.client.tui
-        .showToast({
-          body: {
-            title: "Flashback Error",
-            message: `Profile validation failed: ${detail || "invalid data"}`,
-            variant: "error",
-            duration: 5000,
-          },
-        })
-        .catch(() => undefined);
-    }
-  });
   if (!isConfigured()) {
     logger.warn("Plugin is not fully configured");
   }
@@ -499,36 +448,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   if (config.web.enabled) {
     startServer(input.directory)
       .then((actualPort) => {
-        logger?.info("Web server started", { port: actualPort });
-        if (input.client?.tui) {
-          input.client.tui
-            .showToast({
-              body: {
-                title: "Flashback",
-                message: `Web UI started on 127.0.0.1:${actualPort}`,
-                variant: "success",
-                duration: 5000,
-              },
-            })
-            .catch(() => undefined);
-        }
+        logger?.info(`Web UI started on 127.0.0.1:${actualPort}`);
       })
       .catch((error) => {
         logger?.error("Web server failed to start", {
           error: error instanceof Error ? error.message : String(error),
         });
-        if (input.client?.tui && config.toasts.errors) {
-          input.client.tui
-            .showToast({
-              body: {
-                title: "Flashback Error",
-                message: `Web UI failed to start: ${String(error)}`,
-                variant: "error",
-                duration: 5000,
-              },
-            })
-            .catch(() => undefined);
-        }
       });
   }
 
@@ -737,18 +662,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           error: error instanceof Error ? error.message : String(error),
           sessionID,
         });
-        if (input.client?.tui && config.toasts.errors) {
-          input.client.tui
-            .showToast({
-              body: {
-                title: "Flashback Error",
-                message: "Failed to inject memory context",
-                variant: "error",
-                duration: 4000,
-              },
-            })
-            .catch(() => undefined);
-        }
       }
     },
     event: async ({ event }) => {
@@ -834,18 +747,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             );
             if (profileResult.updated) {
               decayConfidence(userId);
-              if (input.client?.tui && config.toasts.userProfile) {
-                input.client.tui
-                  .showToast({
-                    body: {
-                      title: "Flashback",
-                      message: "Profile updated",
-                      variant: "success",
-                      duration: 3000,
-                    },
-                  })
-                  .catch(() => undefined);
-              }
+              logger?.info("Profile updated");
             }
           }
           resetBackoff();
@@ -902,35 +804,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             },
           });
 
-          if (input.client?.tui && config.toasts.autoCapture) {
-            input.client.tui
-              .showToast({
-                body: {
-                  title: "Flashback",
-                  message: `${results.length} memories restored after compaction`,
-                  variant: "success",
-                  duration: 3000,
-                },
-              })
-              .catch(() => undefined);
-          }
+          logger?.info(`${results.length} memories restored after compaction`);
         } catch (error) {
           logger?.error("session.compacted handler failed", {
             error: error instanceof Error ? error.message : String(error),
             sessionID,
           });
-          if (input.client?.tui && config.toasts.errors) {
-            input.client.tui
-              .showToast({
-                body: {
-                  title: "Flashback Error",
-                  message: "Failed to restore memories after compaction",
-                  variant: "error",
-                  duration: 4000,
-                },
-              })
-              .catch(() => undefined);
-          }
         }
       }
     },
