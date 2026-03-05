@@ -12,7 +12,7 @@ Persistent AI memory plugin for OpenCode -- free, local, open-source.
 - Auto-capture from coding sessions
 - User profile learning
 - Dark/light web UI
-- 14 commands with 1:1 tool/slash parity
+- 18 tool modes via single `flashback` tool
 - Cross-platform (Linux, macOS, Windows)
 - Zero trustedDependencies
 
@@ -94,47 +94,39 @@ The `search.retrievalQuality` field supports four presets:
 }
 ```
 
-## Commands
-
-Flashback registers 14 commands programmatically. Use the colon-name syntax:
-
-| Command | Description |
-| --- | --- |
-| `/flashback:search <query>` | Search memories semantically |
-| `/flashback:add <content>` | Store a new memory |
-| `/flashback:recall` | Auto-recall relevant memories |
-| `/flashback:list` | Browse stored memories (paginated) |
-| `/flashback:forget <id>` | Delete a memory by ID |
-| `/flashback:profile` | View learned user profile |
-| `/flashback:stats` | Show memory system diagnostics |
-| `/flashback:context` | Inject project-scoped context into conversation |
-| `/flashback:help` | Show all available memory commands |
-| `/flashback:export [json\|markdown]` | Export all memories |
-| `/flashback:related <topic>` | Find related memories |
-| `/flashback:review` | Review stale memories |
-| `/flashback:suspend <id> [reason]` | Temporarily disable a memory |
-| `/flashback:consolidate [--dry-run]` | Detect and merge duplicate memories |
-
 ## Tool API
 
-AI agents can use the `flashback` tool directly:
+Flashback exposes a single `flashback` tool with a `mode` parameter. The AI agent calls it directly -- there are no slash commands.
 
 ```typescript
-// Search
 await context.callTool("flashback", { mode: "search", query: "how to deploy" });
-
-// Add
-await context.callTool("flashback", {
-  mode: "add",
-  content: "The project uses Bun for testing",
-});
-
-// Recall
+await context.callTool("flashback", { mode: "add", content: "The project uses Bun for testing" });
 await context.callTool("flashback", { mode: "recall" });
-
-// Profile
 await context.callTool("flashback", { mode: "profile" });
 ```
+
+### Available Modes
+
+| Mode | Args | Description |
+| --- | --- | --- |
+| `search` | `query`, `limit?` | Search memories semantically |
+| `add` | `content`, `tags?` | Store a new memory |
+| `recall` | `limit?` | Auto-recall relevant memories |
+| `list` | `limit?`, `offset?` | Browse stored memories (paginated) |
+| `forget` | `id` | Delete a memory by ID |
+| `profile` | | View learned user profile |
+| `stats` | | Show memory system diagnostics |
+| `context` | | Inject project-scoped context into conversation |
+| `help` | | Show all available modes |
+| `export` | `format?` | Export all memories (json or markdown) |
+| `related` | `query`, `limit?` | Find related memories |
+| `review` | `limit?` | Review stale memories |
+| `rate` | `id`, `rating` | Rate a memory (1-5) to schedule next review |
+| `suspend` | `id`, `reason?` | Temporarily disable a memory |
+| `star` | `id` | Star a memory (protected from eviction) |
+| `unstar` | `id` | Unstar a memory |
+| `clear` | `duration?`, `confirmed` | Clear all data or memories older than duration |
+| `consolidate` | `dryRun?`, `confirmed?` | Detect and merge duplicate memories |
 
 ## Web UI
 
