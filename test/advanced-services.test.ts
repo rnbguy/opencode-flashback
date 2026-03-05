@@ -541,9 +541,6 @@ describe("advanced capture pipeline behavior", () => {
       },
     }),
   );
-  const mockStorePrompt = mock(
-    (_sid: string, _mid: string, _content: string, _dir: string) => "prompt-1",
-  );
   const mockGetLastUncapturedPrompt = mock(
     (_sid: string) =>
       ({
@@ -583,7 +580,6 @@ describe("advanced capture pipeline behavior", () => {
   function resetCaptureMocks(): void {
     mockAddMemory.mockReset();
     mockCallLLM.mockReset();
-    mockStorePrompt.mockReset();
     mockGetLastUncapturedPrompt.mockReset();
     mockMarkCaptured.mockReset();
     mockDetectLanguage.mockReset();
@@ -602,7 +598,6 @@ describe("advanced capture pipeline behavior", () => {
         importance: 5,
       },
     }));
-    mockStorePrompt.mockImplementation(() => "prompt-1");
     mockGetLastUncapturedPrompt.mockImplementation(
       () =>
         ({
@@ -631,7 +626,6 @@ describe("advanced capture pipeline behavior", () => {
     _setCaptureDepsForTesting({
       addMemory: mockAddMemory,
       callLLMWithTool: mockCallLLM,
-      storePrompt: mockStorePrompt,
       getLastUncapturedPrompt: mockGetLastUncapturedPrompt,
       markCaptured: mockMarkCaptured,
       detectLanguage: mockDetectLanguage,

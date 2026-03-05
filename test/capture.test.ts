@@ -34,10 +34,6 @@ const mockCallLLM = mock(
   }),
 );
 
-const mockStorePrompt = mock(
-  (_sid: string, _mid: string, _content: string, _dir: string) => "prompt-1",
-);
-
 const mockGetLastUncaptured = mock(
   (
     _sid: string,
@@ -118,7 +114,6 @@ function resetMockDefaults() {
       evidenceCount: 1,
     },
   }));
-  mockStorePrompt.mockImplementation(() => "prompt-1");
   mockGetLastUncaptured.mockImplementation(() => ({
     id: "prompt-1",
     sessionId: "session-1",
@@ -143,7 +138,6 @@ beforeEach(() => {
   _setCaptureDepsForTesting({
     addMemory: mockAddMemory,
     callLLMWithTool: mockCallLLM,
-    storePrompt: mockStorePrompt,
     getLastUncapturedPrompt: mockGetLastUncaptured,
     markCaptured: mockMarkCaptured,
     detectLanguage: mockDetectLanguage,
@@ -151,7 +145,6 @@ beforeEach(() => {
   });
   mockAddMemory.mockReset();
   mockCallLLM.mockReset();
-  mockStorePrompt.mockReset();
   mockGetLastUncaptured.mockReset();
   mockMarkCaptured.mockReset();
   mockDetectLanguage.mockReset();
@@ -214,9 +207,9 @@ describe("per-session debounce", () => {
     jest.advanceTimersByTime(5000);
     await flushPromises();
 
-    // storePrompt should be called with the second message's content
-    expect(mockStorePrompt).toHaveBeenCalledTimes(1);
-    expect(mockStorePrompt.mock.calls[0][2]).toBe("second message");
+    // storePrompt is no longer called from capture -- chat.message handler stores prompts
+    // Instead verify the debounce coalesced to one capture run
+    expect(mockGetLastUncaptured).toHaveBeenCalledTimes(1);
   });
 });
 

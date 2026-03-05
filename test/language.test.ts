@@ -198,10 +198,6 @@ describe("capture language prompt integration", () => {
         deduplicated: boolean;
       },
   );
-  const mockStorePrompt = mock(
-    (_sid: string, _mid: string, _content: string, _dir: string) =>
-      "prompt-language",
-  );
   const mockGetLastUncaptured = mock(
     (_sid: string) =>
       ({
@@ -270,7 +266,6 @@ describe("capture language prompt integration", () => {
     _setCaptureDepsForTesting({
       addMemory: mockAddMemory,
       callLLMWithTool: callLLMSpy,
-      storePrompt: mockStorePrompt,
       getLastUncapturedPrompt: mockGetLastUncaptured,
       markCaptured: mockMarkCaptured,
       detectLanguage: mock(async (_text: string) => ({

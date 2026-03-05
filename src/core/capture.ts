@@ -13,11 +13,7 @@ import {
   getCaptureUserPrompt,
 } from "./ai/prompts.ts";
 import { addMemory } from "./memory.ts";
-import {
-  getLastUncapturedPrompt,
-  markCaptured,
-  storePrompt,
-} from "./prompts.ts";
+import { getLastUncapturedPrompt, markCaptured } from "./prompts.ts";
 
 // -- State ---------------------------------------------------------------------
 
@@ -32,7 +28,6 @@ let lastCaptureStatus: CaptureStatus = "skipped";
 type CaptureDeps = {
   addMemory: typeof addMemory;
   callLLMWithTool: typeof callLLMWithTool;
-  storePrompt: typeof storePrompt;
   getLastUncapturedPrompt: typeof getLastUncapturedPrompt;
   markCaptured: typeof markCaptured;
   detectLanguage: (text: string) => Promise<LanguageDetectionResult>;
@@ -42,7 +37,6 @@ type CaptureDeps = {
 const defaultDeps: CaptureDeps = {
   addMemory,
   callLLMWithTool,
-  storePrompt,
   getLastUncapturedPrompt,
   markCaptured,
   detectLanguage,
@@ -151,9 +145,6 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   const languageResult = await deps.detectLanguage(lastUserMessage);
   const langName = deps.getLanguageName(languageResult.detectedLang ?? "en");
-
-  const messageId = `msg_${Date.now()}`;
-  deps.storePrompt(opts.sessionId, messageId, lastUserMessage, opts.directory);
 
   const uncaptured = deps.getLastUncapturedPrompt(opts.sessionId);
   if (!uncaptured) {
