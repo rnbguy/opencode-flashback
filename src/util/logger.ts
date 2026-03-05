@@ -58,6 +58,7 @@ export function createLogger(
     // Ignore if directory already exists
   }
 
+  let logWriteWarned = false;
   let writeQueue = Promise.resolve();
 
   const write = (
@@ -81,7 +82,15 @@ export function createLogger(
     const payload = JSON.stringify(logEntry) + "\n";
     writeQueue = writeQueue
       .then(() => appendFile(logPath, payload, "utf-8"))
-      .catch(() => {});
+      .catch((err) => {
+        // Fallback to stderr once so log failures are observable
+        if (!logWriteWarned) {
+          logWriteWarned = true;
+          process.stderr.write(
+            `[flashback] log write failed: ${err instanceof Error ? err.message : String(err)}\n`,
+          );
+        }
+      });
 
     // Emit toast for non-debug levels
     if (level !== "debug" && toastSink) {
