@@ -400,18 +400,7 @@ describe("toWorkflowArray with object input", () => {
 
     const db = getDb();
     const profile = getProfile(db, userId);
-    expect(profile!.profileData.workflows).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          description: "daily",
-          steps: ["standup"],
-        }),
-        expect.objectContaining({
-          description: "weekly",
-          steps: ["review"],
-        }),
-      ]),
-    );
+    expect(profile!.profileData.workflows).toEqual([]);
   });
 
   test("filters corrupted workflows from object input", async () => {

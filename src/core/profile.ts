@@ -39,7 +39,7 @@ const PatternSchema = z.object({
 
 const WorkflowSchema = z.object({
   description: z.string().min(1),
-  steps: z.array(z.string()),
+  steps: z.array(z.string().min(1)).min(2),
 });
 
 const ProfileDataSchema = z.object({
