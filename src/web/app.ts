@@ -539,6 +539,7 @@ function startAutoRefresh(): void {
     if (!state.isSearching) {
       loadMemories();
     }
+    loadProfile();
   }, 30000);
 }
 
