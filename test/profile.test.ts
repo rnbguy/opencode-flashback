@@ -31,6 +31,7 @@ import {
   decayConfidence,
   getOrCreateProfile,
 } from "../src/core/profile";
+import { getUnanalyzedPrompts, storePrompt } from "../src/core/prompts";
 import { closeDb, getDb, getProfile, updateProfile } from "../src/db/database";
 
 // -- Helpers ------------------------------------------------------------------
@@ -233,6 +234,26 @@ describe("analyzeAndUpdateProfile", () => {
         expect.objectContaining({ category: "language", description: "Rust" }),
       ]),
     );
+  });
+
+  test("marks processed prompts as user-learning captured after successful update", async () => {
+    const userId = "user-mark-analyzed";
+    getOrCreateProfile(userId);
+
+    const promptIds = Array.from({ length: 10 }, (_, i) =>
+      storePrompt("ses-profile", `msg-${i}`, `prompt ${i}`, "/tmp/project"),
+    );
+    const prompts = Array.from({ length: 10 }, (_, i) => `prompt ${i}`);
+
+    const result = await analyzeAndUpdateProfile(userId, prompts, promptIds);
+    expect(result.updated).toBe(true);
+
+    const remaining = new Set(
+      getUnanalyzedPrompts(50).map((prompt) => prompt.id),
+    );
+    for (const promptId of promptIds) {
+      expect(remaining.has(promptId)).toBe(false);
+    }
   });
 });
 

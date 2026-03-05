@@ -223,7 +223,6 @@ describe("capture language prompt integration", () => {
       },
   );
   const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
-  const mockMarkAnalyzed = mock((_pid: string) => {});
   let realSetTimeout: typeof setTimeout;
 
   beforeEach(() => {
@@ -274,7 +273,6 @@ describe("capture language prompt integration", () => {
       storePrompt: mockStorePrompt,
       getLastUncapturedPrompt: mockGetLastUncaptured,
       markCaptured: mockMarkCaptured,
-      markAnalyzed: mockMarkAnalyzed,
       detectLanguage: mock(async (_text: string) => ({
         mode: "nl" as const,
         codeRatio: 0,

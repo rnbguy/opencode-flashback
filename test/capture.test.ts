@@ -61,7 +61,6 @@ const mockGetLastUncaptured = mock(
 );
 
 const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
-const mockMarkAnalyzed = mock((_pid: string) => {});
 const mockDetectLanguage = mock(async (_text: string) => ({
   mode: "nl" as const,
   codeRatio: 0,
@@ -130,7 +129,6 @@ function resetMockDefaults() {
     isUserLearningCaptured: false,
   }));
   mockMarkCaptured.mockImplementation(() => {});
-  mockMarkAnalyzed.mockImplementation(() => {});
   mockDetectLanguage.mockImplementation(async () => ({
     mode: "nl",
     codeRatio: 0,
@@ -148,7 +146,6 @@ beforeEach(() => {
     storePrompt: mockStorePrompt,
     getLastUncapturedPrompt: mockGetLastUncaptured,
     markCaptured: mockMarkCaptured,
-    markAnalyzed: mockMarkAnalyzed,
     detectLanguage: mockDetectLanguage,
     getLanguageName: mockGetLanguageName,
   });
@@ -157,7 +154,6 @@ beforeEach(() => {
   mockStorePrompt.mockReset();
   mockGetLastUncaptured.mockReset();
   mockMarkCaptured.mockReset();
-  mockMarkAnalyzed.mockReset();
   mockDetectLanguage.mockReset();
   mockGetLanguageName.mockReset();
   resetMockDefaults();
@@ -282,7 +278,6 @@ describe("LLM extraction", () => {
     await flushPromises();
 
     expect(mockMarkCaptured).toHaveBeenCalledTimes(1);
-    expect(mockMarkAnalyzed).toHaveBeenCalledTimes(1);
   });
 
   test("skips non-technical conversations (type=skip)", async () => {

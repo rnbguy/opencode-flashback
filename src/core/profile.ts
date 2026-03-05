@@ -18,6 +18,7 @@ import {
   PROFILE_SYSTEM_PROMPT,
   profileToolSchema,
 } from "./ai/prompts.ts";
+import { markAnalyzed } from "./prompts.ts";
 
 // -- Constants ----------------------------------------------------------------
 
@@ -92,6 +93,7 @@ export function getOrCreateProfile(userId: string): UserProfile {
 export async function analyzeAndUpdateProfile(
   userId: string,
   prompts: string[],
+  promptIds: string[] = [],
 ): Promise<{ updated: boolean }> {
   const logger = getLogger();
   const _profile = getOrCreateProfile(userId);
@@ -138,6 +140,11 @@ export async function analyzeAndUpdateProfile(
     };
 
     updateProfile(db, updated);
+    if (promptIds.length > 0) {
+      for (const promptId of promptIds) {
+        markAnalyzed(promptId);
+      }
+    }
 
     db.exec("COMMIT");
     logger.debug("analyzeAndUpdateProfile completed", {

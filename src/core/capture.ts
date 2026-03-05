@@ -15,7 +15,6 @@ import {
 import { addMemory } from "./memory.ts";
 import {
   getLastUncapturedPrompt,
-  markAnalyzed,
   markCaptured,
   storePrompt,
 } from "./prompts.ts";
@@ -36,7 +35,6 @@ type CaptureDeps = {
   storePrompt: typeof storePrompt;
   getLastUncapturedPrompt: typeof getLastUncapturedPrompt;
   markCaptured: typeof markCaptured;
-  markAnalyzed: typeof markAnalyzed;
   detectLanguage: (text: string) => Promise<LanguageDetectionResult>;
   getLanguageName: (code: string) => string;
 };
@@ -47,7 +45,6 @@ const defaultDeps: CaptureDeps = {
   storePrompt,
   getLastUncapturedPrompt,
   markCaptured,
-  markAnalyzed,
   detectLanguage,
   getLanguageName,
 };
@@ -259,7 +256,6 @@ async function processResult(
 
   lastCaptureStatus = result.deduplicated ? "duplicate" : "stored";
   deps.markCaptured(promptId, result.id);
-  deps.markAnalyzed(promptId);
 }
 
 // -- Helpers -------------------------------------------------------------------

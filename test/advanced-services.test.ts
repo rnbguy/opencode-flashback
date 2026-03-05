@@ -557,7 +557,6 @@ describe("advanced capture pipeline behavior", () => {
       }) as const,
   );
   const mockMarkCaptured = mock((_pid: string, _mid: string) => {});
-  const mockMarkAnalyzed = mock((_pid: string) => {});
   const mockDetectLanguage = mock(async (_text: string) => ({
     mode: "nl" as const,
     codeRatio: 0,
@@ -587,7 +586,6 @@ describe("advanced capture pipeline behavior", () => {
     mockStorePrompt.mockReset();
     mockGetLastUncapturedPrompt.mockReset();
     mockMarkCaptured.mockReset();
-    mockMarkAnalyzed.mockReset();
     mockDetectLanguage.mockReset();
     mockGetLanguageName.mockReset();
 
@@ -618,7 +616,6 @@ describe("advanced capture pipeline behavior", () => {
         }) as const,
     );
     mockMarkCaptured.mockImplementation(() => {});
-    mockMarkAnalyzed.mockImplementation(() => {});
     mockDetectLanguage.mockImplementation(async () => ({
       mode: "nl",
       codeRatio: 0,
@@ -637,7 +634,6 @@ describe("advanced capture pipeline behavior", () => {
       storePrompt: mockStorePrompt,
       getLastUncapturedPrompt: mockGetLastUncapturedPrompt,
       markCaptured: mockMarkCaptured,
-      markAnalyzed: mockMarkAnalyzed,
       detectLanguage: mockDetectLanguage,
       getLanguageName: mockGetLanguageName,
     });

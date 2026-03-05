@@ -745,13 +745,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         // Profile learning on idle (best-effort)
         try {
           const userId = tagInfo.userEmail || "default";
-          const prompts = getUnanalyzedPrompts(50).map(
-            (prompt) => prompt.content,
-          );
+          const prompts = getUnanalyzedPrompts(50);
           if (prompts.length > 0) {
             const profileResult = await analyzeAndUpdateProfile(
               userId,
-              prompts,
+              prompts.map((prompt) => prompt.content),
+              prompts.map((prompt) => prompt.id),
             );
             if (profileResult.updated) {
               decayConfidence(userId);
