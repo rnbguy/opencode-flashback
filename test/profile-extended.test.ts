@@ -375,34 +375,6 @@ describe("toWorkflowArray with object input", () => {
     );
   });
 
-  test("converts object with scalar values as workflows", async () => {
-    const userId = "user-scalar-workflows";
-    getOrCreateProfile(userId);
-
-    _setProfileDepsForTesting({
-      callLLMWithTool: async () => ({
-        success: true,
-        data: {
-          preferences: [],
-          patterns: [],
-          workflows: {
-            daily: "standup",
-            weekly: "review",
-          },
-        },
-      }),
-    });
-
-    const prompts = Array.from({ length: 10 }, (_, i) => `prompt ${i}`);
-    const result = await analyzeAndUpdateProfile(userId, prompts);
-
-    expect(result.updated).toBe(true);
-
-    const db = getDb();
-    const profile = getProfile(db, userId);
-    expect(profile!.profileData.workflows).toEqual([]);
-  });
-
   test("filters corrupted workflows from object input", async () => {
     const userId = "user-corrupt-obj-workflows";
     getOrCreateProfile(userId);

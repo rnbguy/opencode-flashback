@@ -446,15 +446,11 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
   }
 
   if (config.web.enabled) {
-    startServer(input.directory)
-      .then((actualPort) => {
-        logger?.info(`Web UI started on 127.0.0.1:${actualPort}`);
-      })
-      .catch((error) => {
-        logger?.error("Web server failed to start", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+    startServer(input.directory).catch((error) => {
+      logger?.error("Web server failed to start", {
+        error: error instanceof Error ? error.message : String(error),
       });
+    });
   }
 
   return {
