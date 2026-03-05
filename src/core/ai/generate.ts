@@ -23,7 +23,6 @@ const ERROR_NETWORK = "network_error" as const;
 
 const MESSAGE_REQUEST_TIMEOUT = "Request timed out";
 const MESSAGE_LLM_REQUEST_FAILED = "LLM request failed";
-const _MESSAGE_VALIDATION_FAILED_PREFIX = "LLM validation failed: ";
 const MESSAGE_VALIDATION_TIMEOUT = "LLM endpoint validation timed out";
 const MESSAGE_VALIDATION_UNREACHABLE_PREFIX = "LLM endpoint unreachable: ";
 const MESSAGE_INVALID_API_KEY = "Invalid or unauthorized API key";
