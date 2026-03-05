@@ -29,7 +29,7 @@ CREATE TABLE memories (
   project_path TEXT,
   project_name TEXT,
   git_repo_url TEXT,
-  is_pinned INTEGER DEFAULT 0
+  is_PINNED INTEGER DEFAULT 0
 );
 `;
 
@@ -66,7 +66,7 @@ function createOldDb(path: string, rowCount: number): void {
     `INSERT INTO memories (
       id, content, vector, tags_vector, container_tag, tags, type,
       created_at, updated_at, metadata, user_name, user_email,
-      project_path, project_name, git_repo_url, is_pinned
+      project_path, project_name, git_repo_url, is_PINNED
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
 

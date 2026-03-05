@@ -13,7 +13,7 @@ export function makeTestMemory(
     containerTag,
     tags: [],
     type: "note",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: { importance: 5 },

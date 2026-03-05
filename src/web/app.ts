@@ -15,6 +15,7 @@ import {
   RotateCw,
   Search,
   Star,
+  StarOff,
   Sun,
   Trash2,
   User,
@@ -61,7 +62,7 @@ type Memory = {
   createdAt?: number;
   type?: string;
   tags?: string[];
-  isPinned?: boolean;
+  isStarred?: boolean;
 };
 
 type SearchResult = {
@@ -130,6 +131,7 @@ const lucideIcons = {
   Info,
   ArrowRight,
   Star,
+  StarOff,
 };
 
 function renderMarkdown(markdown: string): string {
@@ -250,12 +252,12 @@ function renderMemories(): void {
       if (id) deleteMemory(id);
     });
   });
-  container.querySelectorAll("[data-pin-id]").forEach((btn) => {
+  container.querySelectorAll("[data-star-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const el = btn as HTMLElement;
-      const id = el.dataset.pinId;
-      const isPinned = el.dataset.pinned === "true";
-      if (id) togglePin(id, isPinned);
+      const id = el.dataset.starId;
+      const isStarred = el.dataset.starred === "true";
+      if (id) toggleStar(id, isStarred);
     });
   });
   createIcons({ icons: lucideIcons });
@@ -263,8 +265,8 @@ function renderMemories(): void {
 
 function renderMemoryCard(memory: Memory): string {
   const createdDate = formatDate(memory.createdAt);
-  const pinnedIndicator = memory.isPinned
-    ? '<span class="pin-indicator" title="Pinned"><i data-lucide="star" class="icon icon-sm icon-filled"></i></span>'
+  const starredIndicator = memory.isStarred
+    ? '<span class="star-indicator" title="Starred"><i data-lucide="star" class="icon icon-sm icon-filled"></i></span>'
     : "";
 
   const tagsHtml =
@@ -272,20 +274,21 @@ function renderMemoryCard(memory: Memory): string {
       ? `<div class="tags-list">${memory.tags.map((t) => `<span class="tag-badge">${escapeHtml(t)}</span>`).join("")}</div>`
       : "";
 
-  const pinBtnLabel = memory.isPinned ? "Unpin" : "Pin";
-  const pinBtnClass = memory.isPinned ? "btn-unpin" : "btn-pin";
+  const starBtnLabel = memory.isStarred ? "Unstar" : "Star";
+  const starBtnClass = memory.isStarred ? "btn-unstar" : "btn-star";
+  const starBtnIcon = memory.isStarred ? "star-off" : "star";
 
   return `
-    <div class="memory-card${memory.isPinned ? " pinned" : ""}" data-id="${memory.id}">
-      ${pinnedIndicator}
+    <div class="memory-card${memory.isStarred ? " starred" : ""}" data-id="${memory.id}">
+      ${starredIndicator}
       <div class="memory-header">
         <div class="meta">
           ${memory.type ? `<span class="badge badge-type">${escapeHtml(memory.type)}</span>` : ""}
           <span class="memory-display-name">Memory</span>
         </div>
         <div class="memory-actions">
-          <button class="${pinBtnClass}" data-pin-id="${memory.id}" data-pinned="${memory.isPinned ? "true" : "false"}">
-            <i data-lucide="star" class="icon"></i> ${pinBtnLabel}
+          <button class="${starBtnClass}" data-star-id="${memory.id}" data-starred="${memory.isStarred ? "true" : "false"}">
+            <i data-lucide="${starBtnIcon}" class="icon"></i> ${starBtnLabel}
           </button>
           <button class="btn-delete" data-delete-id="${memory.id}">
             <i data-lucide="trash-2" class="icon"></i> Delete
@@ -434,17 +437,17 @@ async function deleteMemory(id: string): Promise<void> {
   }
 }
 
-async function togglePin(id: string, isPinned: boolean): Promise<void> {
-  const endpoint = isPinned
-    ? `/api/memories/${id}/unpin`
-    : `/api/memories/${id}/pin`;
+async function toggleStar(id: string, isStarred: boolean): Promise<void> {
+  const endpoint = isStarred
+    ? `/api/memories/${id}/unstar`
+    : `/api/memories/${id}/star`;
   const result = await fetchAPI(endpoint, { method: "POST" });
 
   if (result.success) {
-    showToast(isPinned ? "Memory unpinned" : "Memory pinned", "success");
+    showToast(isStarred ? "Memory unstarred" : "Memory starred", "success");
     await loadMemories();
   } else {
-    showToast(result.error || "Failed to toggle pin", "error");
+    showToast(result.error || "Failed to toggle star", "error");
   }
 }
 

@@ -30,8 +30,8 @@ type ToolMode =
   | "review"
   | "rate"
   | "suspend"
-  | "pin"
-  | "unpin"
+  | "star"
+  | "unstar"
   | "clear"
   | "consolidate";
 
@@ -235,21 +235,21 @@ async function handleToolCall(
       );
       return { mode: "suspend", success, id };
     }
-    case "pin": {
+    case "star": {
       const id = asString(args.id);
       if (id.length === 0) {
         return { error: "Missing memory id" };
       }
-      const success = await engine.pinMemory(id);
-      return { mode: "pin", success, id };
+      const success = await engine.starMemory(id);
+      return { mode: "star", success, id };
     }
-    case "unpin": {
+    case "unstar": {
       const id = asString(args.id);
       if (id.length === 0) {
         return { error: "Missing memory id" };
       }
-      const success = await engine.unpinMemory(id);
-      return { mode: "unpin", success, id };
+      const success = await engine.unstarMemory(id);
+      return { mode: "unstar", success, id };
     }
     case "clear": {
       const confirmed = asBoolean(args.confirmed);
@@ -336,8 +336,8 @@ function getHelpText(): string {
     "| review | Review stale memories |",
     "| rate <id> <rating> | Rate a memory (1-5) to schedule next review |",
     "| suspend <id> [reason] | Suspend a memory |",
-    "| pin <id> | Pin a memory (protected from eviction) |",
-    "| unpin <id> | Unpin a memory |",
+    "| star <id> | Star a memory (protected from eviction) |",
+    "| unstar <id> | Unstar a memory |",
     "| clear [duration] | Clear all data or memories older than duration (e.g. 30sec, 2days, 1hour) |",
     "| consolidate [--dry-run] | Merge duplicates |",
   ].join("\n");
@@ -485,8 +485,8 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             "review",
             "rate",
             "suspend",
-            "pin",
-            "unpin",
+            "star",
+            "unstar",
             "clear",
             "consolidate",
           ]),

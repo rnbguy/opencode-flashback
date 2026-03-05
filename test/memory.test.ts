@@ -416,15 +416,15 @@ describe("enforceTagBudget", () => {
     expect(active.length).toBe(500);
   });
 
-  test("does not evict pinned memories", async () => {
+  test("does not evict starred memories", async () => {
     const db = getDb();
-    const tag = "pin-budget-tag";
+    const tag = "star-budget-tag";
     const eightDaysAgo = Date.now() - 8 * 86_400_000;
 
     for (let i = 0; i < 499; i++) {
       insertMemory(
         db,
-        makeTestMemory(`unpin-${i}`, tag, {
+        makeTestMemory(`unstar-${i}`, tag, {
           createdAt: eightDaysAgo,
           lastAccessedAt: eightDaysAgo,
         }),
@@ -432,8 +432,8 @@ describe("enforceTagBudget", () => {
     }
     insertMemory(
       db,
-      makeTestMemory("pinned-mem", tag, {
-        isPinned: true,
+      makeTestMemory("starred-mem", tag, {
+        isStarred: true,
         createdAt: eightDaysAgo,
         lastAccessedAt: eightDaysAgo,
       }),
@@ -441,9 +441,9 @@ describe("enforceTagBudget", () => {
 
     await addMemory({ content: "triggers eviction", containerTag: tag });
 
-    const pinned = await getMemoryById("pinned-mem");
-    expect(pinned).not.toBeNull();
-    expect(pinned!.evictedAt).toBeNull();
+    const starred = await getMemoryById("starred-mem");
+    expect(starred).not.toBeNull();
+    expect(starred!.evictedAt).toBeNull();
   });
 
   test("does not evict when under budget", async () => {

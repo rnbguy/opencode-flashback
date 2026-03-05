@@ -77,7 +77,7 @@ const schema = {
   content: "string",
   tags: "string",
   containerTag: "enum",
-  isPinned: "boolean",
+  isStarred: "boolean",
   embedding: "vector[768]",
 } as const;
 
@@ -86,7 +86,7 @@ type SearchDoc = {
   content: string;
   tags: string;
   containerTag: string;
-  isPinned: boolean;
+  isStarred: boolean;
   embedding: number[];
 };
 
@@ -149,7 +149,7 @@ async function doRebuild(): Promise<void> {
         content: memory.content,
         tags: memory.tags.join(", "),
         containerTag: memory.containerTag,
-        isPinned: memory.isPinned,
+        isStarred: memory.isStarred,
         embedding: Array.from(memory.embedding),
       };
       insert(oramaDb, doc);

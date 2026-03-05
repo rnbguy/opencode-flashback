@@ -31,10 +31,10 @@ import {
   getMemoriesForReview,
   getMemoryById,
   listMemoriesPage,
-  pinMemory,
   rateMemory,
+  starMemory,
   suspendMemory,
-  unpinMemory,
+  unstarMemory,
 } from "../src/core/memory";
 import { closeDb, getDb, insertMemory } from "../src/db/database";
 import {
@@ -296,42 +296,48 @@ describe("suspendMemory", () => {
   });
 });
 
-// -- pinMemory ----------------------------------------------------------------
+// -- starMemory ----------------------------------------------------------------
 
-describe("pinMemory", () => {
+describe("starMemory", () => {
   test("pins an existing memory", async () => {
     const db = getDb();
-    insertMemory(db, makeTestMemory("pin-1", "test-tag", { isPinned: false }));
+    insertMemory(
+      db,
+      makeTestMemory("star-1", "test-tag", { isStarred: false }),
+    );
 
-    const result = await pinMemory("pin-1");
+    const result = await starMemory("star-1");
     expect(result).toBe(true);
 
-    const mem = await getMemoryById("pin-1");
-    expect(mem!.isPinned).toBe(true);
+    const mem = await getMemoryById("star-1");
+    expect(mem!.isStarred).toBe(true);
   });
 
   test("returns false for nonexistent memory", async () => {
-    const result = await pinMemory("no-such-pin");
+    const result = await starMemory("no-such-star");
     expect(result).toBe(false);
   });
 });
 
-// -- unpinMemory --------------------------------------------------------------
+// -- unstarMemory --------------------------------------------------------------
 
-describe("unpinMemory", () => {
+describe("unstarMemory", () => {
   test("unpins an existing memory", async () => {
     const db = getDb();
-    insertMemory(db, makeTestMemory("unpin-1", "test-tag", { isPinned: true }));
+    insertMemory(
+      db,
+      makeTestMemory("unstar-1", "test-tag", { isStarred: true }),
+    );
 
-    const result = await unpinMemory("unpin-1");
+    const result = await unstarMemory("unstar-1");
     expect(result).toBe(true);
 
-    const mem = await getMemoryById("unpin-1");
-    expect(mem!.isPinned).toBe(false);
+    const mem = await getMemoryById("unstar-1");
+    expect(mem!.isStarred).toBe(false);
   });
 
   test("returns false for nonexistent memory", async () => {
-    const result = await unpinMemory("no-such-unpin");
+    const result = await unstarMemory("no-such-unstar");
     expect(result).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ interface MemoryRow {
   container_tag: string;
   tags: string | null;
   type: string | null;
-  is_pinned: number;
+  is_starred: number;
   created_at: number;
   updated_at: number;
   metadata: string | null;
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS memories (
   container_tag TEXT NOT NULL,
   tags TEXT,
   type TEXT,
-  is_pinned INTEGER DEFAULT 0,
+  is_PINNED INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   metadata TEXT,
@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS memories (
 CREATE INDEX IF NOT EXISTS idx_memories_container_tag ON memories(container_tag);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type);
 CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_memories_is_pinned ON memories(is_pinned);
+CREATE INDEX IF NOT EXISTS idx_memories_is_PINNED ON memories(is_PINNED);
 CREATE INDEX IF NOT EXISTS idx_memories_last_accessed ON memories(last_accessed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_evicted ON memories(evicted_at);
 CREATE INDEX IF NOT EXISTS idx_memories_suspended ON memories(suspended);
@@ -203,6 +203,13 @@ SET
     ELSE next_review_at
   END
 WHERE next_review_at IS NULL OR stability <= 0.0;`,
+  },
+  {
+    version: 3,
+    sql: `
+DROP INDEX IF EXISTS idx_memories_is_PINNED;
+ALTER TABLE memories RENAME COLUMN is_PINNED TO is_starred;
+CREATE INDEX IF NOT EXISTS idx_memories_is_starred ON memories(is_starred);`,
   },
 ];
 
@@ -264,7 +271,7 @@ function rowToMemory(row: MemoryRow): Memory {
     containerTag: row.container_tag,
     tags: parseJson<string[]>(row.tags, []),
     type: row.type ?? "",
-    isPinned: row.is_pinned === 1,
+    isStarred: row.is_starred === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     metadata: parseJson<Record<string, string | number | boolean | null>>(
@@ -334,7 +341,7 @@ function _rowToPrompt(row: PromptRow): UserPrompt {
 // -- CRUD: memories ----------------------------------------------------------
 
 const MEMORY_INSERT_SQL = `INSERT OR REPLACE INTO memories (
-  id, content, embedding, container_tag, tags, type, is_pinned,
+  id, content, embedding, container_tag, tags, type, is_starred,
   created_at, updated_at, metadata, user_name, user_email,
   project_path, project_name, git_repo_url, source_file, source_line,
   provenance_session_id, provenance_message_range, provenance_tool_call_ids,
@@ -363,7 +370,7 @@ export function insertMemory(db: Database, memory: Memory): void {
     memory.containerTag,
     JSON.stringify(memory.tags),
     memory.type,
-    memory.isPinned ? 1 : 0,
+    memory.isStarred ? 1 : 0,
     memory.createdAt,
     memory.updatedAt,
     JSON.stringify(memory.metadata),

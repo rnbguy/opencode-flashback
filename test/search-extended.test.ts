@@ -38,7 +38,7 @@ function makeMemory(
     containerTag,
     tags: ["test"],
     type: "knowledge",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: {},

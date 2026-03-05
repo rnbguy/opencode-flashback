@@ -19,12 +19,12 @@ import {
   getMemoriesForReview,
   getMemoryById,
   listMemories,
-  pinMemory,
   rateMemory,
   recallMemories,
   searchMemories,
+  starMemory,
   suspendMemory,
-  unpinMemory,
+  unstarMemory,
 } from "./core/memory.ts";
 import { getOrCreateProfile } from "./core/profile.ts";
 import {
@@ -81,8 +81,8 @@ export interface MemoryEngine {
     limit?: number,
   ): Promise<SearchResult[]>;
   suspendMemory(id: string, reason: string | null): Promise<boolean>;
-  pinMemory(id: string): Promise<boolean>;
-  unpinMemory(id: string): Promise<boolean>;
+  starMemory(id: string): Promise<boolean>;
+  unstarMemory(id: string): Promise<boolean>;
   rateMemory(
     id: string,
     rating: 1 | 2 | 3 | 4 | 5,
@@ -170,8 +170,8 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     exportMemories,
     findRelatedMemories,
     suspendMemory,
-    pinMemory,
-    unpinMemory,
+    starMemory,
+    unstarMemory,
     rateMemory,
     getMemoriesForReview,
     getOrCreateProfile,

@@ -31,7 +31,7 @@ function createInMemoryDb(): Database {
       container_tag TEXT NOT NULL,
       tags TEXT,
       type TEXT,
-      is_pinned INTEGER DEFAULT 0,
+      is_starred INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       metadata TEXT,
@@ -95,7 +95,7 @@ function makeMemory(overrides: Partial<Memory> = {}): Memory {
     containerTag: "mem_project_abc123",
     tags: ["test"],
     type: "knowledge",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: {},
@@ -172,7 +172,7 @@ describe("memory CRUD", () => {
     expect(retrieved!.content).toBe("hello world");
     expect(retrieved!.containerTag).toBe("mem_project_abc123");
     expect(retrieved!.tags).toEqual(["test"]);
-    expect(retrieved!.isPinned).toBe(false);
+    expect(retrieved!.isStarred).toBe(false);
     expect(retrieved!.userName).toBe("tester");
     expect(retrieved!.userEmail).toBe("test@example.com");
   });
@@ -256,13 +256,13 @@ describe("memory CRUD", () => {
   test("boolean fields round-trip", () => {
     const mem = makeMemory({
       id: "mem_bool",
-      isPinned: true,
+      isStarred: true,
       suspended: true,
     });
     insertMemory(db, mem);
 
     const retrieved = getMemory(db, "mem_bool")!;
-    expect(retrieved.isPinned).toBe(true);
+    expect(retrieved.isStarred).toBe(true);
     expect(retrieved.suspended).toBe(true);
   });
 

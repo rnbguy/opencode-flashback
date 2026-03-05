@@ -9,9 +9,9 @@ import {
   forgetMemory,
   getMemoryById,
   listMemories,
-  pinMemory,
   searchMemories,
-  unpinMemory,
+  starMemory,
+  unstarMemory,
 } from "../core/memory.ts";
 import { getOrCreateProfile } from "../core/profile.ts";
 import { resolveContainerTag } from "../core/tags.ts";
@@ -157,12 +157,12 @@ async function handleRequest(
       return handleAddMemory(req, directory);
     }
 
-    if (path.match(/^\/api\/memories\/[^/]+\/pin$/) && method === "POST") {
-      return handlePinMemory(path);
+    if (path.match(/^\/api\/memories\/[^/]+\/star$/) && method === "POST") {
+      return handleStarMemory(path);
     }
 
-    if (path.match(/^\/api\/memories\/[^/]+\/unpin$/) && method === "POST") {
-      return handleUnpinMemory(path);
+    if (path.match(/^\/api\/memories\/[^/]+\/unstar$/) && method === "POST") {
+      return handleUnstarMemory(path);
     }
 
     if (path.startsWith("/api/memories/") && method === "GET") {
@@ -308,26 +308,26 @@ async function handleDeleteMemory(path: string): Promise<Response> {
   return jsonResponse({ success: true, id });
 }
 
-async function handlePinMemory(path: string): Promise<Response> {
+async function handleStarMemory(path: string): Promise<Response> {
   const parts = path.split("/");
   const id = parts[3];
   if (!id || id.length === 0) {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
-  const success = await pinMemory(id);
+  const success = await starMemory(id);
   if (!success) {
     return jsonResponse({ error: "Memory not found" }, 404);
   }
   return jsonResponse({ success: true, id });
 }
 
-async function handleUnpinMemory(path: string): Promise<Response> {
+async function handleUnstarMemory(path: string): Promise<Response> {
   const parts = path.split("/");
   const id = parts[3];
   if (!id || id.length === 0) {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
-  const success = await unpinMemory(id);
+  const success = await unstarMemory(id);
   if (!success) {
     return jsonResponse({ error: "Memory not found" }, 404);
   }

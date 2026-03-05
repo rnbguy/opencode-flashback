@@ -70,7 +70,7 @@ function makeDbMemory(
     containerTag,
     tags: [],
     type: "note",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: { importance: 5 },
@@ -247,14 +247,14 @@ describe("advanced data pipeline", () => {
       }
     });
 
-    test("eviction preserves pinned memories when tag exceeds budget", async () => {
-      const tag = "evict-pinned";
+    test("eviction preserves starred memories when tag exceeds budget", async () => {
+      const tag = "evict-starred";
 
       for (let i = 0; i < 10; i++) {
         await addMemory({
-          content: `pinned-${i}`,
+          content: `starred-${i}`,
           containerTag: tag,
-          isPinned: true,
+          isStarred: true,
         });
       }
 
@@ -262,7 +262,7 @@ describe("advanced data pipeline", () => {
         await addMemory({
           content: `unpinned-${i}`,
           containerTag: tag,
-          isPinned: false,
+          isStarred: false,
         });
       }
 
@@ -272,11 +272,11 @@ describe("advanced data pipeline", () => {
       expect(active.length).toBeLessThanOrEqual(500);
 
       for (let i = 0; i < 10; i++) {
-        const pinned = active.find(
-          (memory) => memory.content === `pinned-${i}`,
+        const starred = active.find(
+          (memory) => memory.content === `starred-${i}`,
         );
-        expect(pinned).toBeDefined();
-        expect(pinned?.isPinned).toBe(true);
+        expect(starred).toBeDefined();
+        expect(starred?.isStarred).toBe(true);
       }
     }, 60000);
 

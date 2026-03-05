@@ -29,7 +29,7 @@ export interface AddMemoryOptions {
   containerTag: string;
   tags?: string[];
   type?: string;
-  isPinned?: boolean;
+  isStarred?: boolean;
   importance?: number;
   provenance?: Memory["provenance"];
   epistemicStatus?: Memory["epistemicStatus"];
@@ -93,7 +93,7 @@ export async function addMemory(
     containerTag: opts.containerTag,
     tags: opts.tags ?? [],
     type: opts.type ?? "note",
-    isPinned: opts.isPinned ?? false,
+    isStarred: opts.isStarred ?? false,
     createdAt: now,
     updatedAt: now,
     metadata,
@@ -389,31 +389,31 @@ export async function suspendMemory(
   return true;
 }
 
-export async function pinMemory(id: string): Promise<boolean> {
+export async function starMemory(id: string): Promise<boolean> {
   const logger = getLogger();
   const db = getDb();
   const memory = getMemory(db, id);
   if (!memory) {
-    logger.debug("pinMemory completed", { id, success: false });
+    logger.debug("starMemory completed", { id, success: false });
     return false;
   }
 
-  db.query("UPDATE memories SET is_pinned = 1 WHERE id = ?").run(id);
-  logger.debug("pinMemory completed", { id, success: true });
+  db.query("UPDATE memories SET is_starred = 1 WHERE id = ?").run(id);
+  logger.debug("starMemory completed", { id, success: true });
   return true;
 }
 
-export async function unpinMemory(id: string): Promise<boolean> {
+export async function unstarMemory(id: string): Promise<boolean> {
   const logger = getLogger();
   const db = getDb();
   const memory = getMemory(db, id);
   if (!memory) {
-    logger.debug("unpinMemory completed", { id, success: false });
+    logger.debug("unstarMemory completed", { id, success: false });
     return false;
   }
 
-  db.query("UPDATE memories SET is_pinned = 0 WHERE id = ?").run(id);
-  logger.debug("unpinMemory completed", { id, success: true });
+  db.query("UPDATE memories SET is_starred = 0 WHERE id = ?").run(id);
+  logger.debug("unstarMemory completed", { id, success: true });
   return true;
 }
 
@@ -584,18 +584,18 @@ async function enforceTagBudget(containerTag: string): Promise<void> {
   }
 
   const excess = active.length - TAG_BUDGET;
-  const nonPinned = active.filter((memory) => !memory.isPinned);
+  const nonStarred = active.filter((memory) => !memory.isStarred);
 
-  if (nonPinned.length === 0) {
+  if (nonStarred.length === 0) {
     return;
   }
 
   const now = Date.now();
   const graceCutoff = now - EVICTION_GRACE_DAYS * DAY_MS;
-  const graceEligible = nonPinned.filter(
+  const graceEligible = nonStarred.filter(
     (memory) => memory.createdAt <= graceCutoff,
   );
-  const pool = graceEligible.length >= excess ? graceEligible : nonPinned;
+  const pool = graceEligible.length >= excess ? graceEligible : nonStarred;
 
   const evictable = pool
     .map((memory) => {

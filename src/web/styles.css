@@ -494,19 +494,19 @@ button:disabled {
   color: var(--bg-primary);
 }
 
-.btn-pin,
-.btn-unpin {
+.btn-star,
+.btn-unstar {
   border-color: var(--warning);
   color: var(--warning);
 }
 
-.btn-pin:hover,
-.btn-unpin:hover {
+.btn-star:hover,
+.btn-unstar:hover {
   background: var(--warning);
   color: var(--bg-primary);
 }
 
-.pin-indicator {
+.star-indicator {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -514,7 +514,7 @@ button:disabled {
   z-index: 1;
 }
 
-.memory-card.pinned {
+.memory-card.starred {
   border-color: var(--warning);
   border-left: 3px solid var(--warning);
 }

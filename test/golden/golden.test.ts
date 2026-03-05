@@ -280,7 +280,7 @@ function makeMemory(entry: GoldenDatasetEntry): Memory {
     containerTag: CONTAINER_TAG,
     tags: [entry.category],
     type: entry.category === "code" ? "code" : "note",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: { importance: entry.category === "code" ? 7 : 5 },

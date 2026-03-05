@@ -38,7 +38,7 @@ function makeMemory(overrides: Partial<Memory> = {}): Memory {
     containerTag: "mem_project_abc123",
     tags: ["test"],
     type: "knowledge",
-    isPinned: false,
+    isStarred: false,
     createdAt: now,
     updatedAt: now,
     metadata: {},

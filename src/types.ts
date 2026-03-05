@@ -7,7 +7,7 @@ export interface Memory {
   containerTag: string;
   tags: string[];
   type: string;
-  isPinned: boolean;
+  isStarred: boolean;
   createdAt: number; // Unix ms
   updatedAt: number;
   metadata: Record<string, string | number | boolean | null>;
@@ -156,7 +156,7 @@ export interface CompactionConfig {
 
 export type RetrievalQuality = "fast" | "balanced" | "thorough" | "custom";
 export type LogLevel = "debug" | "info" | "warn" | "error";
-export type MemoryTier = "pinned" | "semantic" | "ephemeral";
+export type MemoryTier = "starred" | "semantic" | "ephemeral";
 export type SubsystemState =
   | "uninitialized"
   | "initializing"
@@ -195,8 +195,8 @@ export type ToolResult =
   | { mode: "review"; memories: Memory[]; count: number }
   | { mode: "rate"; success: boolean; id: string; nextReviewAt: number | null }
   | { mode: "suspend"; success: boolean; id: string }
-  | { mode: "pin"; success: boolean; id: string }
-  | { mode: "unpin"; success: boolean; id: string }
+  | { mode: "star"; success: boolean; id: string }
+  | { mode: "unstar"; success: boolean; id: string }
   | { mode: "clear"; success: boolean; message: string }
   | {
       mode: "consolidate";
