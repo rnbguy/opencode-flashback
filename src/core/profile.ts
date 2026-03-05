@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   getDb,
   getProfile,
@@ -21,6 +22,43 @@ import {
 // -- Constants ----------------------------------------------------------------
 
 const ANALYSIS_THRESHOLD = 10;
+
+// -- Zod schemas for profile validation --------------------------------------
+
+const PreferenceSchema = z.object({
+  category: z.string().min(1),
+  description: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  evidence: z.array(z.string()).optional(),
+});
+
+const PatternSchema = z.object({
+  category: z.string().min(1),
+  description: z.string().min(1),
+});
+
+const WorkflowSchema = z.object({
+  description: z.string().min(1),
+  steps: z.array(z.string()),
+});
+
+const ProfileDataSchema = z.object({
+  preferences: z.array(PreferenceSchema),
+  patterns: z.array(PatternSchema),
+  workflows: z.array(WorkflowSchema),
+});
+
+// -- Profile notifier (for toast) ---------------------------------------------
+
+type ProfileNotifier = (
+  event: "validation_error" | "updated",
+  detail?: string,
+) => void;
+let notifier: ProfileNotifier | null = null;
+
+export function setProfileNotifier(fn: ProfileNotifier): void {
+  notifier = fn;
+}
 
 type ProfileDeps = {
   callLLMWithTool: typeof callLLMWithTool;
@@ -162,11 +200,36 @@ export function decayConfidence(userId: string, decayFactor = 0.95): void {
 function extractProfileData(
   data: Record<string, unknown>,
 ): NormalizedProfileData {
-  return {
+  const logger = getLogger();
+  const raw = {
     preferences: toPreferenceArray(data.preferences),
     patterns: toPatternArray(data.patterns),
     workflows: toWorkflowArray(data.workflows),
   };
+
+  const result = ProfileDataSchema.safeParse(raw);
+  if (result.success) {
+    return result.data;
+  }
+
+  // Validation failed -- log errors, filter invalid entries, notify
+  const errors = result.error.issues.map(
+    (i) => `${i.path.join(".")}: ${i.message}`,
+  );
+  logger.error("Profile validation errors", { errors });
+  notifier?.("validation_error", errors.join("; "));
+
+  // Fall back: validate each item individually, keep only valid ones
+  const preferences = raw.preferences.filter(
+    (p) => PreferenceSchema.safeParse(p).success,
+  );
+  const patterns = raw.patterns.filter(
+    (p) => PatternSchema.safeParse(p).success,
+  );
+  const workflows = raw.workflows.filter(
+    (w) => WorkflowSchema.safeParse(w).success,
+  );
+  return { preferences, patterns, workflows };
 }
 
 function normalizeProfileData(
@@ -326,7 +389,16 @@ function mergePreferences(
   for (const item of extracted) {
     const index = merged.findIndex((entry) => entry.category === item.category);
     if (index >= 0) {
-      merged[index] = item;
+      const current = merged[index];
+      // Only overwrite if the new entry has a non-empty description
+      if (!item.description.trim()) continue;
+      merged[index] = {
+        ...item,
+        confidence: Math.max(item.confidence, current.confidence),
+        evidence: [
+          ...new Set([...(current.evidence ?? []), ...(item.evidence ?? [])]),
+        ].slice(0, 5),
+      };
     } else {
       merged.push(item);
     }
@@ -342,6 +414,8 @@ function mergePatterns(
   for (const item of extracted) {
     const index = merged.findIndex((entry) => entry.category === item.category);
     if (index >= 0) {
+      // Only overwrite if the new entry has a non-empty description
+      if (!item.description.trim()) continue;
       merged[index] = item;
     } else {
       merged.push(item);

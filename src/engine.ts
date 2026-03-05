@@ -27,7 +27,7 @@ import {
   suspendMemory,
   unpinMemory,
 } from "./core/memory.ts";
-import { getOrCreateProfile } from "./core/profile.ts";
+import { getOrCreateProfile, setProfileNotifier } from "./core/profile.ts";
 import {
   clearAllData,
   clearOldData,
@@ -92,6 +92,7 @@ export interface MemoryEngine {
   getOrCreateProfile(userId: string): UserProfile | null;
   enqueueCapture(request: CaptureRequest): void;
   setCaptureNotifier(fn: (status: string, error?: string) => void): void;
+  setProfileNotifier(fn: (event: string, detail?: string) => void): void;
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
   clearAllData(durationSecs?: number): void;
@@ -179,6 +180,7 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     getOrCreateProfile,
     enqueueCapture,
     setCaptureNotifier,
+    setProfileNotifier,
     resolveTag: (directory) => resolver.resolve(directory),
     getDiagnostics: async (containerTag) => {
       const db = getDb();

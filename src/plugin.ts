@@ -456,6 +456,25 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         .catch(() => undefined);
     }
   });
+
+  engine.setProfileNotifier((event, detail) => {
+    if (
+      event === "validation_error" &&
+      input.client?.tui &&
+      config.toasts.errors
+    ) {
+      input.client.tui
+        .showToast({
+          body: {
+            title: "Flashback Error",
+            message: `Profile validation failed: ${detail || "invalid data"}`,
+            variant: "error",
+            duration: 5000,
+          },
+        })
+        .catch(() => undefined);
+    }
+  });
   if (!isConfigured()) {
     logger.warn("Plugin is not fully configured");
   }
