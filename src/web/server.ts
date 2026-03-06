@@ -107,7 +107,6 @@ export async function startServer(directory: string): Promise<number> {
 }
 
 export function stopServer(): void {
-  const logger = getLogger();
   if (csrfRotationInterval) {
     clearInterval(csrfRotationInterval);
     csrfRotationInterval = null;
@@ -120,7 +119,6 @@ export function stopServer(): void {
     server.stop();
     server = null;
     serverState = "uninitialized";
-    logger.debug("stopServer completed");
   }
 }
 
