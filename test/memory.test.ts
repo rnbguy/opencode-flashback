@@ -120,6 +120,38 @@ describe("addMemory", () => {
     expect(second.id).toBe(first.id);
   });
 
+  test("deduplicates concurrent identical addMemory calls", async () => {
+    _setEmbedDepsForTesting({
+      embedMany: (async ({ values }: { values: string[] }) => {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        return {
+          embeddings: values.map((value) => seededVector(value)),
+        };
+      }) as unknown as typeof import("ai").embedMany,
+    });
+    resetEmbedder();
+
+    const [first, second] = await Promise.all([
+      addMemory({
+        content: "concurrent dedup content",
+        containerTag: "test-tag",
+      }),
+      addMemory({
+        content: "concurrent dedup content",
+        containerTag: "test-tag",
+      }),
+    ]);
+
+    const memories = getAllActiveMemories(getDb()).filter(
+      (memory) => memory.containerTag === "test-tag",
+    );
+
+    expect(memories).toHaveLength(1);
+    expect(first.deduplicated).toBe(false);
+    expect(second.deduplicated).toBe(true);
+    expect(second.id).toBe(first.id);
+  });
+
   test("does not dedup different content", async () => {
     const first = await addMemory({
       content: "first unique content about TypeScript generics",
