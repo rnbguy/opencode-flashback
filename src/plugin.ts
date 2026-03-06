@@ -71,8 +71,8 @@ function asNumber(value: unknown): number | undefined {
     : undefined;
 }
 
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : false;
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -317,10 +317,7 @@ async function handleToolCall(
       };
     }
     case "consolidate": {
-      const dryRun =
-        typeof args.dryRun === "boolean"
-          ? (asBoolean(args.dryRun) ?? true)
-          : true;
+      const dryRun = asBoolean(args.dryRun) ?? true;
       const confirmed = asBoolean(args.confirmed);
       if (!dryRun && !confirmed) {
         return {
