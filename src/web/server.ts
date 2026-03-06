@@ -33,6 +33,7 @@ let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 let cspScriptHash = "";
 let csrfRotationInterval: ReturnType<typeof setInterval> | null = null;
+let portReclaimInterval: ReturnType<typeof setInterval> | null = null;
 
 const WEB_UI_AVAILABLE_PREFIX = "Web UI available at http://127.0.0.1:";
 
@@ -86,6 +87,14 @@ export async function startServer(directory: string): Promise<number> {
       serverState = "ready";
       logger.info(`${WEB_UI_AVAILABLE_PREFIX}${port}`);
       logger.debug("startServer completed", { port });
+
+      // If server is on a fallback port, attempt to reclaim basePort periodically
+      if (port !== basePort) {
+        portReclaimInterval = setInterval(() => {
+          attemptPortReclaim(directory, basePort, port);
+        }, 60_000); // Check every 60 seconds
+      }
+
       return server.port!;
     } catch (error: unknown) {
       lastError = error;
@@ -104,6 +113,10 @@ export function stopServer(): void {
     clearInterval(csrfRotationInterval);
     csrfRotationInterval = null;
   }
+  if (portReclaimInterval) {
+    clearInterval(portReclaimInterval);
+    portReclaimInterval = null;
+  }
   if (server) {
     server.stop();
     server = null;
@@ -114,6 +127,48 @@ export function stopServer(): void {
 
 export function getServerState(): SubsystemState {
   return serverState;
+}
+
+// -- Port reclaim helper ---------------------------------------------------
+
+async function attemptPortReclaim(
+  directory: string,
+  basePort: number,
+  currentPort: number,
+): Promise<void> {
+  const logger = getLogger();
+  try {
+    // Try to start a test server on basePort to check if it's free
+    const testServer = Bun.serve({
+      hostname: "127.0.0.1",
+      port: basePort,
+      fetch: () => new Response("test"),
+    });
+    // If we got here, basePort is free. Stop the test server.
+    testServer.stop();
+
+    // Now reclaim: stop current server and start on basePort
+    if (server) {
+      server.stop();
+      server = null;
+    }
+    if (portReclaimInterval) {
+      clearInterval(portReclaimInterval);
+      portReclaimInterval = null;
+    }
+
+    // Start new server on basePort
+    server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: basePort,
+      fetch: (req) => handleRequest(req, directory),
+    });
+    logger.info(
+      `${WEB_UI_AVAILABLE_PREFIX}${basePort} (reclaimed from fallback port ${currentPort})`,
+    );
+  } catch {
+    // Port is still in use or other error. Silently continue on current port.
+  }
 }
 
 // -- Request handler --------------------------------------------------------
@@ -306,6 +361,11 @@ async function handleAddMemory(
     type?: string;
   };
 
+  // Verify actual body size (prevent header spoofing)
+  const bodySize = JSON.stringify(body).length;
+  if (bodySize > 1_048_576) {
+    return jsonResponse({ error: "Request body too large" }, 413);
+  }
   if (!body.content || typeof body.content !== "string") {
     return jsonResponse({ error: "Missing required field: content" }, 400);
   }
