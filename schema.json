@@ -185,6 +185,19 @@
       },
       "required": ["enabled", "memoryLimit"],
       "additionalProperties": false
+    },
+    "consolidation": {
+      "type": "object",
+      "properties": {
+        "maxCandidates": {
+          "default": 500,
+          "type": "number",
+          "minimum": 50,
+          "maximum": 5000
+        }
+      },
+      "required": ["maxCandidates"],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -195,7 +208,8 @@
     "web",
     "search",
     "toasts",
-    "compaction"
+    "compaction",
+    "consolidation"
   ],
   "additionalProperties": false
 }
