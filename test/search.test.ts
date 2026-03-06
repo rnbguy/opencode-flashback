@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
-import { closeDb, getDb, insertMemory } from "../src/db/database.ts";
+import {
+  closeDb,
+  getDb,
+  incrementRevision,
+  insertMemory,
+} from "../src/db/database.ts";
 import {
   getSearchState,
   hybridSearch,
@@ -161,6 +166,26 @@ describe("search", () => {
       10,
     );
     expect(results.some((r) => r.memory.id === "new")).toBe(true);
+  });
+
+  test("rebuilds index when db revision advances without markStale", async () => {
+    addMemory("base", "Initial content", "proj", 11);
+    await rebuildIndex();
+
+    const db = getDb();
+    insertMemory(
+      db,
+      makeMemory("external", "Cross process insert", "proj", 12),
+    );
+    incrementRevision(db);
+
+    const results = await hybridSearch(
+      "Cross process insert",
+      makeVector(12),
+      "proj",
+      10,
+    );
+    expect(results.some((r) => r.memory.id === "external")).toBe(true);
   });
 
   test("falls back to SQLite text search on error", async () => {

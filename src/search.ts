@@ -7,6 +7,7 @@ import {
   getDb,
   getMemory,
   getMetaValue,
+  getRevision,
   META_KEY_EMBEDDING_DIMENSION,
   searchMemoriesByText,
 } from "./db/database.ts";
@@ -113,6 +114,7 @@ type SearchDoc = {
 let state: SubsystemState = "uninitialized";
 let oramaDb: Orama<ReturnType<typeof createSchema>> | null = null;
 let isStale = false;
+let loadedRevision = -1;
 let rebuildPromise: Promise<void> = Promise.resolve();
 
 // -- Init / Rebuild ----------------------------------------------------------
@@ -159,6 +161,7 @@ async function doRebuild(): Promise<void> {
     isStale = false;
 
     const db = getDb();
+    const dbRevision = getRevision(db);
     const memories = getAllActiveMemories(db);
 
     for (const memory of memories) {
@@ -172,6 +175,7 @@ async function doRebuild(): Promise<void> {
       };
       insert(oramaDb, doc);
     }
+    loadedRevision = dbRevision;
     logger.debug("rebuildIndex completed", {
       memoryCount: memories.length,
       durationMs: Date.now() - start,
@@ -199,8 +203,12 @@ async function hybridSearchImpl(
       await deps.initSearch();
     }
 
-    if (isStale) {
+    const db = getDb();
+    const dbRevision = getRevision(db);
+
+    if (isStale || dbRevision > loadedRevision) {
       await deps.rebuildIndex();
+      loadedRevision = dbRevision;
       state = "ready";
     }
 
@@ -225,7 +233,6 @@ async function hybridSearchImpl(
       return [];
     }
 
-    const db = getDb();
     const searchResults: SearchResult[] = [];
 
     for (const hit of resolved.hits) {
