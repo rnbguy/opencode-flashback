@@ -767,6 +767,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
               .filter((message) => message.content.length > 0);
           } catch {
             // SDK call failed -- proceed with empty messages
+            logger?.debug("session.idle SDK unavailable", { sessionID });
           }
         }
 
