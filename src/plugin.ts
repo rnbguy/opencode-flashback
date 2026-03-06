@@ -37,8 +37,6 @@ type ToolMode =
   | "webui";
 
 const injectedSessionIds = new Set<string>();
-let warmupTimer: ReturnType<typeof setTimeout> | null = null;
-let idleTimeout: ReturnType<typeof setTimeout> | null = null;
 let lifecycleInstalled = false;
 const engine = createEngine({ resolve: resolveContainerTag });
 const backoff = { delay: 0, maxDelay: 300_000, lastFailure: 0 };
@@ -450,21 +448,6 @@ function getHelpText(): string {
   ].join("\n");
 }
 
-function _scheduleWarmup(): void {
-  if (warmupTimer) {
-    return;
-  }
-  warmupTimer = setTimeout(async () => {
-    warmupTimer = null;
-    try {
-      await engine.warmup();
-    } catch {
-      // Warmup is best-effort -- lazy init handles failures
-      logger?.debug("warmup failed, lazy init will retry", {});
-    }
-  }, 30_000);
-}
-
 function installLifecycleHooks(): void {
   if (lifecycleInstalled) {
     return;
@@ -472,14 +455,6 @@ function installLifecycleHooks(): void {
   lifecycleInstalled = true;
 
   const shutdown = () => {
-    if (warmupTimer) {
-      clearTimeout(warmupTimer);
-      warmupTimer = null;
-    }
-    if (idleTimeout) {
-      clearTimeout(idleTimeout);
-      idleTimeout = null;
-    }
     stopServer();
     engine.shutdown();
   };
@@ -650,23 +625,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
         // Fetch session messages for compaction detection (if client available)
         let isAfterCompaction = false;
-        let _nonSyntheticUserMessageCount = 0;
         if (input.client?.session) {
           try {
             const messagesResponse = await input.client.session.messages({
               path: { id: sessionID },
             });
             const messages = messagesResponse.data || [];
-            _nonSyntheticUserMessageCount = messages.filter(
-              (message) =>
-                message.info.role === "user" &&
-                message.parts.some(
-                  (part) =>
-                    part.type === "text" &&
-                    typeof part.text === "string" &&
-                    part.synthetic !== true,
-                ),
-            ).length;
             const lastMessage =
               messages.length > 0 ? messages[messages.length - 1] : null;
             isAfterCompaction = lastMessage?.info?.summary === true;
