@@ -19,7 +19,7 @@ import {
   starProfileItem,
   unstarProfileItem,
 } from "../core/profile.ts";
-import { resolveContainerTag } from "../core/tags.ts";
+import { deriveUserId, resolveContainerTag } from "../core/tags.ts";
 import { countMemories, getDb } from "../db/database.ts";
 import { getSearchState } from "../search.ts";
 import type { DiagnosticsResponse, SubsystemState } from "../types.ts";
@@ -451,7 +451,7 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
 
 function handleGetProfile(directory: string): Response {
   const tagInfo = resolveContainerTag(directory);
-  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const userId = deriveUserId(tagInfo);
   const profile = getOrCreateProfile(userId);
   return jsonResponse(profile);
 }
@@ -463,7 +463,7 @@ function handleStarProfileItem(path: string, directory: string): Response {
   }
 
   const tagInfo = resolveContainerTag(directory);
-  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const userId = deriveUserId(tagInfo);
   const success = starProfileItem(userId, parsed.section, parsed.index);
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);
@@ -479,7 +479,7 @@ function handleUnstarProfileItem(path: string, directory: string): Response {
   }
 
   const tagInfo = resolveContainerTag(directory);
-  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const userId = deriveUserId(tagInfo);
   const success = unstarProfileItem(userId, parsed.section, parsed.index);
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);
@@ -495,7 +495,7 @@ function handleDeleteProfileItem(path: string, directory: string): Response {
   }
 
   const tagInfo = resolveContainerTag(directory);
-  const userId = tagInfo.userEmail || tagInfo.userName || "anonymous";
+  const userId = deriveUserId(tagInfo);
   const success = deleteProfileItem(userId, parsed.section, parsed.index);
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);

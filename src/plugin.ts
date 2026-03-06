@@ -7,7 +7,7 @@ import { MEMORY_HEADER } from "./consts.ts";
 import { getAvailableModels, validateLLMEndpoint } from "./core/ai/generate.ts";
 import { analyzeAndUpdateProfile, decayConfidence } from "./core/profile.ts";
 import { getUnanalyzedPrompts, storePrompt } from "./core/prompts.ts";
-import { resolveContainerTag } from "./core/tags.ts";
+import { deriveUserId, resolveContainerTag } from "./core/tags.ts";
 import { createEngine } from "./engine.ts";
 import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
@@ -188,7 +188,7 @@ async function handleToolCall(
       };
     }
     case "profile": {
-      const profile = engine.getOrCreateProfile(tagInfo.userEmail || "default");
+      const profile = engine.getOrCreateProfile(deriveUserId(tagInfo));
       return { mode: "profile", profile };
     }
     case "stats": {
@@ -812,7 +812,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
         // Profile learning on idle (best-effort)
         try {
-          const userId = tagInfo.userEmail || "default";
+          const userId = deriveUserId(tagInfo);
           const prompts = getUnanalyzedPrompts(50);
           if (prompts.length > 0) {
             const profileResult = await analyzeAndUpdateProfile(

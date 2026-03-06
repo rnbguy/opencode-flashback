@@ -117,6 +117,19 @@ function getUserIdentity(): string {
   return "anonymous";
 }
 
+// -- User identity derivation --------------------------------------------------
+
+/**
+ * Derive userId from tagInfo, with fallback chain:
+ * userEmail -> userName -> "default"
+ */
+export function deriveUserId(tagInfo: {
+  userEmail?: string | null;
+  userName?: string | null;
+}): string {
+  return tagInfo.userEmail || tagInfo.userName || "default";
+}
+
 // -- Public API ---------------------------------------------------------------
 
 /**
