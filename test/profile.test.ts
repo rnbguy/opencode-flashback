@@ -201,7 +201,7 @@ describe("analyzeAndUpdateProfile", () => {
     expect(profile!.totalPromptsAnalyzed).toBe(20);
   });
 
-  test("does not update on LLM failure", async () => {
+  test("throws error on LLM failure", async () => {
     getOrCreateProfile("user-fail");
 
     mockCallLLM.mockImplementation(async () => ({
@@ -210,13 +210,15 @@ describe("analyzeAndUpdateProfile", () => {
       code: "api_error" as const,
     }));
 
-    const result = await analyzeAndUpdateProfile(
-      "user-fail",
-      Array.from({ length: 10 }, (_, i) => `prompt-${i}`),
-    );
-
-    expect(result.updated).toBe(false);
-    expect(result.updated).toBe(false);
+    try {
+      await analyzeAndUpdateProfile(
+        "user-fail",
+        Array.from({ length: 10 }, (_, i) => `prompt-${i}`),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect((error as Error).message).toContain("api_error");
+    }
   });
 
   test("performs atomic profile transaction", async () => {

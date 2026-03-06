@@ -119,12 +119,9 @@ export async function analyzeAndUpdateProfile(
   });
 
   if (!result.success) {
-    logger.debug("analyzeAndUpdateProfile completed", {
-      userId,
-      promptCount: prompts.length,
-      status: "skipped",
-    });
-    return { updated: false };
+    throw new Error(
+      `Profile analysis failed: ${result.error} (${result.code})`,
+    );
   }
 
   const extracted = extractProfileData(result.data);

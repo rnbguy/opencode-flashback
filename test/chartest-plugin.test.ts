@@ -149,9 +149,7 @@ describe("userId derivation patterns (CURRENT BEHAVIOR)", () => {
 // -- Backoff Behavior Tests ---------------------------------------------------
 
 describe("backoff behavior (CURRENT BEHAVIOR)", () => {
-  test("analyzeAndUpdateProfile returns { updated: false } on LLM failure (not throwing)", async () => {
-    // CURRENT BEHAVIOR (BUG): profile.ts:115-128 returns { updated: false } instead of throwing
-    // This is why backoff doesn't trigger in plugin.ts:814-836 (catch block only)
+  test("analyzeAndUpdateProfile throws on LLM failure", async () => {
     mockCallLLM.mockImplementation(async () => ({
       success: false,
       error: "LLM request failed",
@@ -160,23 +158,16 @@ describe("backoff behavior (CURRENT BEHAVIOR)", () => {
 
     const userId = "test-user";
     const promptIds = Array.from({ length: 10 }, (_, i) => {
-      return storePrompt(
-        "session-1",
-        `msg-${i}`,
-        `test prompt ${i}`,
-        "/test",
-      );
+      return storePrompt("session-1", `msg-${i}`, `test prompt ${i}`, "/test");
     });
     const prompts = Array.from({ length: 10 }, (_, i) => `test prompt ${i}`);
 
-    const result = await analyzeAndUpdateProfile(
-      userId,
-      prompts,
-      promptIds,
-    );
-
-    // CURRENT BEHAVIOR: returns { updated: false } instead of throwing
-    expect(result.updated).toBe(false);
+    try {
+      await analyzeAndUpdateProfile(userId, prompts, promptIds);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect((error as Error).message).toContain("api_error");
+    }
   });
 
   test("analyzeAndUpdateProfile returns { updated: true } on LLM success", async () => {
@@ -199,29 +190,16 @@ describe("backoff behavior (CURRENT BEHAVIOR)", () => {
 
     const userId = "test-user";
     const promptIds = Array.from({ length: 10 }, (_, i) => {
-      return storePrompt(
-        "session-1",
-        `msg-${i}`,
-        `test prompt ${i}`,
-        "/test",
-      );
+      return storePrompt("session-1", `msg-${i}`, `test prompt ${i}`, "/test");
     });
     const prompts = Array.from({ length: 10 }, (_, i) => `test prompt ${i}`);
 
-    const result = await analyzeAndUpdateProfile(
-      userId,
-      prompts,
-      promptIds,
-    );
+    const result = await analyzeAndUpdateProfile(userId, prompts, promptIds);
 
     expect(result.updated).toBe(true);
   });
 
-  test("backoff only triggers on thrown exceptions, not on returned { updated: false }", async () => {
-    // CURRENT BEHAVIOR (BUG): plugin.ts:814-836 has try/catch but only applies backoff in catch block
-    // Since profile.ts returns false instead of throwing, backoff never triggers
-    // This test documents the gap that Task 4 will fix
-
+  test("backoff triggers on thrown exceptions from analyzeAndUpdateProfile", async () => {
     mockCallLLM.mockImplementation(async () => ({
       success: false,
       error: "LLM request failed",
@@ -230,72 +208,41 @@ describe("backoff behavior (CURRENT BEHAVIOR)", () => {
 
     const userId = "test-user";
     const promptIds = Array.from({ length: 10 }, (_, i) => {
-      return storePrompt(
-        "session-1",
-        `msg-${i}`,
-        `test prompt ${i}`,
-        "/test",
-      );
+      return storePrompt("session-1", `msg-${i}`, `test prompt ${i}`, "/test");
     });
     const prompts = Array.from({ length: 10 }, (_, i) => `test prompt ${i}`);
 
-    const result = await analyzeAndUpdateProfile(
-      userId,
-      prompts,
-      promptIds,
-    );
-
-    // CURRENT BEHAVIOR: returns false, no exception thrown
-    expect(result.updated).toBe(false);
-
-    // CURRENT BEHAVIOR (BUG): plugin.ts idle handler would NOT apply backoff
-    // because the exception is not thrown. The catch block at line 829 never executes.
-    // This is the bug that Task 4 (throw on LLM failure) will fix.
-  });
-
-  test("backoff gap: returned false vs thrown exception behavior", async () => {
-    // CURRENT BEHAVIOR (BUG): This test documents the gap between two error handling patterns
-    // - profile.ts returns { updated: false } on LLM failure
-    // - plugin.ts only backs off on thrown exceptions
-    // Result: LLM failures don't trigger backoff, causing rapid retry storms
-
-    mockCallLLM.mockImplementation(async () => ({
-      success: false,
-      error: "LLM request failed",
-      code: "api_error" as const,
-    }));
-
-    const userId = "test-user";
-    const promptIds = Array.from({ length: 10 }, (_, i) => {
-      return storePrompt(
-        "session-1",
-        `msg-${i}`,
-        `test prompt ${i}`,
-        "/test",
-      );
-    });
-    const prompts = Array.from({ length: 10 }, (_, i) => `test prompt ${i}`);
-
-    // Simulate what happens in plugin.ts idle handler (lines 814-836)
     let backoffApplied = false;
     try {
-      const result = await analyzeAndUpdateProfile(
-        userId,
-        prompts,
-        promptIds,
-      );
-      // CURRENT BEHAVIOR: no exception, so catch block never runs
-      if (!result.updated) {
-        // This check is NOT in the current code, so backoff is never applied
-        backoffApplied = false;
-      }
-    } catch (error) {
-      // CURRENT BEHAVIOR: this never executes because profile.ts doesn't throw
+      await analyzeAndUpdateProfile(userId, prompts, promptIds);
+    } catch (_error) {
       backoffApplied = true;
     }
 
-    // CURRENT BEHAVIOR (BUG): backoff is NOT applied
-    expect(backoffApplied).toBe(false);
+    expect(backoffApplied).toBe(true);
+  });
+
+  test("backoff now triggers on LLM failure via thrown exception", async () => {
+    mockCallLLM.mockImplementation(async () => ({
+      success: false,
+      error: "LLM request failed",
+      code: "api_error" as const,
+    }));
+
+    const userId = "test-user";
+    const promptIds = Array.from({ length: 10 }, (_, i) => {
+      return storePrompt("session-1", `msg-${i}`, `test prompt ${i}`, "/test");
+    });
+    const prompts = Array.from({ length: 10 }, (_, i) => `test prompt ${i}`);
+
+    let backoffApplied = false;
+    try {
+      await analyzeAndUpdateProfile(userId, prompts, promptIds);
+    } catch (_error) {
+      backoffApplied = true;
+    }
+
+    expect(backoffApplied).toBe(true);
   });
 });
 
