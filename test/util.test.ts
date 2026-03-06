@@ -187,6 +187,7 @@ more text`;
 
 describe("createLogger", () => {
   let tmpDir: string;
+  const fallbackRoot = join(tmpdir(), "opencode-flashback");
 
   async function waitForLogFlush(minLines = 1): Promise<void> {
     const logPath = join(tmpDir, LOG_FILENAME);
@@ -207,7 +208,7 @@ describe("createLogger", () => {
   });
 
   afterEach(() => {
-    rmSync(tmpDir, { recursive: true });
+    rmSync(tmpDir, { recursive: true, force: true });
   });
 
   test("creates log file on first write", async () => {
@@ -311,5 +312,37 @@ describe("createLogger", () => {
     const logPath = join(tmpDir, LOG_FILENAME);
     const entry = JSON.parse(readFileSync(logPath, "utf-8").trim());
     expect(entry.msg).toBe("no extra");
+  });
+
+  test("falls back to /tmp logger path when storage directory is removed", async () => {
+    const sessionId = "ses_fallback";
+    const fallbackLogPath = join(
+      fallbackRoot,
+      "logs",
+      String(process.pid),
+      sessionId,
+      LOG_FILENAME,
+    );
+
+    const logger = createLogger(tmpDir, sessionId);
+    logger.info("before removal");
+    await waitForLogFlush();
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    logger.info("after removal");
+
+    for (let i = 0; i < 100; i++) {
+      if (existsSync(fallbackLogPath)) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    expect(existsSync(fallbackLogPath)).toBe(true);
+    const lines = readFileSync(fallbackLogPath, "utf-8").trim().split("\n");
+    expect(lines.length).toBeGreaterThan(0);
+    const entry = JSON.parse(lines[lines.length - 1]);
+    expect(entry.msg).toBe("after removal");
+    expect(entry.sid).toBe(sessionId);
   });
 });

@@ -1,6 +1,6 @@
 import { mkdirSync } from "fs";
 import { appendFile } from "fs/promises";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
 import { dirname, join } from "path";
 import { LOG_FILENAME } from "../consts.ts";
 import type { LogLevel } from "../types.ts";
@@ -44,10 +44,17 @@ export function createLogger(
   sessionId: string,
   logLevel: LogLevel = "debug",
 ): Logger {
-  const logPath = join(
-    storagePath.startsWith("~")
-      ? storagePath.replace("~", homedir())
-      : storagePath,
+  const resolvedStoragePath = storagePath.startsWith("~")
+    ? storagePath.replace("~", homedir())
+    : storagePath;
+  const logPath = join(resolvedStoragePath, LOG_FILENAME);
+  const safeSessionId = sessionId.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const fallbackLogPath = join(
+    tmpdir(),
+    "opencode-flashback",
+    "logs",
+    String(process.pid),
+    safeSessionId,
     LOG_FILENAME,
   );
 
@@ -58,8 +65,20 @@ export function createLogger(
     // Ignore if directory already exists
   }
 
+  try {
+    mkdirSync(dirname(fallbackLogPath), { recursive: true });
+  } catch {}
+
   let logWriteWarned = false;
   let writeQueue = Promise.resolve();
+
+  const getErrorCode = (err: unknown): string | null => {
+    if (!(err instanceof Error)) {
+      return null;
+    }
+    const maybeCode = (err as NodeJS.ErrnoException).code;
+    return typeof maybeCode === "string" ? maybeCode : null;
+  };
 
   const write = (
     level: LogLevel,
@@ -83,6 +102,19 @@ export function createLogger(
     writeQueue = writeQueue
       .then(() => appendFile(logPath, payload, "utf-8"))
       .catch((err) => {
+        if (getErrorCode(err) === "ENOENT") {
+          return appendFile(fallbackLogPath, payload, "utf-8").catch(
+            (fallbackErr) => {
+              if (!logWriteWarned) {
+                logWriteWarned = true;
+                process.stderr.write(
+                  `[flashback] log write failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}\n`,
+                );
+              }
+            },
+          );
+        }
+
         // Fallback to stderr once so log failures are observable
         if (!logWriteWarned) {
           logWriteWarned = true;
