@@ -99,11 +99,13 @@ The `search.retrievalQuality` field supports four presets:
 Flashback exposes a single `flashback` tool with a `mode` parameter. The AI agent calls it directly -- there are no slash commands.
 
 ```typescript
-await context.callTool("flashback", { mode: "search", query: "how to deploy" });
-await context.callTool("flashback", { mode: "add", content: "The project uses Bun for testing" });
-await context.callTool("flashback", { mode: "recall" });
-await context.callTool("flashback", { mode: "profile" });
+flashback({ mode: "search", query: "how to deploy" });
+flashback({ mode: "add", content: "The project uses Bun for testing" });
+flashback({ mode: "recall" });
+flashback({ mode: "profile" });
 ```
+
+If you are writing plugin code (not agent prompts), the handler remains async internally via `execute: async (...) => ...` in `src/plugin.ts`.
 
 ### Available Modes
 
@@ -146,17 +148,9 @@ Flashback automatically extracts memories from your coding sessions when the ses
 - Only captures technical decisions, architectural changes, and bug fixes
 - Skips casual chat and non-technical conversations
 
-## Competitive Positioning
+## Comparison
 
-Flashback is designed for developers who want persistent memory without cloud dependencies or expensive subscriptions.
-
-| Feature         | Flashback | mem0     | Cursor | Claude    | AGENTS.md |
-| --------------- | --------- | -------- | ------ | --------- | --------- |
-| Cost            | Free      | Paid/OSS | $20/mo | Free/Paid | Free      |
-| Local           | Yes       | Optional | No     | No        | Yes       |
-| Setup           | Low       | High     | Zero   | Zero      | Manual    |
-| Auto-capture    | Yes       | Yes      | Yes    | Yes       | No        |
-| Semantic Search | Yes       | Yes      | Yes    | Yes       | No        |
+For a focused comparison with related plugins, see `docs/comparison.md`.
 
 ### When NOT to use Flashback
 
@@ -191,3 +185,9 @@ Apache-2.0. See [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 Inspired by [opencode-mem](https://github.com/tickernelz/opencode-mem).
+
+## Documentation
+
+- Architecture: `docs/architecture.md`
+- Design and tradeoffs: `docs/design.md`
+- Comparison with opencode-mem and opencode-lore: `docs/comparison.md`
