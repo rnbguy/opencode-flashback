@@ -439,13 +439,27 @@ export function searchMemoriesByText(
   query: string,
   containerTag: string,
   limit: number,
+  offset = 0,
 ): Memory[] {
   const rows = db
     .query(
-      "SELECT * FROM memories WHERE content LIKE ? AND container_tag = ? ORDER BY created_at DESC LIMIT ?",
+      "SELECT * FROM memories WHERE content LIKE ? AND container_tag = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
     )
-    .all(`%${query}%`, containerTag, limit) as MemoryRow[];
+    .all(`%${query}%`, containerTag, limit, offset) as MemoryRow[];
   return rows.map(rowToMemory);
+}
+
+export function countSearchMemoriesByText(
+  db: Database,
+  query: string,
+  containerTag: string,
+): number {
+  const row = db
+    .query(
+      "SELECT COUNT(*) as count FROM memories WHERE content LIKE ? AND container_tag = ?",
+    )
+    .get(`%${query}%`, containerTag) as { count: number };
+  return row.count;
 }
 
 export function countMemories(db: Database, containerTag: string): number {

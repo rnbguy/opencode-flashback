@@ -3,6 +3,7 @@ import { create, insert, search } from "@orama/orama";
 import { getConfig, getHybridWeights } from "./config.ts";
 import { getEmbeddingDimension } from "./core/ai/embed.ts";
 import {
+  countSearchMemoriesByText,
   getAllActiveMemories,
   getDb,
   getMemory,
@@ -23,7 +24,8 @@ interface SearchDeps {
     queryVector: number[],
     containerTag: string,
     limit: number,
-  ) => Promise<SearchResult[]>;
+    offset?: number,
+  ) => Promise<{ results: SearchResult[]; totalCount: number }>;
   markStale: () => void;
   rebuildIndex: () => Promise<void>;
   getSearchState: () => SubsystemState;
@@ -62,8 +64,9 @@ export async function hybridSearch(
   queryVector: number[],
   containerTag: string,
   limit: number,
-): Promise<SearchResult[]> {
-  return deps.hybridSearch(query, queryVector, containerTag, limit);
+  offset = 0,
+): Promise<{ results: SearchResult[]; totalCount: number }> {
+  return deps.hybridSearch(query, queryVector, containerTag, limit, offset);
 }
 
 export function markStale(): void {
@@ -196,7 +199,8 @@ async function hybridSearchImpl(
   queryVector: number[],
   containerTag: string,
   limit: number,
-): Promise<SearchResult[]> {
+  offset = 0,
+): Promise<{ results: SearchResult[]; totalCount: number }> {
   const logger = getLogger();
   try {
     if (!oramaDb) {
@@ -215,13 +219,16 @@ async function hybridSearchImpl(
     const config = getConfig();
     const weights = getHybridWeights(config);
 
+    const effectiveOffset = Math.max(0, offset);
+    const fetchLimit = limit + effectiveOffset;
+
     const results = search(oramaDb!, {
       mode: "hybrid",
       term: query,
       vector: { value: queryVector, property: "embedding" },
       where: { containerTag: { eq: containerTag } },
       similarity: 0.3,
-      limit,
+      limit: fetchLimit,
       hybridWeights: { text: weights.keyword, vector: weights.semantic },
     });
 
@@ -230,7 +237,7 @@ async function hybridSearchImpl(
 
     if (resolved.count === 0) {
       logger.debug("hybridSearch completed", { query, resultCount: 0 });
-      return [];
+      return { results: [], totalCount: 0 };
     }
 
     const searchResults: SearchResult[] = [];
@@ -250,8 +257,13 @@ async function hybridSearchImpl(
     logger.debug("hybridSearch completed", {
       query,
       resultCount: searchResults.length,
+      totalCount: resolved.count,
     });
-    return searchResults;
+    const pagedResults = searchResults.slice(
+      effectiveOffset,
+      effectiveOffset + limit,
+    );
+    return { results: pagedResults, totalCount: resolved.count };
   } catch (_error: unknown) {
     state = "degraded";
     const reason = _error instanceof Error ? _error.message : "unknown error";
@@ -259,7 +271,14 @@ async function hybridSearchImpl(
 
     // Fallback to SQLite text search
     const db = getDb();
-    const fallback = searchMemoriesByText(db, query, containerTag, limit);
+    const fallback = searchMemoriesByText(
+      db,
+      query,
+      containerTag,
+      limit,
+      offset,
+    );
+    const totalCount = countSearchMemoriesByText(db, query, containerTag);
     const results = fallback.map((memory) => ({
       memory,
       score: 0,
@@ -268,8 +287,9 @@ async function hybridSearchImpl(
     logger.debug("hybridSearch completed", {
       query,
       resultCount: results.length,
+      totalCount,
     });
-    return results;
+    return { results, totalCount };
   }
 }
 

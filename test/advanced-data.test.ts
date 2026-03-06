@@ -209,7 +209,11 @@ describe("advanced data pipeline", () => {
       for (const query of queryCases) {
         for (const containerTag of containerTagCases) {
           for (const limit of limitCases) {
-            const results = await searchMemories(query, containerTag, limit);
+            const { results } = await searchMemories(
+              query,
+              containerTag,
+              limit,
+            );
             expect(Array.isArray(results)).toBe(true);
           }
         }
@@ -289,7 +293,7 @@ describe("advanced data pipeline", () => {
         });
       }
 
-      const results = await searchMemories(
+      const { results } = await searchMemories(
         "TypeScript Rust Bun",
         "ordering",
         20,
@@ -314,7 +318,7 @@ describe("advanced data pipeline", () => {
       const beforeFirst = await getMemoryById(first.id);
       const beforeSecond = await getMemoryById(second.id);
 
-      const results = await searchMemories("access tracking", "access", 10);
+      const { results } = await searchMemories("access tracking", "access", 10);
       expect(results.length).toBeGreaterThan(0);
 
       const afterFirst = await getMemoryById(first.id);
@@ -360,7 +364,7 @@ describe("advanced data pipeline", () => {
         importance: 10,
       });
 
-      const results = await searchMemories(
+      const { results } = await searchMemories(
         "importance ranking target",
         "rank-importance",
         10,
@@ -406,7 +410,7 @@ describe("advanced data pipeline", () => {
         newer.id,
       );
 
-      const results = await searchMemories(
+      const { results } = await searchMemories(
         "same ranking text",
         "rank-recency",
         10,
@@ -429,7 +433,11 @@ describe("advanced data pipeline", () => {
         });
       }
 
-      const results = await searchMemories("finite score", "finite-scores", 30);
+      const { results } = await searchMemories(
+        "finite score",
+        "finite-scores",
+        30,
+      );
       expect(results.length).toBeGreaterThan(0);
 
       for (const result of results) {
@@ -451,7 +459,7 @@ describe("advanced data pipeline", () => {
       );
       markStale();
 
-      const results = await hybridSearch(
+      const { results } = await hybridSearch(
         "new after stale",
         seededVector("new after stale"),
         "stale-tag",
@@ -473,7 +481,7 @@ describe("advanced data pipeline", () => {
       await initSearch();
       await rebuildIndex();
 
-      const results = await hybridSearch(
+      const { results } = await hybridSearch(
         "sqlite fallback should find this",
         [1, 2, 3],
         "fb-tag",
@@ -489,7 +497,7 @@ describe("advanced data pipeline", () => {
       await initSearch();
       await rebuildIndex();
 
-      const results = await hybridSearch(
+      const { results } = await hybridSearch(
         "nothing",
         seededVector("nothing"),
         "empty-tag",
@@ -505,13 +513,13 @@ describe("advanced data pipeline", () => {
       await initSearch();
       await rebuildIndex();
 
-      const inA = await hybridSearch(
+      const { results: inA } = await hybridSearch(
         "shared text isolate",
         seededVector("shared text isolate"),
         "A",
         10,
       );
-      const inB = await hybridSearch(
+      const { results: inB } = await hybridSearch(
         "shared text isolate",
         seededVector("shared text isolate"),
         "B",
@@ -595,7 +603,7 @@ describe("advanced data pipeline", () => {
       old.id,
     );
 
-    const results = await searchMemories(
+    const { results } = await searchMemories(
       "mutation ranking text",
       "mut-rank",
       10,

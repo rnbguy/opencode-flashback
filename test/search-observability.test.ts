@@ -88,7 +88,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "fallback test",
       seededVector("fallback"),
       "proj",
@@ -125,7 +125,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "error message test",
       seededVector("error"),
       "proj",
@@ -153,7 +153,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "unknown error test",
       seededVector("unknown"),
       "proj",
@@ -177,7 +177,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "orama score test",
       seededVector("orama"),
       "proj",
@@ -205,7 +205,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "limit test",
       seededVector("limit"),
       "proj",
@@ -232,7 +232,7 @@ describe("search-observability", () => {
       },
     });
 
-    const resultsA = await hybridSearch(
+    const { results: resultsA } = await hybridSearch(
       "tag filter test",
       seededVector("tag"),
       "proj-a",
@@ -262,7 +262,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "nonexistent query xyz",
       seededVector("nonexistent"),
       "proj",
@@ -288,7 +288,7 @@ describe("search-observability", () => {
       },
     });
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "score test",
       seededVector("score"),
       "proj",

@@ -375,10 +375,17 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
   const limit = Number.isNaN(rawLimit)
     ? 10
     : Math.max(1, Math.min(100, rawLimit));
+  const rawOffset = parseInt(url.searchParams.get("offset") ?? "0");
+  const offset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
   const containerTag = getContainerTag(directory);
 
-  const results = await searchMemories(query, containerTag, limit);
-  return jsonResponse({ results, count: results.length });
+  const { results, totalCount } = await searchMemories(
+    query,
+    containerTag,
+    limit,
+    offset,
+  );
+  return jsonResponse({ results, count: totalCount });
 }
 
 function handleGetProfile(directory: string): Response {

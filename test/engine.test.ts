@@ -116,7 +116,7 @@ describe("engine facade", () => {
     expect(typeof result.deduplicated).toBe("boolean");
   });
 
-  test("searchMemories returns an array", async () => {
+  test("searchMemories returns paged results", async () => {
     const engine = createEngine({
       resolve: (directory: string) => ({
         tag: `test:${directory}`,
@@ -133,8 +133,9 @@ describe("engine facade", () => {
       containerTag: "engine-tag",
     });
 
-    const results = await engine.searchMemories("searchable", "engine-tag", 5);
-    expect(Array.isArray(results)).toBe(true);
+    const page = await engine.searchMemories("searchable", "engine-tag", 5);
+    expect(Array.isArray(page.results)).toBe(true);
+    expect(typeof page.totalCount).toBe("number");
   });
 
   test("recallMemories returns results array", async () => {

@@ -123,12 +123,13 @@ async function handleToolCall(
       };
     }
     case "search": {
-      const results = await engine.searchMemories(
+      const { results, totalCount } = await engine.searchMemories(
         asString(args.query),
         containerTag,
         asNumber(args.limit),
+        asNumber(args.offset),
       );
-      return { mode: "search", results, count: results.length };
+      return { mode: "search", results, count: results.length, totalCount };
     }
     case "recall": {
       let messages: string[] = [];

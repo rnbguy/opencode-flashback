@@ -89,10 +89,10 @@ describe("search-extended", () => {
     _setSearchDepsForTesting({
       hybridSearch: async (_q, _v, _tag, _limit) => {
         hybridCalled = true;
-        return [];
+        return { results: [], totalCount: 0 };
       },
     });
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "test",
       seededVector("test"),
       "proj",
@@ -137,7 +137,7 @@ describe("search-extended", () => {
     );
     await rebuildIndex();
     markStale();
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "stale search content",
       seededVector("stale"),
       "proj",
@@ -160,7 +160,7 @@ describe("search-extended", () => {
       makeMemory("idx-1", "indexed content here", "proj", "idx"),
     );
     await rebuildIndex();
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "indexed content",
       seededVector("idx"),
       "proj",
@@ -180,7 +180,7 @@ describe("search-extended", () => {
     const p1 = rebuildIndex();
     const p2 = rebuildIndex();
     await Promise.all([p1, p2]);
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "serialized rebuild",
       seededVector("serial"),
       "proj",
@@ -202,7 +202,7 @@ describe("search-extended", () => {
     );
     await rebuildIndex();
     deleteMemory(db, "gone");
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "shared content phrase",
       seededVector("shared"),
       "proj",
@@ -221,7 +221,7 @@ describe("search-extended", () => {
       makeMemory("dbg", "debug score test content", "proj", "dbg"),
     );
     await rebuildIndex();
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "debug score test",
       seededVector("dbg"),
       "proj",

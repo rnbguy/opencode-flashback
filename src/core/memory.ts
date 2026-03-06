@@ -4,6 +4,7 @@ import { MEMORY_HEADER } from "../consts.ts";
 import {
   countMemories,
   countMemoriesByTag,
+  countSearchMemoriesByText,
   listMemories as dbListMemories,
   deleteMemory,
   getActiveMemoriesByContainerTag,
@@ -145,7 +146,8 @@ export async function searchMemories(
   query: string,
   containerTag: string,
   limit?: number,
-): Promise<SearchResult[]> {
+  offset = 0,
+): Promise<{ results: SearchResult[]; totalCount: number }> {
   const logger = getLogger();
   const db = getDb();
   const config = getConfig();
@@ -163,19 +165,33 @@ export async function searchMemories(
   try {
     const vectors = await embed([query], "query");
     const vector = vectors[0];
-    const results = await hybridSearch(query, vector, containerTag, maxResults);
+    const { results, totalCount } = await hybridSearch(
+      query,
+      vector,
+      containerTag,
+      maxResults,
+      offset,
+    );
     const ranked = rerank(results, config);
     trackAccess(ranked);
     logger.debug("searchMemories completed", {
       query,
       containerTag,
       resultCount: ranked.length,
+      totalCount,
     });
-    return ranked;
+    return { results: ranked, totalCount };
   } catch {
     // hybrid search failed -- fall back to text-only search below
     logger.warn("searchMemories using text fallback", { query, containerTag });
-    const fallback = searchMemoriesByText(db, query, containerTag, maxResults);
+    const fallback = searchMemoriesByText(
+      db,
+      query,
+      containerTag,
+      maxResults,
+      offset,
+    );
+    const totalCount = countSearchMemoriesByText(db, query, containerTag);
     const ranked = rerank(
       fallback.map((memory) => ({
         memory,
@@ -189,8 +205,9 @@ export async function searchMemories(
       query,
       containerTag,
       resultCount: ranked.length,
+      totalCount,
     });
-    return ranked;
+    return { results: ranked, totalCount };
   }
 }
 
@@ -210,7 +227,7 @@ export async function recallMemories(
     return [];
   }
 
-  const results = await searchMemories(query, containerTag, limit);
+  const { results } = await searchMemories(query, containerTag, limit);
   logger.debug("recallMemories completed", {
     containerTag,
     resultCount: results.length,
@@ -265,7 +282,7 @@ export async function getContext(
   let topMemories: Memory[];
   if (queryHint && queryHint.trim().length > 0) {
     try {
-      const results = await searchMemories(queryHint, containerTag, 5);
+      const { results } = await searchMemories(queryHint, containerTag, 5);
       topMemories = results
         .map((r) => r.memory)
         .filter((memory) => memory.evictedAt === null);
@@ -393,7 +410,7 @@ export async function findRelatedMemories(
   limit?: number,
 ): Promise<SearchResult[]> {
   const logger = getLogger();
-  const results = await searchMemories(query, containerTag, limit);
+  const { results } = await searchMemories(query, containerTag, limit);
   logger.debug("findRelatedMemories completed", {
     query,
     resultCount: results.length,

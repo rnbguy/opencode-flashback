@@ -199,7 +199,7 @@ describe("fuzz", () => {
     ];
 
     for (const query of queries) {
-      const results = await searchMemories(query, "fuzz-search", 10);
+      const { results } = await searchMemories(query, "fuzz-search", 10);
       expect(Array.isArray(results)).toBe(true);
     }
 

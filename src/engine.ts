@@ -64,7 +64,8 @@ export interface MemoryEngine {
     query: string,
     containerTag: string,
     limit?: number,
-  ): Promise<SearchResult[]>;
+    offset?: number,
+  ): Promise<{ results: SearchResult[]; totalCount: number }>;
   recallMemories(
     messages: string[],
     containerTag: string,

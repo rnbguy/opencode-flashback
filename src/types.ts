@@ -184,7 +184,12 @@ export interface ErrorResponse {
 
 export type ToolResult =
   | { mode: "add"; success: boolean; id: string; message: string }
-  | { mode: "search"; results: SearchResult[]; count: number }
+  | {
+      mode: "search";
+      results: SearchResult[];
+      count: number;
+      totalCount?: number;
+    }
   | { mode: "recall"; results: SearchResult[]; count: number }
   | { mode: "forget"; success: boolean; id: string }
   | { mode: "list"; memories: Memory[]; total: number; offset: number }

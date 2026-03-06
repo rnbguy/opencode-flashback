@@ -164,7 +164,7 @@ describe("integration: memory pipeline", () => {
 
     expect(countMemories(getDb(), containerTag)).toBe(4);
 
-    const searchResults = await searchMemories(
+    const { results: searchResults } = await searchMemories(
       "WASM modules run fast",
       containerTag,
       10,
@@ -189,7 +189,7 @@ describe("integration: memory pipeline", () => {
     await forgetMemory(added[1].id);
     expect(await getMemoryById(added[1].id)).toBeNull();
 
-    const afterDelete = await searchMemories(
+    const { results: afterDelete } = await searchMemories(
       "WASM modules run fast",
       containerTag,
       10,
@@ -225,7 +225,7 @@ describe("integration: memory pipeline", () => {
     markStale();
     await rebuildIndex();
 
-    const results = await searchMemories("SQLite", containerTag, 10);
+    const { results } = await searchMemories("SQLite", containerTag, 10);
     expect(results.length).toBeGreaterThan(0);
     expect(
       results.some((r) =>
@@ -300,8 +300,16 @@ describe("integration: memory pipeline", () => {
       listedB.memories.map((m) => m.id),
     );
 
-    const searchA = await searchMemories("rust memory", containerTag, 10);
-    const searchB = await searchMemories("rust memory", containerTag, 10);
+    const { results: searchA } = await searchMemories(
+      "rust memory",
+      containerTag,
+      10,
+    );
+    const { results: searchB } = await searchMemories(
+      "rust memory",
+      containerTag,
+      10,
+    );
 
     expect(searchA.map((r) => r.memory.id)).toEqual(
       searchB.map((r) => r.memory.id),

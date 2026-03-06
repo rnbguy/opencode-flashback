@@ -65,8 +65,12 @@ beforeEach(() => {
   });
   _setSearchDepsForTesting({
     initSearch: async () => {},
-    hybridSearch: (...args: unknown[]) =>
-      mockHybridSearch(...(args as [string, number[], string, number])),
+    hybridSearch: async (...args: unknown[]) => {
+      const results = await mockHybridSearch(
+        ...(args as [string, number[], string, number]),
+      );
+      return { results, totalCount: results.length };
+    },
     markStale: () => {},
     rebuildIndex: async () => {},
     getSearchState: () => "ready" as const,
@@ -251,7 +255,7 @@ describe("searchMemories", () => {
       { memory: mem, score: 0.8, _debug: {} },
     ]);
 
-    const results = await searchMemories("query", "test-tag");
+    const { results } = await searchMemories("query", "test-tag");
     expect(results.length).toBe(1);
     expect(results[0].memory.id).toBe("search-1");
   });
@@ -267,14 +271,14 @@ describe("searchMemories", () => {
       throw new Error("search failed");
     });
 
-    const results = await searchMemories("searchable", "test-tag");
+    const { results } = await searchMemories("searchable", "test-tag");
     expect(results.length).toBe(1);
     expect(results[0].memory.id).toBe("fallback-1");
   });
 
   test("returns empty for no matches", async () => {
     mockHybridSearch.mockImplementation(async () => []);
-    const results = await searchMemories("nonexistent", "test-tag");
+    const { results } = await searchMemories("nonexistent", "test-tag");
     expect(results).toEqual([]);
   });
 });

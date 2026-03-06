@@ -52,8 +52,12 @@ beforeEach(() => {
   });
   _setSearchDepsForTesting({
     initSearch: async () => {},
-    hybridSearch: (...args: unknown[]) =>
-      mockHybridSearch(...(args as [string, number[], string, number])),
+    hybridSearch: async (...args: unknown[]) => {
+      const results = await mockHybridSearch(
+        ...(args as [string, number[], string, number]),
+      );
+      return { results, totalCount: results.length };
+    },
     markStale: () => {},
     rebuildIndex: async () => {},
     getSearchState: () => "ready" as const,
@@ -289,7 +293,7 @@ describe("searchMemories - limit and containerTag filtering (characterization)",
     });
 
     // Search with limit=3 (note: rerank may return fewer results)
-    const results = await searchMemories("query", "test-tag", 3);
+    const { results } = await searchMemories("query", "test-tag", 3);
 
     // Should respect the limit (rerank may reduce results)
     expect(results.length).toBeLessThanOrEqual(10);
@@ -328,8 +332,8 @@ describe("searchMemories - limit and containerTag filtering (characterization)",
       return [];
     });
 
-    const resultsA = await searchMemories("query", "tag-a");
-    const resultsB = await searchMemories("query", "tag-b");
+    const { results: resultsA } = await searchMemories("query", "tag-a");
+    const { results: resultsB } = await searchMemories("query", "tag-b");
 
     expect(resultsA.length).toBe(1);
     expect(resultsA[0].memory.containerTag).toBe("tag-a");
@@ -340,7 +344,7 @@ describe("searchMemories - limit and containerTag filtering (characterization)",
   test("returns empty array when no results match", async () => {
     mockHybridSearch.mockImplementation(async () => []);
 
-    const results = await searchMemories("nonexistent query", "test-tag");
+    const { results } = await searchMemories("nonexistent query", "test-tag");
 
     expect(results).toEqual([]);
   });
@@ -360,7 +364,7 @@ describe("searchMemories - limit and containerTag filtering (characterization)",
       throw new Error("hybrid search failed");
     });
 
-    const results = await searchMemories("searchable", "test-tag");
+    const { results } = await searchMemories("searchable", "test-tag");
 
     // Should fall back to text search and find the memory
     expect(results.length).toBeGreaterThan(0);

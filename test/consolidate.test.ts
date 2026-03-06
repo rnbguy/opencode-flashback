@@ -56,7 +56,7 @@ beforeEach(() => {
   });
   _setSearchDepsForTesting({
     initSearch: async () => {},
-    hybridSearch: async () => [],
+    hybridSearch: async () => ({ results: [], totalCount: 0 }),
     markStale: () => {},
     rebuildIndex: async () => {},
     getSearchState: () => "ready" as const,

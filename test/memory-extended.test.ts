@@ -63,8 +63,12 @@ beforeEach(() => {
   });
   _setSearchDepsForTesting({
     initSearch: async () => {},
-    hybridSearch: (...args: unknown[]) =>
-      mockHybridSearch(...(args as [string, number[], string, number])),
+    hybridSearch: async (...args: unknown[]) => {
+      const results = await mockHybridSearch(
+        ...(args as [string, number[], string, number]),
+      );
+      return { results, totalCount: results.length };
+    },
     markStale: () => {},
     rebuildIndex: async () => {},
     getSearchState: () => "ready" as const,

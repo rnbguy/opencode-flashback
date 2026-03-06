@@ -101,7 +101,7 @@ describe("search", () => {
     addMemory("mem1", "Rust programming language", "project-1", 42);
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "Rust programming",
       makeVector(42),
       "project-1",
@@ -117,7 +117,7 @@ describe("search", () => {
     addMemory("mem-b", "TypeScript tips and tricks", "project-b", 10);
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "TypeScript",
       makeVector(10),
       "project-a",
@@ -130,7 +130,7 @@ describe("search", () => {
 
   test("returns empty array for no matches", async () => {
     await rebuildIndex();
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "nonexistent",
       makeVector(99),
       "project-x",
@@ -159,7 +159,7 @@ describe("search", () => {
     addMemory("new", "New fresh content added", "proj", 2);
     markStale();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "New fresh content",
       makeVector(2),
       "proj",
@@ -179,7 +179,7 @@ describe("search", () => {
     );
     incrementRevision(db);
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "Cross process insert",
       makeVector(12),
       "proj",
@@ -192,7 +192,7 @@ describe("search", () => {
     addMemory("fallback-mem", "Python data science guide", "proj", 5);
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "Python data science",
       [1, 2, 3],
       "proj",

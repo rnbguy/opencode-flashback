@@ -89,7 +89,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "typescript",
       seededVector("typescript"),
       "proj",
@@ -118,7 +118,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "search result",
       seededVector("search"),
       "proj",
@@ -135,13 +135,13 @@ describe("chartest-search", () => {
     insertMemory(db, makeMemory("tag-2", "shared content", "proj-b", "shared"));
     await rebuildIndex();
 
-    const resultsA = await hybridSearch(
+    const { results: resultsA } = await hybridSearch(
       "shared content",
       seededVector("shared"),
       "proj-a",
       10,
     );
-    const resultsB = await hybridSearch(
+    const { results: resultsB } = await hybridSearch(
       "shared content",
       seededVector("shared"),
       "proj-b",
@@ -167,7 +167,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "nonexistent query",
       seededVector("nonexistent"),
       "proj",
@@ -186,7 +186,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "debug test",
       seededVector("debug"),
       "proj",
@@ -211,7 +211,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "indexed memory",
       seededVector("indexed"),
       "proj",
@@ -232,7 +232,7 @@ describe("chartest-search", () => {
     // Add new memory after marking stale
     insertMemory(db, makeMemory("stale-2", "stale content", "proj", "stale"));
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "stale content",
       seededVector("stale"),
       "proj",
@@ -252,7 +252,7 @@ describe("chartest-search", () => {
 
     deleteMemory(db, "del-1");
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "deleted memory",
       seededVector("deleted"),
       "proj",
@@ -276,7 +276,7 @@ describe("chartest-search", () => {
     insertMemory(db, makeMemory("zero-1", "zero limit test", "proj", "zero"));
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "zero limit",
       seededVector("zero"),
       "proj",
@@ -303,7 +303,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "large limit",
       seededVector("large"),
       "proj",
@@ -322,7 +322,7 @@ describe("chartest-search", () => {
     );
     await rebuildIndex();
 
-    const results = await hybridSearch(
+    const { results } = await hybridSearch(
       "object test",
       seededVector("object"),
       "proj",
