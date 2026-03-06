@@ -241,6 +241,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
 
 export const META_KEY_EMBEDDING_MODEL = "embedding_model";
 export const META_KEY_EMBEDDING_DIMENSION = "embedding_dimension";
+export const META_KEY_DB_REVISION = "db_revision";
 
 export function getMetaValue(db: Database, key: string): string | null {
   const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as {
@@ -254,6 +255,17 @@ export function setMetaValue(db: Database, key: string, value: string): void {
     key,
     value,
   );
+}
+
+export function getRevision(db: Database): number {
+  const value = getMetaValue(db, META_KEY_DB_REVISION);
+  return value ? parseInt(value, 10) : 0;
+}
+
+export function incrementRevision(db: Database): void {
+  db.query(
+    "INSERT OR REPLACE INTO meta (key, value) VALUES (?, CAST(COALESCE((SELECT CAST(value AS INTEGER) FROM meta WHERE key = ?), 0) + 1 AS TEXT))",
+  ).run(META_KEY_DB_REVISION, META_KEY_DB_REVISION);
 }
 
 function rowToMemory(row: MemoryRow): Memory {
@@ -390,6 +402,7 @@ export function insertMemory(db: Database, memory: Memory): void {
     memory.difficulty,
     memory.nextReviewAt,
   );
+  incrementRevision(db);
 }
 
 export function getMemory(db: Database, id: string): Memory | null {
@@ -403,6 +416,7 @@ export function deleteMemory(db: Database, id: string): void {
   const logger = getLogger();
   logger.debug("deleteMemory start", { id });
   db.query("DELETE FROM memories WHERE id = ?").run(id);
+  incrementRevision(db);
 }
 
 export function listMemories(
@@ -500,6 +514,7 @@ export function clearAllData(db: Database): void {
     db.exec("DELETE FROM user_profiles");
     db.exec("DELETE FROM user_prompts");
     db.exec("COMMIT");
+    incrementRevision(db);
   } catch (error) {
     db.exec("ROLLBACK");
     throw error;
@@ -514,6 +529,7 @@ export function clearOldData(db: Database, cutoffMs: number): number {
       .run(cutoffMs);
     db.query("DELETE FROM user_prompts WHERE created_at < ?").run(cutoffMs);
     db.exec("COMMIT");
+    incrementRevision(db);
     return result.changes;
   } catch (error) {
     db.exec("ROLLBACK");

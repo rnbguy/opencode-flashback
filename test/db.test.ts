@@ -6,6 +6,8 @@ import {
   getAllActiveMemories,
   getMemory,
   getProfile,
+  getRevision,
+  incrementRevision,
   insertMemory,
   insertProfile,
   insertPrompt,
@@ -604,5 +606,46 @@ describe("schema", () => {
     expect(names).toContain("user_prompts");
     expect(names).toContain("meta");
     db.close();
+  });
+});
+
+// -- db_revision meta key -------------------------------------------------------
+
+describe("db_revision meta key", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = createInMemoryDb();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  test("getRevision returns 0 when not set", () => {
+    expect(getRevision(db)).toBe(0);
+  });
+
+  test("incrementRevision increments the revision", () => {
+    expect(getRevision(db)).toBe(0);
+    incrementRevision(db);
+    expect(getRevision(db)).toBe(1);
+    incrementRevision(db);
+    expect(getRevision(db)).toBe(2);
+  });
+
+  test("insertMemory increments revision", () => {
+    const initialRevision = getRevision(db);
+    const mem = makeMemory({ id: "mem_rev1" });
+    insertMemory(db, mem);
+    expect(getRevision(db)).toBe(initialRevision + 1);
+  });
+
+  test("deleteMemory increments revision", () => {
+    const mem = makeMemory({ id: "mem_rev2" });
+    insertMemory(db, mem);
+    const revisionAfterInsert = getRevision(db);
+    deleteMemory(db, "mem_rev2");
+    expect(getRevision(db)).toBe(revisionAfterInsert + 1);
   });
 });
