@@ -132,8 +132,37 @@ async function handleToolCall(
       return { mode: "search", results, count: results.length };
     }
     case "recall": {
+      let messages: string[] = [];
+      if (pluginInput.client?.session) {
+        try {
+          const response = await pluginInput.client.session.messages({
+            path: { id: context.sessionID },
+          });
+          messages = (response.data || [])
+            .map((message) =>
+              message.parts
+                .map((part) =>
+                  part.type === "text" &&
+                  "text" in part &&
+                  typeof part.text === "string" &&
+                  part.synthetic !== true
+                    ? part.text
+                    : "",
+                )
+                .filter((text) => text.length > 0)
+                .join("\n")
+                .trim(),
+            )
+            .filter((text) => text.length > 0);
+        } catch {
+          // SDK call failed -- fall back to empty messages
+          logger?.debug("recall SDK unavailable", {
+            sessionID: context.sessionID,
+          });
+        }
+      }
       const results = await engine.recallMemories(
-        [],
+        messages,
         containerTag,
         asNumber(args.limit),
       );
