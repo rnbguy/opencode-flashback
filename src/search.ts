@@ -254,7 +254,8 @@ async function hybridSearchImpl(
     return searchResults;
   } catch (_error: unknown) {
     state = "degraded";
-    logger.warn("hybridSearch degraded", { query });
+    const reason = _error instanceof Error ? _error.message : "unknown error";
+    logger.warn("hybridSearch degraded", { reason, query, containerTag });
 
     // Fallback to SQLite text search
     const db = getDb();
@@ -262,7 +263,7 @@ async function hybridSearchImpl(
     const results = fallback.map((memory) => ({
       memory,
       score: 0,
-      _debug: { fallback: true, oramaScore: 0 },
+      _debug: { fallback: true, oramaScore: 0, reason },
     }));
     logger.debug("hybridSearch completed", {
       query,
