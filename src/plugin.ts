@@ -586,8 +586,19 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           }
           if (isAfterCompaction) {
             injectedSessionIds.delete(sessionID);
+            logger?.debug("chat.message session cleared for re-injection", {
+              sessionID,
+            });
           }
         }
+
+        logger?.debug("chat.message injection decided", {
+          sessionID,
+          injectionMode: config.memory.injection,
+          shouldInject,
+          isAfterCompaction,
+          alreadyInjected: injectedSessionIds.has(sessionID),
+        });
 
         if (!shouldInject) {
           return;
@@ -614,12 +625,24 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             );
           }
 
+          logger?.debug("chat.message memories filtered", {
+            sessionID,
+            totalFetched: listPage.memories.length,
+            afterSessionFilter: filteredMemories.length,
+          });
+
           if (typeof config.memory.maxAgeDays === "number") {
             const cutoff = Date.now() - config.memory.maxAgeDays * 86_400_000;
             filteredMemories = filteredMemories.filter(
               (memory) => memory.createdAt >= cutoff,
             );
           }
+
+          logger?.debug("chat.message age filter applied", {
+            sessionID,
+            afterAgeFilter: filteredMemories.length,
+            maxAgeDays: config.memory.maxAgeDays,
+          });
 
           if (filteredMemories.length > 0) {
             const memoryLines = filteredMemories
@@ -654,6 +677,10 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         }
 
         if (contextText.length === 0) {
+          logger?.debug("chat.message injection skipped", {
+            sessionID,
+            reason: "empty_context",
+          });
           return;
         }
 
@@ -666,8 +693,16 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           synthetic: true,
         });
 
+        logger?.debug("chat.message injected", {
+          sessionID,
+          contextLength: contextText.length,
+        });
+
         if (config.memory.injection === "first") {
           injectedSessionIds.add(sessionID);
+          logger?.debug("chat.message session marked as injected", {
+            sessionID,
+          });
         }
       } catch (error) {
         logger?.error("chat.message handler failed", {
@@ -783,6 +818,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           return;
         }
 
+        logger?.debug("session.compacted received", {
+          sessionID,
+          compactionEnabled: config.compaction.enabled,
+          memoryLimit: config.compaction.memoryLimit,
+        });
+
         try {
           const tagInfo = engine.resolveTag(input.directory);
           const results = await engine.searchMemories(
@@ -791,6 +832,10 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             config.compaction.memoryLimit,
           );
           if (results.length === 0) {
+            logger?.debug("session.compacted skipped", {
+              sessionID,
+              reason: "no_matching_memories",
+            });
             return;
           }
 
