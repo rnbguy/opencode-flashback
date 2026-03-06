@@ -570,6 +570,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             isAfterCompaction = lastMessage?.info?.summary === true;
           } catch {
             // SDK call failed -- fall back to simple injection logic
+            logger?.debug("chat.message SDK unavailable", { sessionID });
           }
         }
 
