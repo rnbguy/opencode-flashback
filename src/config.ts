@@ -132,6 +132,11 @@ export const ConfigSchema = z
         memoryLimit: z.number(),
       })
       .strict(),
+    consolidation: z
+      .object({
+        maxCandidates: z.number().min(50).max(5000).default(500),
+  })
+      .strict(),
   })
   .strict();
 
@@ -198,11 +203,16 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "  },",
     "",
     "  // Post-compaction memory re-injection",
-    '  "compaction": {',
-    `    "enabled": ${defaults.compaction.enabled},`,
+'  "compaction": {',
+`    "enabled": ${defaults.compaction.enabled},`,
     `    "memoryLimit": ${defaults.compaction.memoryLimit}`,
-    "  }",
-    "}",
+    "  },",
+    "",
+    "  // Consolidation settings for duplicate detection",
+    '  "consolidation": {',
+    `    "maxCandidates": ${defaults.consolidation.maxCandidates}`,
+"  }",
+"}",
   ];
 
   try {
@@ -262,11 +272,14 @@ function loadConfigFile(): PluginConfig {
       userProfile: true,
       errors: true,
     },
-    compaction: {
-      enabled: true,
-      memoryLimit: 10,
+compaction: {
+enabled: true,
+memoryLimit: 10,
     },
-  };
+    consolidation: {
+      maxCandidates: 500,
+    },
+};
 
   const jsonExists = existsSync(jsonPath);
   const jsoncExists = existsSync(jsoncPath);

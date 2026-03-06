@@ -4,6 +4,7 @@ import {
   getMemory,
   insertMemory,
 } from "../db/database.ts";
+import { getConfig } from "../config.ts";
 import { markStale } from "../search.ts";
 import type { ConsolidationCandidate, Memory } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
@@ -116,6 +117,8 @@ export async function consolidateMemories(
 ): Promise<ConsolidateResult> {
   const logger = getLogger();
   const db = getDb();
+  const config = getConfig();
+  const maxCandidates = config.consolidation?.maxCandidates ?? 500;
   const memories = getAllActiveMemories(db).filter(
     (memory) =>
       memory.containerTag === opts.containerTag && memory.evictedAt === null,
@@ -126,14 +129,14 @@ export async function consolidateMemories(
   }
 
   let pool = memories;
-  if (pool.length > CONSOLIDATION_CAP) {
+  if (pool.length > maxCandidates) {
     logger.warn("consolidateMemories capped input", {
       total: pool.length,
-      cap: CONSOLIDATION_CAP,
+      cap: maxCandidates,
     });
     pool = [...pool]
       .sort((a, b) => b.lastAccessedAt - a.lastAccessedAt)
-      .slice(0, CONSOLIDATION_CAP);
+      .slice(0, maxCandidates);
   }
 
   const uf = new UnionFind();
