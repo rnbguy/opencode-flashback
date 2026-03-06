@@ -109,12 +109,9 @@
       "properties": {
         "port": {
           "type": "number"
-        },
-        "enabled": {
-          "type": "boolean"
         }
       },
-      "required": ["port", "enabled"],
+      "required": ["port"],
       "additionalProperties": false
     },
     "search": {

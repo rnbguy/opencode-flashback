@@ -341,8 +341,9 @@ describe("engine facade", () => {
       }),
     });
 
-    engine.shutdown();
-    engine.shutdown();
-    expect(true).toBe(true);
+    expect(() => {
+      engine.shutdown();
+      engine.shutdown();
+    }).not.toThrow();
   });
 });

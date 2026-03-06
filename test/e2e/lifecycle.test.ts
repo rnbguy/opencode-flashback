@@ -79,7 +79,7 @@ function makeLifecycleConfig(
       excludeCurrentSession: false,
       ...(overrides?.memory ?? {}),
     },
-    web: { port: 19848, enabled: true, ...(overrides?.web ?? {}) },
+    web: { port: 19848, ...(overrides?.web ?? {}) },
     search: { retrievalQuality: "balanced", ...(overrides?.search ?? {}) },
   });
 }
@@ -138,7 +138,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
 
     tmpDir = mkdtempSync(join(tmpdir(), "flashback-e2e-"));
     const config = makeLifecycleConfig(tmpDir, {
-      web: { port: nextPort++, enabled: true },
+      web: { port: nextPort++ },
     });
     _setConfigForTesting(config);
     _setEmbedDepsForTesting({
@@ -188,7 +188,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     expect(typeof hooks.event).toBe("function");
   });
 
-  test("tool execution handles all 14 modes and validation errors", async () => {
+  test("tool execution handles all modes and validation errors", async () => {
     const hooks = await createHooks(tmpDir);
     const context = { directory: tmpDir, sessionID: "test-session" };
 
@@ -283,6 +283,14 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
       context,
     );
     expect(consolidateResult.mode).toBe("consolidate");
+
+    const webuiRestartStoppedResult = await runMemoryTool(
+      hooks,
+      { mode: "webui", action: "restart" },
+      context,
+    );
+    expect(webuiRestartStoppedResult.mode).toBe("webui");
+    expect(webuiRestartStoppedResult.restarted).toBe(false);
 
     const forgetResult = await runMemoryTool(
       hooks,
@@ -413,9 +421,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     cleanupStaticMirror = ensureStaticMirror();
 
     const port = 19848 + Math.floor(Math.random() * 1000);
-    _setConfigForTesting(
-      makeLifecycleConfig(tmpDir, { web: { port, enabled: true } }),
-    );
+    _setConfigForTesting(makeLifecycleConfig(tmpDir, { web: { port } }));
 
     const tag = resolveContainerTag(tmpDir).tag;
     expect(countMemories(getDb(), tag)).toBe(0);

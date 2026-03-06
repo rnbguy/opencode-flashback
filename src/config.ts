@@ -98,7 +98,6 @@ export const ConfigSchema = z
     web: z
       .object({
         port: z.number(),
-        enabled: z.boolean(),
       })
       .strict(),
     search: z
@@ -186,8 +185,7 @@ function generateDefaultConfig(path: string, defaults: PluginConfig): void {
     "",
     "  // Web UI settings",
     '  "web": {',
-    `    "port": ${defaults.web.port},`,
-    `    "enabled": ${defaults.web.enabled}`,
+    `    "port": ${defaults.web.port}`,
     "  },",
     "",
     "  // Search quality preset: fast, balanced, thorough, custom",
@@ -262,7 +260,6 @@ function loadConfigFile(): PluginConfig {
     },
     web: {
       port: 4747,
-      enabled: true,
     },
     search: {
       retrievalQuality: "balanced",

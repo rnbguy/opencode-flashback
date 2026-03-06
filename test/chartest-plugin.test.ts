@@ -245,38 +245,3 @@ describe("backoff behavior (CURRENT BEHAVIOR)", () => {
     expect(backoffApplied).toBe(true);
   });
 });
-
-// -- Auto-start Behavior Tests ------------------------------------------------
-
-describe("auto-start behavior (CURRENT BEHAVIOR)", () => {
-  test("plugin init would start web server when config.web.enabled=true", () => {
-    // CURRENT BEHAVIOR: plugin.ts:487-493 calls startServer() when config.web.enabled=true
-    // This test documents the current behavior that Task 12 will change
-    // (replacing auto-start with explicit webui tool mode)
-
-    // Simulating the config check from plugin.ts:487-493
-    const config = {
-      web: {
-        enabled: true,
-        port: 4747,
-      },
-    };
-
-    // CURRENT BEHAVIOR: if config.web.enabled is true, startServer() is called
-    const shouldStartServer = config.web.enabled === true;
-    expect(shouldStartServer).toBe(true);
-  });
-
-  test("plugin init would NOT start web server when config.web.enabled=false", () => {
-    // CURRENT BEHAVIOR: plugin.ts:487-493 checks config.web.enabled before calling startServer()
-    const config = {
-      web: {
-        enabled: false,
-        port: 4747,
-      },
-    };
-
-    const shouldStartServer = config.web.enabled === true;
-    expect(shouldStartServer).toBe(false);
-  });
-});

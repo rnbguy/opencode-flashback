@@ -13,7 +13,7 @@ import type { ToolResult } from "./types.ts";
 import { getLanguageName } from "./util/language.ts";
 import { createLogger, setToastSink } from "./util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "./util/privacy.ts";
-import { startServer, stopServer } from "./web/server.ts";
+import { getServerState, startServer, stopServer } from "./web/server.ts";
 
 type ToolMode =
   | "search"
@@ -33,7 +33,8 @@ type ToolMode =
   | "star"
   | "unstar"
   | "clear"
-  | "consolidate";
+  | "consolidate"
+  | "webui";
 
 const injectedSessionIds = new Set<string>();
 let warmupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -337,6 +338,85 @@ async function handleToolCall(
         dryRun,
       };
     }
+    case "webui": {
+      const action = asString(args.action) || "start";
+      if (action === "start") {
+        try {
+          const port = await startServer(pluginInput.directory);
+          return {
+            mode: "webui",
+            action: "start",
+            started: true,
+            port,
+            text: `Web UI started at http://127.0.0.1:${port}`,
+          };
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const text = `Failed to start Web UI: ${msg}`;
+          logger?.error(text);
+          return {
+            mode: "webui",
+            action: "start",
+            started: false,
+            error: msg,
+            text,
+          };
+        }
+      }
+
+      if (action === "stop") {
+        stopServer();
+        logger?.info("Web UI stopped");
+        return {
+          mode: "webui",
+          action: "stop",
+          stopped: true,
+          text: "Web UI stopped",
+        };
+      }
+
+      if (action === "restart") {
+        if (getServerState() !== "ready") {
+          const text = "Web UI restart skipped: server is not running";
+          logger?.warn(text);
+          return {
+            mode: "webui",
+            action: "restart",
+            restarted: false,
+            error: "Server is not running",
+            text,
+          };
+        }
+        stopServer();
+        try {
+          const port = await startServer(pluginInput.directory);
+          return {
+            mode: "webui",
+            action: "restart",
+            restarted: true,
+            port,
+            text: `Web UI restarted at http://127.0.0.1:${port}`,
+          };
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const text = `Failed to restart Web UI: ${msg}`;
+          logger?.error(text);
+          return {
+            mode: "webui",
+            action: "restart",
+            restarted: false,
+            error: msg,
+            text,
+          };
+        }
+      }
+
+      return {
+        mode: "webui",
+        error: `Unknown action: ${action}`,
+        text: `Unknown webui action: ${action}`,
+      };
+    }
     default:
       return { error: `Unknown mode: ${mode}` };
   }
@@ -366,6 +446,7 @@ function getHelpText(): string {
     "| unstar <id> | Unstar a memory |",
     "| clear [duration] | Clear all data or memories older than duration (e.g. 30sec, 2days, 1hour) |",
     "| consolidate [--dry-run] | Merge duplicates |",
+    "| webui [action] | Start/stop/restart Web UI server (actions: start, stop, restart) |",
   ].join("\n");
 }
 
@@ -484,14 +565,6 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
     }
   }
 
-  if (config.web.enabled) {
-    startServer(input.directory).catch((error) => {
-      logger?.error("Web server failed to start", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  }
-
   return {
     tool: {
       flashback: tool({
@@ -516,6 +589,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             "unstar",
             "clear",
             "consolidate",
+            "webui",
           ]),
           query: tool.schema.string().optional(),
           content: tool.schema.string().optional(),
@@ -529,6 +603,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           confirmed: tool.schema.boolean().optional(),
           rating: tool.schema.number().optional(),
           duration: tool.schema.string().optional(),
+          action: tool.schema.enum(["start", "stop", "restart"]).optional(),
         },
         execute: async (args, context) => {
           try {

@@ -12,7 +12,7 @@ Persistent AI memory plugin for OpenCode -- free, local, open-source.
 - Auto-capture from coding sessions
 - User profile learning
 - Dark/light web UI
-- 18 tool modes via single `flashback` tool
+- 19 tool modes via single `flashback` tool
 - Cross-platform (Linux, macOS, Windows)
 - Zero trustedDependencies
 
@@ -77,7 +77,6 @@ The `search.retrievalQuality` field supports four presets:
   },
   "web": {
     "port": 4747,
-    "enabled": true,
   },
   "search": {
     "retrievalQuality": "balanced",
@@ -129,10 +128,24 @@ If you are writing plugin code (not agent prompts), the handler remains async in
 | `unstar` | `id` | Unstar a memory |
 | `clear` | `duration?`, `confirmed` | Clear all data or memories older than duration |
 | `consolidate` | `dryRun?`, `confirmed?` | Detect and merge duplicate memories |
+| `webui` | `action?` | Start/stop/restart Web UI (`start`, `stop`, `restart`) |
 
 ## Web UI
 
-Flashback includes a local web interface at `http://127.0.0.1:4747` (default).
+Flashback includes a local web interface at `http://127.0.0.1:4747` (default port).
+
+The Web UI does **not** auto-start at plugin boot.
+Start and stop it explicitly via the tool:
+
+```typescript
+flashback({ mode: "webui", action: "start" });
+flashback({ mode: "webui", action: "stop" });
+flashback({ mode: "webui", action: "restart" });
+```
+
+Notes:
+- `restart` requires the server to already be running
+- if it is not running, restart is skipped with a warning
 
 - Browse and search all stored memories
 - Manage user profile and learned preferences

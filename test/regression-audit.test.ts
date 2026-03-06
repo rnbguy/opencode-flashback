@@ -14,7 +14,7 @@ const SRC_DIR = join(import.meta.dir, "../src");
 const defaultConfig = makeTestConfig({
   storage: { path: "" },
   memory: { autoCapture: false },
-  web: { port: 19500, enabled: false },
+  web: { port: 19500 },
 });
 
 describe("regression: audit fixes", () => {

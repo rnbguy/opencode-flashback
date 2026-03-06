@@ -254,7 +254,6 @@ function makeConfig(retrievalQuality: RetrievalPreset): PluginConfig {
     },
     web: {
       port: 4747,
-      enabled: false,
     },
     search: {
       retrievalQuality,
@@ -501,7 +500,9 @@ describe("golden retrieval regression", () => {
     const baseline = readBaseline();
     if (baseline === null || process.env.UPDATE_GOLDEN_BASELINE === "1") {
       writeBaseline(presetMetrics, dataset.length);
-      expect(true).toBe(true);
+      const updatedBaseline = readBaseline();
+      expect(updatedBaseline).not.toBeNull();
+      expect(updatedBaseline?.datasetSize).toBe(dataset.length);
       return;
     }
 

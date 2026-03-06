@@ -70,7 +70,7 @@ function makeValidConfig(): PluginConfig {
       injection: "first",
       excludeCurrentSession: true,
     },
-    web: { port: 4747, enabled: true },
+    web: { port: 4747 },
     search: { retrievalQuality: "balanced" },
     toasts: {
       autoCapture: true,
@@ -180,7 +180,7 @@ describe("advanced config behavior", () => {
     writeJsonc(`{
       "llm": { "apiKey": "partial" },
       "memory": { "injection": "every" },
-      "web": { "enabled": false }
+      "web": { "port": 4949 }
     }`);
 
     _resetConfigForTesting();

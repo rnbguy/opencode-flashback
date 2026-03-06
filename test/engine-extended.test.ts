@@ -159,8 +159,7 @@ describe("engine lifecycle and warmup", () => {
     const engine = createEngine(makeResolver());
     await engine.warmup();
     await Bun.sleep(500);
-    // Error is caught silently by .catch() in reembedAllMemories
-    expect(true).toBe(true);
+    expect(getMetaValue(getDb(), META_KEY_EMBEDDING_MODEL)).toBe("old-model");
   });
 
   // -- clearAllData paths -----------------------------------------------------

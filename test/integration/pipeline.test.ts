@@ -94,7 +94,7 @@ describe("integration: memory pipeline", () => {
     _setConfigForTesting(
       makeTestConfig({
         storage: { path: tmpDir },
-        web: { enabled: true, port: 19747 },
+        web: { port: 19747 },
       }),
     );
     _setEmbedDepsForTesting({
@@ -242,7 +242,7 @@ describe("integration: memory pipeline", () => {
     _setConfigForTesting(
       makeTestConfig({
         storage: { path: tmpDir },
-        web: { port, enabled: true },
+        web: { port },
       }),
     );
 
@@ -314,7 +314,7 @@ describe("integration: memory pipeline", () => {
     _setConfigForTesting(
       makeTestConfig({
         storage: { path: tmpDir },
-        web: { port, enabled: true },
+        web: { port },
       }),
     );
 

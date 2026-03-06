@@ -34,7 +34,7 @@ describe("ConfigSchema", () => {
       injection: "first",
       excludeCurrentSession: true,
     },
-    web: { port: 4747, enabled: true },
+    web: { port: 4747 },
     search: { retrievalQuality: "balanced" },
     toasts: {
       autoCapture: true,
@@ -206,7 +206,7 @@ describe("getHybridWeights", () => {
         injection: "first",
         excludeCurrentSession: true,
       },
-      web: { port: 4747, enabled: true },
+      web: { port: 4747 },
       search: { retrievalQuality: quality, hybridWeights },
       toasts: {
         autoCapture: true,
@@ -352,17 +352,17 @@ describe("getConfig", () => {
       undefined,
       `{
         "memory": {
-          "autoCapture": false,
+          "autoCapture": false
         },
         "web": {
-          "enabled": false,
-        },
+          "port": 4748
+        }
       }`,
     );
 
     const config = getConfig();
     expect(config.memory.autoCapture).toBe(false);
-    expect(config.web.enabled).toBe(false);
+    expect(config.web.port).toBe(4748);
   });
 
   test("loads JSONC with escaped quotes in strings", () => {
@@ -394,11 +394,10 @@ describe("getConfig", () => {
   });
 
   test("loads JSONC without comments", () => {
-    writeConfigFiles(undefined, JSON.stringify({ web: { enabled: false } }));
+    writeConfigFiles(undefined, JSON.stringify({ web: { port: 4749 } }));
 
     const config = getConfig();
-    expect(config.web.enabled).toBe(false);
-    expect(config.web.port).toBe(4747);
+    expect(config.web.port).toBe(4749);
   });
 
   test("prefers JSONC values over JSON and warns when both exist", () => {
@@ -409,15 +408,15 @@ describe("getConfig", () => {
       }),
       JSON.stringify({
         llm: { model: "jsonc-model" },
-        web: { enabled: false },
+        web: { port: 4999 },
       }),
     );
 
     const config = getConfig();
     expect(config.llm.model).toBe("jsonc-model");
     expect(config.llm.apiKey).toBe("json-key");
-    expect(config.web.port).toBe(4001);
-    expect(config.web.enabled).toBe(false);
+    expect(config.web.port).toBe(4999);
+    expect(config.web.port).toBe(4999);
     const errors = getConfigErrors();
     expect(errors.length).toBeGreaterThanOrEqual(1);
     expect(errors.some((e) => e.includes("Both"))).toBe(true);
@@ -479,7 +478,7 @@ describe("getConfig", () => {
     expect(config.memory.injection).toBe("every");
     expect(config.memory.maxResults).toBe(10);
     expect(config.web.port).toBe(8787);
-    expect(config.web.enabled).toBe(true);
+    expect(config.web.port).toBe(8787);
   });
 
   test("falls back when array value overrides object shape", () => {
@@ -509,7 +508,7 @@ describe("getConfig", () => {
     writeConfigFiles(undefined, "");
 
     const config = getConfig();
-    expect(config.web.enabled).toBe(true);
+    expect(config.web.port).toBe(4747);
     expect(config.llm.model).toBe("glm-4.6:cloud");
   });
 

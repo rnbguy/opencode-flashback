@@ -135,7 +135,6 @@ export interface MemoryConfig {
 
 export interface WebConfig {
   port: number;
-  enabled: boolean;
 }
 
 export interface SearchConfig {
@@ -207,6 +206,16 @@ export type ToolResult =
       merged: number;
       dryRun: boolean;
       message?: string;
+    }
+  | {
+      mode: "webui";
+      action?: "start" | "stop" | "restart";
+      started?: boolean;
+      stopped?: boolean;
+      restarted?: boolean;
+      port?: number;
+      error?: string;
+      text?: string;
     };
 
 export interface DiagnosticsResponse {

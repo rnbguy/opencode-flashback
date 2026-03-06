@@ -35,7 +35,7 @@ export function makeTestConfig(
       injection: "first",
       excludeCurrentSession: true,
     },
-    web: { port: 4747, enabled: false },
+    web: { port: 4747 },
     search: { retrievalQuality: "balanced" },
     toasts: { autoCapture: true, userProfile: true, errors: true },
     compaction: { enabled: true, memoryLimit: 10 },
