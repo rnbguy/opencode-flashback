@@ -32,6 +32,7 @@ let server: ReturnType<typeof Bun.serve> | null = null;
 let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 let cspScriptHash = "";
+let csrfRotationInterval: ReturnType<typeof setInterval> | null = null;
 
 const WEB_UI_AVAILABLE_PREFIX = "Web UI available at http://127.0.0.1:";
 
@@ -63,6 +64,12 @@ export async function startServer(directory: string): Promise<number> {
   csrfToken = crypto.randomUUID();
   cspScriptHash = computeCspHash();
 
+  // Set up CSRF token rotation every 5 minutes
+  csrfRotationInterval = setInterval(() => {
+    csrfToken = crypto.randomUUID();
+    logger.debug("CSRF token rotated");
+  }, 300_000);
+
   const config = getConfig();
   const basePort = config.web.port;
   const MAX_PORT_ATTEMPTS = 3;
@@ -93,6 +100,10 @@ export async function startServer(directory: string): Promise<number> {
 
 export function stopServer(): void {
   const logger = getLogger();
+  if (csrfRotationInterval) {
+    clearInterval(csrfRotationInterval);
+    csrfRotationInterval = null;
+  }
   if (server) {
     server.stop();
     server = null;
