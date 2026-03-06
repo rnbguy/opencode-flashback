@@ -13,7 +13,6 @@ import { cosineSimilarity } from "./memory.ts";
 
 const DUPLICATE_THRESHOLD = 0.92;
 const NEAR_DUPLICATE_THRESHOLD = 0.85;
-const _CONSOLIDATION_CAP = 500;
 
 export interface ConsolidateOptions {
   containerTag: string;
