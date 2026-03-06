@@ -440,6 +440,15 @@ export function countMemories(db: Database, containerTag: string): number {
   return row.count;
 }
 
+export function countMemoriesByTag(db: Database, containerTag: string): number {
+  const row = db
+    .query(
+      "SELECT COUNT(*) as count FROM memories WHERE container_tag = ? AND evicted_at IS NULL AND suspended = 0",
+    )
+    .get(containerTag) as { count: number };
+  return row.count;
+}
+
 export function getAllActiveMemories(db: Database): Memory[] {
   const rows = db
     .query("SELECT * FROM memories WHERE evicted_at IS NULL AND suspended = 0")

@@ -3,6 +3,7 @@ import { getConfig, getHybridWeights, type PluginConfig } from "../config.ts";
 import { MEMORY_HEADER } from "../consts.ts";
 import {
   countMemories,
+  countMemoriesByTag,
   listMemories as dbListMemories,
   deleteMemory,
   getAllActiveMemories,
@@ -58,11 +59,6 @@ export async function addMemory(
 
   const vectors = await embed([content], "document");
   const vector = vectors[0];
-
-  const duplicate = findDuplicateMemory(opts.containerTag, vector);
-  if (duplicate) {
-    return { id: duplicate.id, deduplicated: true };
-  }
 
   const now = Date.now();
   const id = crypto.randomUUID();
@@ -124,8 +120,22 @@ export async function addMemory(
     nextReviewAt: schedule.nextReviewAt,
   };
 
-  insertMemory(db, memory);
-  markStale();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const duplicate = findDuplicateMemory(opts.containerTag, vector, db);
+    if (duplicate) {
+      db.exec("COMMIT");
+      return { id: duplicate.id, deduplicated: true };
+    }
+
+    insertMemory(db, memory);
+    markStale();
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
   await enforceTagBudget(opts.containerTag);
 
   return { id, deduplicated: false };
@@ -561,8 +571,8 @@ function rerank(results: SearchResult[], config: PluginConfig): SearchResult[] {
 function findDuplicateMemory(
   containerTag: string,
   vector: number[],
+  db = getDb(),
 ): Memory | null {
-  const db = getDb();
   const memories = getAllActiveMemories(db).filter(
     (memory) => memory.containerTag === containerTag,
   );
@@ -597,13 +607,15 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
 async function enforceTagBudget(containerTag: string): Promise<void> {
   const db = getDb();
+  const count = countMemoriesByTag(db, containerTag);
+
+  if (count <= TAG_BUDGET) {
+    return;
+  }
+
   const active = getAllActiveMemories(db).filter(
     (memory) => memory.containerTag === containerTag,
   );
-
-  if (active.length <= TAG_BUDGET) {
-    return;
-  }
 
   const excess = active.length - TAG_BUDGET;
   const nonStarred = active.filter((memory) => !memory.isStarred);
