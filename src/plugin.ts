@@ -829,12 +829,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
 
         try {
           const tagInfo = engine.resolveTag(input.directory);
-          const results = await engine.searchMemories(
-            sessionID,
+          const page = await engine.listMemories(
             tagInfo.tag,
             config.compaction.memoryLimit,
+            0,
           );
-          if (results.length === 0) {
+          if (page.memories.length === 0) {
             logger?.debug("session.compacted skipped", {
               sessionID,
               reason: "no_matching_memories",
@@ -845,8 +845,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
           const contextText = [
             "## Restored Session Memory",
             "",
-            ...results.map((result, index) => {
-              const memory = result.memory;
+            ...page.memories.map((memory, index) => {
               const tags =
                 memory.tags.length > 0
                   ? `\nTags: ${memory.tags.join(", ")}`
@@ -863,7 +862,9 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             },
           });
 
-          logger?.info(`${results.length} memories restored after compaction`);
+          logger?.info(
+            `${page.memories.length} memories restored after compaction`,
+          );
         } catch (error) {
           logger?.error("session.compacted handler failed", {
             error: error instanceof Error ? error.message : String(error),
