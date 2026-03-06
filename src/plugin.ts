@@ -353,13 +353,16 @@ async function handleToolCall(
           };
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
-          const text = `Failed to start Web UI: ${msg}`;
+          const hint = msg.includes("EADDRINUSE")
+            ? " -- stop the other instance first"
+            : "";
+          const text = `Failed to start Web UI: ${msg}${hint}`;
           logger?.error(text);
           return {
             mode: "webui",
             action: "start",
             started: false,
-            error: msg,
+            error: `${msg}${hint}`,
             text,
           };
         }
@@ -400,13 +403,16 @@ async function handleToolCall(
           };
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
-          const text = `Failed to restart Web UI: ${msg}`;
+          const hint = msg.includes("EADDRINUSE")
+            ? " -- stop the other instance first"
+            : "";
+          const text = `Failed to restart Web UI: ${msg}${hint}`;
           logger?.error(text);
           return {
             mode: "webui",
             action: "restart",
             restarted: false,
-            error: msg,
+            error: `${msg}${hint}`,
             text,
           };
         }
