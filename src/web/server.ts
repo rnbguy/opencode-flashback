@@ -342,10 +342,7 @@ async function handleListMemories(
     : Math.max(1, Math.min(100, rawLimit));
   const rawOffset = parseInt(url.searchParams.get("offset") ?? "0");
   const offset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
-  const containerTag = getContainerTag(
-    directory,
-    url.searchParams.get("containerTag") ?? undefined,
-  );
+  const containerTag = getContainerTag(directory);
 
   const result = await listMemories(containerTag, limit, offset);
   return jsonResponse(result);
@@ -446,10 +443,7 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
   const limit = Number.isNaN(rawLimit)
     ? 10
     : Math.max(1, Math.min(100, rawLimit));
-  const containerTag = getContainerTag(
-    directory,
-    url.searchParams.get("containerTag") ?? undefined,
-  );
+  const containerTag = getContainerTag(directory);
 
   const results = await searchMemories(query, containerTag, limit);
   return jsonResponse({ results, count: results.length });
@@ -585,8 +579,7 @@ function serveStatic(filePath: string): Response {
 
 // -- Path / tag helpers -----------------------------------------------------
 
-function getContainerTag(directory: string, urlTag?: string): string {
-  if (urlTag) return urlTag;
+function getContainerTag(directory: string): string {
   return resolveContainerTag(directory).tag;
 }
 
