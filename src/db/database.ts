@@ -242,6 +242,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
 export const META_KEY_EMBEDDING_MODEL = "embedding_model";
 export const META_KEY_EMBEDDING_DIMENSION = "embedding_dimension";
 export const META_KEY_DB_REVISION = "db_revision";
+export const META_KEY_REEMBED_IN_PROGRESS = "reembed_in_progress";
 
 export function getMetaValue(db: Database, key: string): string | null {
   const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as {

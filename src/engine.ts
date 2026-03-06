@@ -41,6 +41,7 @@ import {
   getMetaValue,
   META_KEY_EMBEDDING_DIMENSION,
   META_KEY_EMBEDDING_MODEL,
+  META_KEY_REEMBED_IN_PROGRESS,
   setMetaValue,
 } from "./db/database.ts";
 import { getSearchState, initSearch, markStale } from "./search.ts";
@@ -143,30 +144,58 @@ async function reembedAllMemories(
   newModel: string,
 ): Promise<void> {
   const logger = getLogger();
-  const memories = db.query("SELECT id, content FROM memories").all() as Array<{
-    id: string;
-    content: string;
-  }>;
 
-  if (memories.length === 0) {
+  // Check if re-embed is already in progress
+  const inProgressValue = getMetaValue(db, META_KEY_REEMBED_IN_PROGRESS);
+  if (inProgressValue) {
+    const timestamp = parseInt(inProgressValue, 10);
+    const now = Date.now();
+    const elapsedMs = now - timestamp;
+    const tenMinutesMs = 10 * 60 * 1000;
+
+    if (elapsedMs < tenMinutesMs) {
+      logger.info("skipping re-embed, another instance in progress");
+      return;
+    }
+  }
+
+  // Set the in-progress flag with current timestamp
+  setMetaValue(db, META_KEY_REEMBED_IN_PROGRESS, String(Date.now()));
+
+  try {
+    const memories = db
+      .query("SELECT id, content FROM memories")
+      .all() as Array<{
+      id: string;
+      content: string;
+    }>;
+
+    if (memories.length === 0) {
+      setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
+      return;
+    }
+
+    logger.info(`Re-embedding ${memories.length} memories...`);
+
+    const texts = memories.map((m) => m.content);
+    const embeddings = await embed(texts, "document");
+
+    const updateStmt = db.query(
+      "UPDATE memories SET embedding = ? WHERE id = ?",
+    );
+    for (let i = 0; i < memories.length; i++) {
+      const float32 = new Float32Array(embeddings[i]);
+      updateStmt.run(Buffer.from(float32.buffer), memories[i].id);
+    }
+
     setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
-    return;
+    logger.info(`Re-embedding complete: ${memories.length} memories updated`);
+    markStale();
+  } finally {
+    // Clear the in-progress flag on completion or error
+    const metaTable = db.query("DELETE FROM meta WHERE key = ?");
+    metaTable.run(META_KEY_REEMBED_IN_PROGRESS);
   }
-
-  logger.info(`Re-embedding ${memories.length} memories...`);
-
-  const texts = memories.map((m) => m.content);
-  const embeddings = await embed(texts, "document");
-
-  const updateStmt = db.query("UPDATE memories SET embedding = ? WHERE id = ?");
-  for (let i = 0; i < memories.length; i++) {
-    const float32 = new Float32Array(embeddings[i]);
-    updateStmt.run(Buffer.from(float32.buffer), memories[i].id);
-  }
-
-  setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
-  logger.info(`Re-embedding complete: ${memories.length} memories updated`);
-  markStale();
 }
 
 export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
