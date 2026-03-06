@@ -6,7 +6,7 @@ import {
   countMemoriesByTag,
   listMemories as dbListMemories,
   deleteMemory,
-  getAllActiveMemories,
+  getActiveMemoriesByContainerTag,
   getDb,
   getMemory,
   insertMemory,
@@ -345,9 +345,8 @@ export async function exportMemories(
 ): Promise<{ data: string; count: number }> {
   const logger = getLogger();
   const db = getDb();
-  const all = getAllActiveMemories(db).filter(
-    (memory) =>
-      memory.containerTag === containerTag && memory.evictedAt === null,
+  const all = getActiveMemoriesByContainerTag(db, containerTag).filter(
+    (memory) => memory.evictedAt === null,
   );
 
   if (format === "markdown") {
@@ -492,9 +491,8 @@ export async function getMemoriesForReview(
   const logger = getLogger();
   const db = getDb();
   const now = Date.now();
-  const memories = getAllActiveMemories(db).filter(
+  const memories = getActiveMemoriesByContainerTag(db, containerTag).filter(
     (memory) =>
-      memory.containerTag === containerTag &&
       memory.evictedAt === null &&
       !memory.suspended &&
       memory.nextReviewAt !== null &&
@@ -573,9 +571,7 @@ function findDuplicateMemory(
   vector: number[],
   db = getDb(),
 ): Memory | null {
-  const memories = getAllActiveMemories(db).filter(
-    (memory) => memory.containerTag === containerTag,
-  );
+  const memories = getActiveMemoriesByContainerTag(db, containerTag);
 
   let best: { memory: Memory; similarity: number } | null = null;
 
@@ -613,9 +609,7 @@ async function enforceTagBudget(containerTag: string): Promise<void> {
     return;
   }
 
-  const active = getAllActiveMemories(db).filter(
-    (memory) => memory.containerTag === containerTag,
-  );
+  const active = getActiveMemoriesByContainerTag(db, containerTag);
 
   const excess = active.length - TAG_BUDGET;
   const nonStarred = active.filter((memory) => !memory.isStarred);

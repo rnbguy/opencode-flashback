@@ -464,6 +464,18 @@ export function countMemoriesByTag(db: Database, containerTag: string): number {
   return row.count;
 }
 
+export function getActiveMemoriesByContainerTag(
+  db: Database,
+  containerTag: string,
+): Memory[] {
+  const rows = db
+    .query(
+      "SELECT * FROM memories WHERE container_tag = ? AND evicted_at IS NULL AND suspended = 0",
+    )
+    .all(containerTag) as MemoryRow[];
+  return rows.map(rowToMemory);
+}
+
 export function getAllActiveMemories(db: Database): Memory[] {
   const rows = db
     .query("SELECT * FROM memories WHERE evicted_at IS NULL AND suspended = 0")
