@@ -31,7 +31,12 @@ import {
   suspendMemory,
   unstarMemory,
 } from "./core/memory.ts";
-import { getOrCreateProfile } from "./core/profile.ts";
+import {
+  deleteProfileItem,
+  getOrCreateProfile,
+  starProfileItem,
+  unstarProfileItem,
+} from "./core/profile.ts";
 import {
   clearAllData,
   clearOldData,
@@ -102,6 +107,21 @@ export interface MemoryEngine {
   ): Promise<{ success: boolean; nextReviewAt: number | null }>;
   getMemoriesForReview(containerTag: string, limit?: number): Promise<Memory[]>;
   getOrCreateProfile(userId: string): UserProfile | null;
+  starProfileItem(
+    userId: string,
+    section: "preferences" | "patterns" | "workflows",
+    index: number,
+  ): boolean;
+  unstarProfileItem(
+    userId: string,
+    section: "preferences" | "patterns" | "workflows",
+    index: number,
+  ): boolean;
+  deleteProfileItem(
+    userId: string,
+    section: "preferences" | "patterns" | "workflows",
+    index: number,
+  ): boolean;
   enqueueCapture(request: CaptureRequest): void;
   resolveTag(directory: string): ContainerTagInfo;
   getDiagnostics(containerTag: string): Promise<DiagnosticsResponse>;
@@ -217,6 +237,9 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     rateMemory,
     getMemoriesForReview,
     getOrCreateProfile,
+    starProfileItem,
+    unstarProfileItem,
+    deleteProfileItem,
     enqueueCapture,
     resolveTag: (directory) => resolver.resolve(directory),
     getDiagnostics: async (containerTag) => {
@@ -278,3 +301,5 @@ export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
     },
   };
 }
+
+export { deriveUserId } from "./core/tags.ts";

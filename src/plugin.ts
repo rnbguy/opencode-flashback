@@ -343,7 +343,7 @@ async function handleToolCall(
       const action = asString(args.action) || "start";
       if (action === "start") {
         try {
-          const port = await startServer(pluginInput.directory);
+          const port = await startServer(pluginInput.directory, engine);
           return {
             mode: "webui",
             action: "start",
@@ -390,7 +390,7 @@ async function handleToolCall(
         }
         stopServer();
         try {
-          const port = await startServer(pluginInput.directory);
+          const port = await startServer(pluginInput.directory, engine);
           return {
             mode: "webui",
             action: "restart",

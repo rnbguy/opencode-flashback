@@ -38,10 +38,13 @@ import {
   countMemories,
   getDb,
 } from "../../src/db/database.ts";
+import { createEngine } from "../../src/engine.ts";
 import { OpenCodeFlashbackPlugin } from "../../src/plugin.ts";
 import { initSearch } from "../../src/search.ts";
 import { startServer, stopServer } from "../../src/web/server.ts";
 import { type DeepPartial, makeTestConfig } from "../fixtures/config.ts";
+
+const engine = createEngine({ resolve: resolveContainerTag });
 
 type ToolRunner = {
   execute: (
@@ -426,7 +429,7 @@ lifecycleDescribe("e2e: plugin lifecycle and web api", () => {
     const tag = resolveContainerTag(tmpDir).tag;
     expect(countMemories(getDb(), tag)).toBe(0);
 
-    await startServer(tmpDir);
+    await startServer(tmpDir, engine);
     const baseUrl = `http://127.0.0.1:${port}`;
     const httpFetch = Bun.fetch;
 

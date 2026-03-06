@@ -5,7 +5,9 @@ import { join } from "path";
 import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import { MEMORY_HEADER } from "../src/consts.ts";
 import { getOrCreateProfile } from "../src/core/profile.ts";
+import { resolveContainerTag } from "../src/core/tags.ts";
 import { closeDb, getDb } from "../src/db/database.ts";
+import { createEngine } from "../src/engine.ts";
 import { startServer, stopServer } from "../src/web/server.ts";
 import { makeTestConfig } from "./fixtures/config.ts";
 
@@ -16,6 +18,7 @@ const defaultConfig = makeTestConfig({
   memory: { autoCapture: false },
   web: { port: 19500 },
 });
+const engine = createEngine({ resolve: resolveContainerTag });
 
 describe("regression: audit fixes", () => {
   let tmpDir: string;
@@ -81,7 +84,7 @@ describe("regression: audit fixes", () => {
   });
 
   test("T12: startServer returns a number (actual port)", async () => {
-    const port = await startServer(tmpDir);
+    const port = await startServer(tmpDir, engine);
     expect(typeof port).toBe("number");
     expect(port).toBeGreaterThan(0);
     stopServer();
@@ -99,9 +102,9 @@ describe("regression: audit fixes", () => {
   });
 
   test("T16: calling startServer twice does not throw", async () => {
-    const port1 = await startServer(tmpDir);
+    const port1 = await startServer(tmpDir, engine);
     expect(port1).toBeGreaterThan(0);
-    const port2 = await startServer(tmpDir);
+    const port2 = await startServer(tmpDir, engine);
     expect(port2).toBeGreaterThan(0);
     stopServer();
   });

@@ -1,27 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { getConfig } from "../config.ts";
-import { DB_FILENAME } from "../consts.ts";
-import { getEmbedderState } from "../core/ai/embed.ts";
-import { getCaptureState } from "../core/capture.ts";
-import {
-  addMemory,
-  forgetMemory,
-  getMemoryById,
-  listMemories,
-  searchMemories,
-  starMemory,
-  unstarMemory,
-} from "../core/memory.ts";
-import {
-  deleteProfileItem,
-  getOrCreateProfile,
-  starProfileItem,
-  unstarProfileItem,
-} from "../core/profile.ts";
-import { deriveUserId, resolveContainerTag } from "../core/tags.ts";
-import { countMemories, getDb } from "../db/database.ts";
-import { getSearchState } from "../search.ts";
+import { deriveUserId, type MemoryEngine } from "../engine.ts";
 import type { DiagnosticsResponse, SubsystemState } from "../types.ts";
 import { getLogger } from "../util/logger.ts";
 import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
@@ -29,6 +9,7 @@ import { isFullyPrivate, stripPrivate } from "../util/privacy.ts";
 // -- State ------------------------------------------------------------------
 
 let server: ReturnType<typeof Bun.serve> | null = null;
+let engine: MemoryEngine | null = null;
 let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 let cspScriptHash = "";
@@ -54,10 +35,14 @@ const rateLimiter = {
 
 // -- Public API -------------------------------------------------------------
 
-export async function startServer(directory: string): Promise<number> {
+export async function startServer(
+  directory: string,
+  engineInstance: MemoryEngine,
+): Promise<number> {
   if (server) {
     stopServer();
   }
+  engine = engineInstance;
   const logger = getLogger();
   csrfToken = crypto.randomUUID();
   cspScriptHash = computeCspHash();
@@ -97,6 +82,7 @@ export function stopServer(): void {
     server = null;
     serverState = "uninitialized";
   }
+  engine = null;
 }
 
 export function getServerState(): SubsystemState {
@@ -230,38 +216,11 @@ async function handleRequest(
 
 // -- API handlers -----------------------------------------------------------
 
-function handleDiagnostics(directory: string): Response {
-  const db = getDb();
+async function handleDiagnostics(directory: string): Promise<Response> {
   const containerTag = getContainerTag(directory);
-  const memCount = countMemories(db, containerTag);
-
-  const config = getConfig();
-  const dbPath = join(config.storage.path, DB_FILENAME);
-
-  let dbSizeBytes = 0;
-  try {
-    dbSizeBytes = Bun.file(dbPath).size;
-  } catch {
-    // DB file may not exist yet
-  }
-
-  const subsystems: Record<string, SubsystemState> = {
-    embedder: getEmbedderState(),
-    search: getSearchState(),
-    capture: getCaptureState(),
-    server: serverState,
-  };
-
-  const diagnostics: DiagnosticsResponse = {
-    memoryCount: memCount,
-    dbSizeBytes,
-    dbPath,
-    embeddingModel: config.embedding?.model ?? "embeddinggemma:latest",
-    subsystems,
-    version: "0.1.0",
-  };
-
-  return jsonResponse(diagnostics);
+  const result = await getEngine().getDiagnostics(containerTag);
+  result.subsystems.server = serverState;
+  return jsonResponse(result as DiagnosticsResponse);
 }
 
 async function handleListMemories(
@@ -276,7 +235,7 @@ async function handleListMemories(
   const offset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
   const containerTag = getContainerTag(directory);
 
-  const result = await listMemories(containerTag, limit, offset);
+  const result = await getEngine().listMemories(containerTag, limit, offset);
   return jsonResponse(result);
 }
 
@@ -305,7 +264,7 @@ async function handleAddMemory(
   const sanitizedContent = stripPrivate(body.content);
 
   const containerTag = getContainerTag(directory);
-  const result = await addMemory({
+  const result = await getEngine().addMemory({
     content: sanitizedContent,
     containerTag,
     tags: body.tags,
@@ -321,7 +280,7 @@ async function handleGetMemory(path: string): Promise<Response> {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
 
-  const memory = await getMemoryById(id);
+  const memory = await getEngine().getMemoryById(id);
   if (!memory) {
     return jsonResponse({ error: "Memory not found" }, 404);
   }
@@ -335,7 +294,7 @@ async function handleDeleteMemory(path: string): Promise<Response> {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
 
-  await forgetMemory(id);
+  await getEngine().forgetMemory(id);
   return jsonResponse({ success: true, id });
 }
 
@@ -345,7 +304,7 @@ async function handleStarMemory(path: string): Promise<Response> {
   if (!id || id.length === 0) {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
-  const success = await starMemory(id);
+  const success = await getEngine().starMemory(id);
   if (!success) {
     return jsonResponse({ error: "Memory not found" }, 404);
   }
@@ -358,7 +317,7 @@ async function handleUnstarMemory(path: string): Promise<Response> {
   if (!id || id.length === 0) {
     return jsonResponse({ error: "Missing memory ID" }, 400);
   }
-  const success = await unstarMemory(id);
+  const success = await getEngine().unstarMemory(id);
   if (!success) {
     return jsonResponse({ error: "Memory not found" }, 404);
   }
@@ -379,7 +338,7 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
   const offset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
   const containerTag = getContainerTag(directory);
 
-  const { results, totalCount } = await searchMemories(
+  const { results, totalCount } = await getEngine().searchMemories(
     query,
     containerTag,
     limit,
@@ -389,9 +348,9 @@ async function handleSearch(url: URL, directory: string): Promise<Response> {
 }
 
 function handleGetProfile(directory: string): Response {
-  const tagInfo = resolveContainerTag(directory);
+  const tagInfo = getEngine().resolveTag(directory);
   const userId = deriveUserId(tagInfo);
-  const profile = getOrCreateProfile(userId);
+  const profile = getEngine().getOrCreateProfile(userId);
   return jsonResponse(profile);
 }
 
@@ -401,9 +360,13 @@ function handleStarProfileItem(path: string, directory: string): Response {
     return jsonResponse({ error: "Invalid section or index" }, 400);
   }
 
-  const tagInfo = resolveContainerTag(directory);
+  const tagInfo = getEngine().resolveTag(directory);
   const userId = deriveUserId(tagInfo);
-  const success = starProfileItem(userId, parsed.section, parsed.index);
+  const success = getEngine().starProfileItem(
+    userId,
+    parsed.section,
+    parsed.index,
+  );
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);
   }
@@ -417,9 +380,13 @@ function handleUnstarProfileItem(path: string, directory: string): Response {
     return jsonResponse({ error: "Invalid section or index" }, 400);
   }
 
-  const tagInfo = resolveContainerTag(directory);
+  const tagInfo = getEngine().resolveTag(directory);
   const userId = deriveUserId(tagInfo);
-  const success = unstarProfileItem(userId, parsed.section, parsed.index);
+  const success = getEngine().unstarProfileItem(
+    userId,
+    parsed.section,
+    parsed.index,
+  );
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);
   }
@@ -433,9 +400,13 @@ function handleDeleteProfileItem(path: string, directory: string): Response {
     return jsonResponse({ error: "Invalid section or index" }, 400);
   }
 
-  const tagInfo = resolveContainerTag(directory);
+  const tagInfo = getEngine().resolveTag(directory);
   const userId = deriveUserId(tagInfo);
-  const success = deleteProfileItem(userId, parsed.section, parsed.index);
+  const success = getEngine().deleteProfileItem(
+    userId,
+    parsed.section,
+    parsed.index,
+  );
   if (!success) {
     return jsonResponse({ error: "Profile item not found" }, 404);
   }
@@ -519,7 +490,14 @@ function serveStatic(filePath: string): Response {
 // -- Path / tag helpers -----------------------------------------------------
 
 function getContainerTag(directory: string): string {
-  return resolveContainerTag(directory).tag;
+  return getEngine().resolveTag(directory).tag;
+}
+
+function getEngine(): MemoryEngine {
+  if (!engine) {
+    throw new Error("Server engine is not initialized");
+  }
+  return engine;
 }
 
 function extractIdFromPath(path: string): string | null {

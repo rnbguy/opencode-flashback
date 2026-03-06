@@ -34,13 +34,14 @@ import {
   listMemories,
   searchMemories,
 } from "../../src/core/memory.ts";
-import { _resetTagCache } from "../../src/core/tags.ts";
+import { _resetTagCache, resolveContainerTag } from "../../src/core/tags.ts";
 import {
   _setDbForTesting,
   closeDb,
   countMemories,
   getDb,
 } from "../../src/db/database.ts";
+import { createEngine } from "../../src/engine.ts";
 import {
   getSearchState,
   initSearch,
@@ -55,6 +56,8 @@ import {
 } from "../../src/web/server.ts";
 import { makeTestConfig } from "../fixtures/config.ts";
 import { seededVector } from "../fixtures/vectors.ts";
+
+const engine = createEngine({ resolve: resolveContainerTag });
 
 function ensureStaticMirrorWithScript(): () => void {
   const sourceDir = join(process.cwd(), "src", "web");
@@ -246,7 +249,7 @@ describe("integration: memory pipeline", () => {
       }),
     );
 
-    await startServer(tmpDir);
+    await startServer(tmpDir, engine);
     const base = `http://127.0.0.1:${port}`;
     const httpFetch = Bun.fetch;
 
@@ -326,7 +329,7 @@ describe("integration: memory pipeline", () => {
       }),
     );
 
-    await startServer(tmpDir);
+    await startServer(tmpDir, engine);
     expect(getServerState()).toBe("ready");
 
     const base = `http://127.0.0.1:${port}`;
@@ -428,7 +431,9 @@ describe("integration: memory pipeline", () => {
     }) as typeof Bun.serve;
 
     try {
-      await expect(startServer(tmpDir)).rejects.toThrow("EADDRINUSE simulated");
+      await expect(startServer(tmpDir, engine)).rejects.toThrow(
+        "EADDRINUSE simulated",
+      );
     } finally {
       Bun.serve = originalServe;
     }
