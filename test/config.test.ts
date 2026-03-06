@@ -45,8 +45,10 @@ describe("ConfigSchema", () => {
       enabled: true,
       memoryLimit: 10,
     },
+    consolidation: {
+      maxCandidates: 500,
+    },
   };
-
   test("accepts valid config", () => {
     const result = ConfigSchema.safeParse(validConfig);
     expect(result.success).toBe(true);
@@ -214,6 +216,9 @@ describe("getHybridWeights", () => {
       compaction: {
         enabled: true,
         memoryLimit: 10,
+      },
+      consolidation: {
+        maxCandidates: 500,
       },
     };
   }

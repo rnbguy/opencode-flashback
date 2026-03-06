@@ -268,6 +268,9 @@ function makeConfig(retrievalQuality: RetrievalPreset): PluginConfig {
       enabled: true,
       memoryLimit: 10,
     },
+    consolidation: {
+      maxCandidates: 500,
+    },
   };
 }
 

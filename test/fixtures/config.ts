@@ -39,8 +39,8 @@ export function makeTestConfig(
     search: { retrievalQuality: "balanced" },
     toasts: { autoCapture: true, userProfile: true, errors: true },
     compaction: { enabled: true, memoryLimit: 10 },
+    consolidation: { maxCandidates: 500 },
   };
-
   if (!overrides) {
     return base;
   }

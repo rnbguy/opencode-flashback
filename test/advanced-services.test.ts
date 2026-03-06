@@ -81,6 +81,9 @@ function makeValidConfig(): PluginConfig {
       enabled: true,
       memoryLimit: 10,
     },
+    consolidation: {
+      maxCandidates: 500,
+    },
   };
 }
 
