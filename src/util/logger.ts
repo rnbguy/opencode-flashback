@@ -67,7 +67,9 @@ export function createLogger(
 
   try {
     mkdirSync(dirname(fallbackLogPath), { recursive: true });
-  } catch {}
+  } catch {
+    /* ignore -- fallback dir creation is best-effort */
+  }
 
   let logWriteWarned = false;
   let writeQueue = Promise.resolve();
