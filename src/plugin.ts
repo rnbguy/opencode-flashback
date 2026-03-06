@@ -353,6 +353,7 @@ function _scheduleWarmup(): void {
       await engine.warmup();
     } catch {
       // Warmup is best-effort -- lazy init handles failures
+      logger?.debug("warmup failed, lazy init will retry", {});
     }
   }, 30_000);
 }
