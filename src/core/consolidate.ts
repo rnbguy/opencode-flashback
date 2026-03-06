@@ -178,63 +178,86 @@ export async function applyConsolidation(
   candidates: ConsolidationCandidate[],
 ): Promise<number> {
   const db = getDb();
+  const logger = getLogger();
   let merged = 0;
 
   for (const candidate of candidates) {
-    const memories = candidate.memoryIds
-      .map((id) => getMemory(db, id))
-      .filter(
-        (memory): memory is Memory =>
-          memory !== null && memory.evictedAt === null,
+    let transactionStarted = false;
+
+    try {
+      const memories = candidate.memoryIds
+        .map((id) => getMemory(db, id))
+        .filter(
+          (memory): memory is Memory =>
+            memory !== null && memory.evictedAt === null,
+        );
+
+      if (memories.length < 2) {
+        continue;
+      }
+
+      const survivor = chooseSurvivor(memories);
+      const losers = memories.filter((memory) => memory.id !== survivor.id);
+      const tags = [...new Set(memories.flatMap((memory) => memory.tags))].sort(
+        (a, b) => a.localeCompare(b),
       );
-
-    if (memories.length < 2) {
-      continue;
-    }
-
-    const survivor = chooseSurvivor(memories);
-    const losers = memories.filter((memory) => memory.id !== survivor.id);
-    const tags = [...new Set(memories.flatMap((memory) => memory.tags))].sort(
-      (a, b) => a.localeCompare(b),
-    );
-    const maxConfidence = Math.max(
-      ...memories.map((memory) => memory.epistemicStatus.confidence),
-    );
-    const maxAccessCount = Math.max(
-      ...memories.map((memory) => memory.accessCount),
-    );
-    const earliestCreatedAt = Math.min(
-      ...memories.map((memory) => memory.createdAt),
-    );
-    const now = Date.now();
-
-    const vectors = await embed([survivor.content], "document");
-    const updated: Memory = {
-      ...survivor,
-      tags,
-      metadata: {
-        ...survivor.metadata,
-        mergedFromCount: memories.length - 1,
-      },
-      accessCount: maxAccessCount,
-      createdAt: earliestCreatedAt,
-      updatedAt: now,
-      epistemicStatus: {
-        ...survivor.epistemicStatus,
-        confidence: maxConfidence,
-      },
-      embedding: new Float32Array(vectors[0]),
-    };
-
-    insertMemory(db, updated);
-    for (const loser of losers) {
-      db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
-        now,
-        loser.id,
+      const maxConfidence = Math.max(
+        ...memories.map((memory) => memory.epistemicStatus.confidence),
       );
-      merged += 1;
+      const maxAccessCount = Math.max(
+        ...memories.map((memory) => memory.accessCount),
+      );
+      const earliestCreatedAt = Math.min(
+        ...memories.map((memory) => memory.createdAt),
+      );
+      const now = Date.now();
+
+      const vectors = await embed([survivor.content], "document");
+      const updated: Memory = {
+        ...survivor,
+        tags,
+        metadata: {
+          ...survivor.metadata,
+          mergedFromCount: memories.length - 1,
+        },
+        accessCount: maxAccessCount,
+        createdAt: earliestCreatedAt,
+        updatedAt: now,
+        epistemicStatus: {
+          ...survivor.epistemicStatus,
+          confidence: maxConfidence,
+        },
+        embedding: new Float32Array(vectors[0]),
+      };
+
+      db.exec("BEGIN IMMEDIATE");
+      transactionStarted = true;
+      insertMemory(db, updated);
+      for (const loser of losers) {
+        db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
+          now,
+          loser.id,
+        );
+      }
+      markStale();
+      db.exec("COMMIT");
+      transactionStarted = false;
+      merged += losers.length;
+    } catch (error) {
+      if (transactionStarted) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          logger.warn("applyConsolidation rollback failed", {
+            memoryIds: candidate.memoryIds,
+          });
+        }
+      }
+      logger.warn("applyConsolidation group failed", {
+        memoryIds: candidate.memoryIds,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-    markStale();
   }
 
   return merged;
