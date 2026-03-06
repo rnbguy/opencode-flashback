@@ -33,9 +33,6 @@ let serverState: SubsystemState = "uninitialized";
 let csrfToken = "";
 let cspScriptHash = "";
 let csrfRotationInterval: ReturnType<typeof setInterval> | null = null;
-let portReclaimInterval: ReturnType<typeof setInterval> | null = null;
-
-const WEB_UI_AVAILABLE_PREFIX = "Web UI available at http://127.0.0.1:";
 
 // -- Rate limiter (token bucket) --------------------------------------------
 
@@ -73,47 +70,27 @@ export async function startServer(directory: string): Promise<number> {
 
   const config = getConfig();
   const basePort = config.web.port;
-  const MAX_PORT_ATTEMPTS = 3;
 
-  let lastError: unknown;
-  for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
-    const port = basePort + i;
-    try {
-      server = Bun.serve({
-        hostname: "127.0.0.1",
-        port,
-        fetch: (req) => handleRequest(req, directory),
-      });
-      serverState = "ready";
-      logger.info(`${WEB_UI_AVAILABLE_PREFIX}${port}`);
-
-      // If server is on a fallback port, attempt to reclaim basePort periodically
-      if (port !== basePort) {
-        portReclaimInterval = setInterval(() => {
-          attemptPortReclaim(directory, basePort, port);
-        }, 60_000); // Check every 60 seconds
-      }
-
-      return server.port!;
-    } catch (error: unknown) {
-      lastError = error;
-      logger.warn("startServer attempt failed", { port });
-    }
+  try {
+    server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: basePort,
+      fetch: (req) => handleRequest(req, directory),
+    });
+    serverState = "ready";
+    logger.info(`Web UI available at http://127.0.0.1:${basePort}`);
+    return server.port!;
+  } catch (error: unknown) {
+    serverState = "error";
+    logger.error("startServer failed", { basePort });
+    throw error;
   }
-
-  serverState = "error";
-  logger.error("startServer failed", { basePort });
-  throw lastError;
 }
 
 export function stopServer(): void {
   if (csrfRotationInterval) {
     clearInterval(csrfRotationInterval);
     csrfRotationInterval = null;
-  }
-  if (portReclaimInterval) {
-    clearInterval(portReclaimInterval);
-    portReclaimInterval = null;
   }
   if (server) {
     server.stop();
@@ -124,48 +101,6 @@ export function stopServer(): void {
 
 export function getServerState(): SubsystemState {
   return serverState;
-}
-
-// -- Port reclaim helper ---------------------------------------------------
-
-async function attemptPortReclaim(
-  directory: string,
-  basePort: number,
-  currentPort: number,
-): Promise<void> {
-  const logger = getLogger();
-  try {
-    // Try to start a test server on basePort to check if it's free
-    const testServer = Bun.serve({
-      hostname: "127.0.0.1",
-      port: basePort,
-      fetch: () => new Response("test"),
-    });
-    // If we got here, basePort is free. Stop the test server.
-    testServer.stop();
-
-    // Now reclaim: stop current server and start on basePort
-    if (server) {
-      server.stop();
-      server = null;
-    }
-    if (portReclaimInterval) {
-      clearInterval(portReclaimInterval);
-      portReclaimInterval = null;
-    }
-
-    // Start new server on basePort
-    server = Bun.serve({
-      hostname: "127.0.0.1",
-      port: basePort,
-      fetch: (req) => handleRequest(req, directory),
-    });
-    logger.info(
-      `${WEB_UI_AVAILABLE_PREFIX}${basePort} (reclaimed from fallback port ${currentPort})`,
-    );
-  } catch {
-    // Port is still in use or other error. Silently continue on current port.
-  }
 }
 
 // -- Request handler --------------------------------------------------------

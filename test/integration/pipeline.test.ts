@@ -409,7 +409,7 @@ describe("integration: memory pipeline", () => {
     expect(profileRes.status).toBe(200);
   });
 
-  test("sets error server state when port retries are exhausted", async () => {
+  test("sets error server state when port is unavailable", async () => {
     const originalServe = Bun.serve;
     let attempts = 0;
 
@@ -425,7 +425,7 @@ describe("integration: memory pipeline", () => {
       Bun.serve = originalServe;
     }
 
-    expect(attempts).toBe(3);
+    expect(attempts).toBe(1);
     expect(getServerState()).toBe("error");
   });
 });
