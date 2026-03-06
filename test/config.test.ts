@@ -416,7 +416,6 @@ describe("getConfig", () => {
     expect(config.llm.model).toBe("jsonc-model");
     expect(config.llm.apiKey).toBe("json-key");
     expect(config.web.port).toBe(4999);
-    expect(config.web.port).toBe(4999);
     const errors = getConfigErrors();
     expect(errors.length).toBeGreaterThanOrEqual(1);
     expect(errors.some((e) => e.includes("Both"))).toBe(true);
@@ -477,7 +476,6 @@ describe("getConfig", () => {
     expect(config.llm.provider).toBe("ollama");
     expect(config.memory.injection).toBe("every");
     expect(config.memory.maxResults).toBe(10);
-    expect(config.web.port).toBe(8787);
     expect(config.web.port).toBe(8787);
   });
 

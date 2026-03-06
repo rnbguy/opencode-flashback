@@ -400,6 +400,8 @@ describe("getContext", () => {
 
   test("includes user preferences from profile", async () => {
     const db = getDb();
+    const createdAt = Date.now();
+    const analyzedAt = createdAt;
     insertMemory(db, makeTestMemory("ctx-pref", "test-tag"));
 
     db.query(
@@ -409,8 +411,8 @@ describe("getContext", () => {
       "prof-1",
       "user-1",
       JSON.stringify({ preferences: { language: "Rust", editor: "neovim" } }),
-      Date.now(),
-      Date.now(),
+      createdAt,
+      analyzedAt,
       0,
     );
 

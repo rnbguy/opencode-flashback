@@ -342,8 +342,9 @@ describe("engine facade", () => {
     });
 
     expect(() => {
-      engine.shutdown();
-      engine.shutdown();
+      for (let i = 0; i < 2; i++) {
+        engine.shutdown();
+      }
     }).not.toThrow();
   });
 });

@@ -119,6 +119,8 @@ describe("engine lifecycle and warmup", () => {
 
   test("warmup catches background re-embed failure", async () => {
     const db = getDb();
+    const createdAt = Date.now();
+    const updatedAt = createdAt;
     // Insert raw memory directly to avoid calling embed during setup
     const vec = new Float32Array(seededVector("raw content"));
     db.query(
@@ -131,8 +133,8 @@ describe("engine lifecycle and warmup", () => {
       "raw content",
       Buffer.from(vec.buffer),
       "test-tag",
-      Date.now(),
-      Date.now(),
+      createdAt,
+      updatedAt,
       0,
       0.7,
       1,

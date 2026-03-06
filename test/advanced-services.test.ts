@@ -653,8 +653,9 @@ describe("advanced capture pipeline behavior", () => {
   });
 
   test("debounce: same session enqueued twice runs once", async () => {
-    enqueueCapture(makeRequest());
-    enqueueCapture(makeRequest());
+    for (let i = 0; i < 2; i++) {
+      enqueueCapture(makeRequest());
+    }
 
     jest.advanceTimersByTime(5000);
     await flushPromises();

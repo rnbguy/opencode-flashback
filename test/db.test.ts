@@ -537,8 +537,9 @@ describe("prompt CRUD", () => {
     const prompt = makePrompt({ id: "p3" });
     insertPrompt(db, prompt);
 
-    markPromptCaptured(db, "p3");
-    markPromptCaptured(db, "p3");
+    for (let i = 0; i < 2; i++) {
+      markPromptCaptured(db, "p3");
+    }
 
     const row = db
       .query("SELECT is_captured FROM user_prompts WHERE id = ?")

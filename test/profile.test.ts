@@ -389,9 +389,9 @@ describe("decayConfidence", () => {
       },
     });
 
-    decayConfidence(userId, 0.5);
-    decayConfidence(userId, 0.5);
-    decayConfidence(userId, 0.5);
+    for (let i = 0; i < 3; i++) {
+      decayConfidence(userId, 0.5);
+    }
 
     const decayed = getProfile(db, userId)!;
     expect(decayed.profileData.preferences).toEqual(

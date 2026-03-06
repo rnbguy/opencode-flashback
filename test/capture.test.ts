@@ -174,9 +174,9 @@ afterAll(() => {
 
 describe("per-session debounce", () => {
   test("debounces rapid calls for same session", async () => {
-    enqueueCapture(makeRequest());
-    enqueueCapture(makeRequest());
-    enqueueCapture(makeRequest());
+    for (let i = 0; i < 3; i++) {
+      enqueueCapture(makeRequest());
+    }
 
     // Advance past debounce (5000ms)
     jest.advanceTimersByTime(5000);
@@ -415,8 +415,9 @@ describe("state management", () => {
 
   // Regression: initCapture is idempotent
   test("initCapture is idempotent", () => {
-    initCapture();
-    initCapture();
+    for (let i = 0; i < 2; i++) {
+      initCapture();
+    }
     expect(getCaptureState()).toBe("ready");
   });
 

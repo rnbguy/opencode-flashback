@@ -98,6 +98,10 @@ describe("getContext - profile query behavior (characterization)", () => {
 
     // Insert TWO profiles with different userIds
     const now = Date.now();
+    const user1CreatedAt = now - 10000;
+    const user1AnalyzedAt = user1CreatedAt;
+    const user2CreatedAt = now;
+    const user2AnalyzedAt = user2CreatedAt;
     const user1ProfileId = "prof-user1";
     const user2ProfileId = "prof-user2";
 
@@ -109,8 +113,8 @@ describe("getContext - profile query behavior (characterization)", () => {
       user1ProfileId,
       "user-1",
       JSON.stringify({ preferences: { language: "Python", editor: "vim" } }),
-      now - 10000,
-      now - 10000,
+      user1CreatedAt,
+      user1AnalyzedAt,
       0,
     );
 
@@ -122,8 +126,8 @@ describe("getContext - profile query behavior (characterization)", () => {
       user2ProfileId,
       "user-2",
       JSON.stringify({ preferences: { language: "Rust", editor: "neovim" } }),
-      now,
-      now,
+      user2CreatedAt,
+      user2AnalyzedAt,
       0,
     );
 
@@ -406,6 +410,8 @@ describe("searchMemories - limit and containerTag filtering (characterization)",
 describe("getContext - profile data parsing (characterization)", () => {
   test("handles malformed JSON in profile_data gracefully", async () => {
     const db = getDb();
+    const badProfileCreatedAt = Date.now();
+    const badProfileAnalyzedAt = badProfileCreatedAt;
 
     insertMemory(
       db,
@@ -422,8 +428,8 @@ describe("getContext - profile data parsing (characterization)", () => {
       "prof-bad",
       "user-bad",
       "{ invalid json }",
-      Date.now(),
-      Date.now(),
+      badProfileCreatedAt,
+      badProfileAnalyzedAt,
       0,
     );
 
@@ -453,6 +459,8 @@ describe("getContext - profile data parsing (characterization)", () => {
 
   test("limits preference lines to 10 items", async () => {
     const db = getDb();
+    const manyPrefsCreatedAt = Date.now();
+    const manyPrefsAnalyzedAt = manyPrefsCreatedAt;
 
     insertMemory(
       db,
@@ -474,8 +482,8 @@ describe("getContext - profile data parsing (characterization)", () => {
       "prof-many",
       "user-many",
       JSON.stringify({ preferences: prefs }),
-      Date.now(),
-      Date.now(),
+      manyPrefsCreatedAt,
+      manyPrefsAnalyzedAt,
       0,
     );
 
