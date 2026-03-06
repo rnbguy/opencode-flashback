@@ -86,7 +86,6 @@ export async function startServer(directory: string): Promise<number> {
       });
       serverState = "ready";
       logger.info(`${WEB_UI_AVAILABLE_PREFIX}${port}`);
-      logger.debug("startServer completed", { port });
 
       // If server is on a fallback port, attempt to reclaim basePort periodically
       if (port !== basePort) {

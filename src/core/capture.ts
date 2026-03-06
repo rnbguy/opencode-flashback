@@ -73,6 +73,7 @@ export function initCapture(): void {
 
 export function enqueueCapture(opts: CaptureRequest): void {
   const existing = debounceTimers.get(opts.sessionId);
+  const isNewWindow = !existing;
   if (existing) {
     clearTimeout(existing);
   }
@@ -82,7 +83,9 @@ export function enqueueCapture(opts: CaptureRequest): void {
   }
 
   const logger = getLogger();
-  logger.debug("Capture enqueued", { sessionId: opts.sessionId });
+  if (isNewWindow) {
+    logger.debug("Capture enqueued", { sessionId: opts.sessionId });
+  }
 
   const timer = setTimeout(() => {
     debounceTimers.delete(opts.sessionId);
@@ -169,12 +172,13 @@ async function runCapture(opts: CaptureRequest): Promise<void> {
 
   if (result.success) {
     await processResult(result.data, uncaptured.id, opts);
-    logger.debug("Capture completed", {
-      sessionId: opts.sessionId,
-      status: lastCaptureStatus,
-    });
     if (lastCaptureStatus === "stored") {
       logger.info("Memory auto-captured", { sessionId: opts.sessionId });
+    } else {
+      logger.debug("Capture completed", {
+        sessionId: opts.sessionId,
+        status: lastCaptureStatus,
+      });
     }
     return;
   }
