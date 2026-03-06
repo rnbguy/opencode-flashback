@@ -135,20 +135,24 @@ describe("getContext - profile query behavior (characterization)", () => {
       0,
     );
 
-    // Call getContext WITHOUT specifying userId
-    const context = await getContext("test-tag");
+    // Call getContext WITH userId to get user-2's profile
+    const context = await getContext(
+      "test-tag",
+      undefined,
+      undefined,
+      "user-2",
+    );
 
-    // CURRENT BEHAVIOR: getContext returns the MOST RECENTLY UPDATED profile
-    // (user-2's profile with Rust/neovim), even though we never asked for user-2
+    // NEW BEHAVIOR: getContext returns the profile for the specified userId
     expect(context).toContain("[MEMORY]");
     expect(context).toContain("Project Knowledge:");
     expect(context).toContain("85%");
     expect(context).toContain("Important project knowledge");
     expect(context).toContain("User Preferences:");
-    // The profile returned is the one with the most recent last_analyzed_at
+    // User 2's profile is in the context
     expect(context).toContain("[language] Rust");
     expect(context).toContain("[editor] neovim");
-    // User 1's profile is NOT in the context (cross-user leakage)
+    // User 1's profile is NOT in the context (proper scoping)
     expect(context).not.toContain("[language] Python");
     expect(context).not.toContain("[editor] vim");
   });

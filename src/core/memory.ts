@@ -274,6 +274,7 @@ export async function getContext(
   containerTag: string,
   sessionId?: string,
   queryHint?: string,
+  userId?: string,
 ): Promise<string> {
   const logger = getLogger();
   const db = getDb();
@@ -310,9 +311,9 @@ export async function getContext(
 
   const profileRow = db
     .query(
-      "SELECT profile_data FROM user_profiles ORDER BY last_analyzed_at DESC LIMIT 1",
+      "SELECT profile_data FROM user_profiles WHERE user_id = ? ORDER BY last_analyzed_at DESC LIMIT 1",
     )
-    .get() as { profile_data: string } | null;
+    .get(userId || "default") as { profile_data: string } | null;
 
   const preferenceLines = parsePreferenceLines(
     profileRow?.profile_data ?? null,

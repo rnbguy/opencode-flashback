@@ -420,7 +420,12 @@ describe("getContext", () => {
       0,
     );
 
-    const context = await getContext("test-tag");
+    const context = await getContext(
+      "test-tag",
+      undefined,
+      undefined,
+      "user-1",
+    );
     expect(context).toContain("User Preferences:");
     expect(context).toContain("[language] Rust");
     expect(context).toContain("[editor] neovim");

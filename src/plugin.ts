@@ -201,6 +201,8 @@ async function handleToolCall(
       const contextText = await engine.getContext(
         containerTag,
         context.sessionID,
+        undefined,
+        deriveUserId(tagInfo),
       );
       return { mode: "context", injected: contextText.length > 0 ? 1 : 0 };
     }
@@ -741,6 +743,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
             tagInfo.tag,
             sessionID,
             userMessage,
+            deriveUserId(tagInfo),
           );
         }
 

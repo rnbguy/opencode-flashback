@@ -81,6 +81,7 @@ export interface MemoryEngine {
     containerTag: string,
     sessionId?: string,
     queryHint?: string,
+    userId?: string,
   ): Promise<string>;
   getMemoryById(id: string): Promise<Memory | null>;
   exportMemories(
