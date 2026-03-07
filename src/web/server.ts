@@ -47,11 +47,7 @@ export async function startServer(
   csrfToken = crypto.randomUUID();
   cspScriptHash = computeCspHash();
 
-  // Set up CSRF token rotation every 5 minutes
-  csrfRotationInterval = setInterval(() => {
-    csrfToken = crypto.randomUUID();
-    logger.debug("CSRF token rotated");
-  }, 300_000);
+
 
   const config = getConfig();
   const basePort = config.web.port;
@@ -62,13 +58,23 @@ export async function startServer(
       port: basePort,
       fetch: (req) => handleRequest(req, directory),
     });
+    // Set up CSRF token rotation every 5 minutes (after server succeeds to avoid leak on bind failure)
+    csrfRotationInterval = setInterval(() => {
+      csrfToken = crypto.randomUUID();
+      logger.debug("CSRF token rotated");
+    }, 300_000);
     serverState = "ready";
     logger.info(`Web UI available at http://127.0.0.1:${basePort}`);
     return server.port!;
   } catch (error: unknown) {
+    if (csrfRotationInterval) {
+      clearInterval(csrfRotationInterval);
+      csrfRotationInterval = null;
+    }
     serverState = "error";
     logger.error("startServer failed", { basePort });
     throw error;
+
   }
 }
 
