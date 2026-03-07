@@ -48,9 +48,9 @@ async function buildProvider(
         baseURL: apiUrl,
       });
     case PROVIDER_ANTHROPIC:
-      return createAnthropic({ apiKey: resolvedKey });
+      return createAnthropic({ apiKey: resolvedKey, baseURL: apiUrl });
     case PROVIDER_GEMINI:
-      return createGoogleGenerativeAI({ apiKey: resolvedKey });
+      return createGoogleGenerativeAI({ apiKey: resolvedKey, baseURL: apiUrl });
     default: {
       const _unreachable: never = provider;
       throw new Error(`Unsupported provider: ${_unreachable}`);
