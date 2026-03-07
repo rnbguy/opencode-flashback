@@ -1,5 +1,5 @@
+import { join, resolve, sep } from "node:path";
 import { readFileSync } from "fs";
-import { join } from "path";
 import { getConfig } from "../config.ts";
 import { deriveUserId, type MemoryEngine } from "../engine.ts";
 import type { DiagnosticsResponse, SubsystemState } from "../types.ts";
@@ -419,10 +419,31 @@ function handleDeleteProfileItem(path: string, directory: string): Response {
 
 // -- Security helpers -------------------------------------------------------
 
-function isLocalhostRequest(req: Request): boolean {
-  const url = new URL(req.url);
-  const host = url.hostname;
-  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+export function isLocalhostRequest(req: Request): boolean {
+  const hostHeader = req.headers.get("host");
+  if (!hostHeader) {
+    return false;
+  }
+
+  const hostValue = hostHeader.trim().toLowerCase();
+  let hostname = hostValue;
+  if (hostValue.startsWith("[")) {
+    const closeBracketIndex = hostValue.indexOf("]");
+    if (closeBracketIndex === -1) {
+      return false;
+    }
+    hostname = hostValue.slice(1, closeBracketIndex);
+  } else {
+    const firstColonIndex = hostValue.indexOf(":");
+    const lastColonIndex = hostValue.lastIndexOf(":");
+    if (firstColonIndex !== -1 && firstColonIndex === lastColonIndex) {
+      hostname = hostValue.slice(0, firstColonIndex);
+    }
+  }
+
+  return (
+    hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1"
+  );
 }
 
 function validateCsrf(req: Request): boolean {
@@ -465,8 +486,23 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-function serveStatic(filePath: string): Response {
-  const fullPath = join(import.meta.dir, "web", filePath);
+export function serveStatic(filePath: string): Response {
+  const webDir = join(import.meta.dir, "web");
+  const webRoot = resolve(webDir);
+
+  let decodedFilePath = "";
+  try {
+    decodedFilePath = decodeURIComponent(filePath);
+  } catch {
+    return jsonResponse({ error: "Not found" }, 404);
+  }
+
+  const fullPath = join(webDir, decodedFilePath);
+  const resolved = resolve(fullPath);
+  if (!resolved.startsWith(webRoot + sep) && resolved !== webRoot) {
+    return jsonResponse({ error: "Not found" }, 404);
+  }
+
   const file = Bun.file(fullPath);
   if (!file.size) {
     return jsonResponse({ error: "Not found" }, 404);
@@ -476,14 +512,14 @@ function serveStatic(filePath: string): Response {
     "X-Content-Type-Options": "nosniff",
   };
   headers["X-Frame-Options"] = "DENY";
-  if (filePath.endsWith(".html")) {
+  if (decodedFilePath.endsWith(".html")) {
     headers["Content-Security-Policy"] = cspScriptHash
       ? `script-src 'self' '${cspScriptHash}'`
       : "script-src 'self' 'unsafe-inline'";
     headers["Content-Type"] = "text/html; charset=utf-8";
-  } else if (filePath.endsWith(".css")) {
+  } else if (decodedFilePath.endsWith(".css")) {
     headers["Content-Type"] = "text/css; charset=utf-8";
-  } else if (filePath.endsWith(".js")) {
+  } else if (decodedFilePath.endsWith(".js")) {
     headers["Content-Type"] = "application/javascript; charset=utf-8";
   }
 
