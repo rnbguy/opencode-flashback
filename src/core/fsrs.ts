@@ -1,4 +1,5 @@
 const DAY_MS = 86_400_000;
+export const MAX_STABILITY_DAYS = 365;
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(Math.max(x, lo), hi);
@@ -52,6 +53,7 @@ export function updateAfterRating(
     s = Math.max(0.1, s * growth);
     d = clamp(d - 0.3 * (rating - 3), 1, 10);
   }
+  s = Math.min(s, MAX_STABILITY_DAYS);
 
   const nextReviewAt = nowMs + Math.round(s * DAY_MS);
   return { stability: s, difficulty: d, nextReviewAt };
