@@ -70,6 +70,15 @@ function asNumber(value: unknown): number | undefined {
     : undefined;
 }
 
+
+function clampLimit(value: number | undefined): number {
+  const raw = value ?? 10;
+  return Math.max(1, Math.min(100, raw));
+}
+
+function clampOffset(value: number | undefined): number {
+  return Math.max(0, value ?? 0);
+}
 function asBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
@@ -126,8 +135,8 @@ async function handleToolCall(
       const { results, totalCount } = await engine.searchMemories(
         asString(args.query),
         containerTag,
-        asNumber(args.limit),
-        asNumber(args.offset),
+        clampLimit(asNumber(args.limit)),
+        clampOffset(asNumber(args.offset)),
       );
       return { mode: "search", results, count: results.length, totalCount };
     }
@@ -164,7 +173,7 @@ async function handleToolCall(
       const results = await engine.recallMemories(
         messages,
         containerTag,
-        asNumber(args.limit),
+        clampLimit(asNumber(args.limit)),
       );
       return { mode: "recall", results, count: results.length };
     }
@@ -177,8 +186,8 @@ async function handleToolCall(
       return { mode: "forget", success: true, id };
     }
     case "list": {
-      const limit = asNumber(args.limit) ?? 50;
-      const offset = asNumber(args.offset) ?? 0;
+      const limit = clampLimit(asNumber(args.limit));
+      const offset = clampOffset(asNumber(args.offset));
       const page = await engine.listMemories(containerTag, limit, offset);
       return {
         mode: "list",
@@ -222,14 +231,14 @@ async function handleToolCall(
       const results = await engine.findRelatedMemories(
         query,
         containerTag,
-        asNumber(args.limit),
+        clampLimit(asNumber(args.limit)),
       );
       return { mode: "related", results, count: results.length };
     }
     case "review": {
       const memories = await engine.getMemoriesForReview(
         containerTag,
-        asNumber(args.limit),
+        clampLimit(asNumber(args.limit)),
       );
       return { mode: "review", memories, count: memories.length };
     }
