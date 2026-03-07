@@ -1,9 +1,15 @@
+import { LRUCache } from "lru-cache";
 import { basename, dirname, isAbsolute, normalize, resolve, sep } from "path";
 import type { ContainerTagInfo } from "../types";
 
 // -- Tag caching ----------------------------------------------------------
 
-const tagCache = new Map<string, ContainerTagInfo>();
+export const TAG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const tagCache = new LRUCache<string, ContainerTagInfo>({
+  max: 100,
+  ttl: TAG_CACHE_TTL_MS,
+});
+let userTagCachedAt = 0;
 let userTagCached: ContainerTagInfo | null = null;
 
 // -- SHA-256 hashing ----------------------------------------------------------
@@ -170,7 +176,9 @@ export function resolveContainerTag(directory: string): ContainerTagInfo {
  * Returns user-scoped tag with user metadata only.
  */
 export function resolveUserTag(): ContainerTagInfo {
-  if (userTagCached) return userTagCached;
+  if (userTagCached && Date.now() - userTagCachedAt < TAG_CACHE_TTL_MS) {
+    return userTagCached;
+  }
 
   const userIdentity = getUserIdentity();
   const userEmail = getGitEmail() || "";
@@ -188,6 +196,7 @@ export function resolveUserTag(): ContainerTagInfo {
     gitRepoUrl: "",
   };
 
+  userTagCachedAt = Date.now();
   userTagCached = result;
   return result;
 }
@@ -196,4 +205,5 @@ export function resolveUserTag(): ContainerTagInfo {
 export function _resetTagCache(): void {
   tagCache.clear();
   userTagCached = null;
+  userTagCachedAt = 0;
 }
