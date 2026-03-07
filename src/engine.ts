@@ -44,6 +44,7 @@ import {
   countMemories,
   getDb,
   getMetaValue,
+  incrementRevision,
   META_KEY_EMBEDDING_DIMENSION,
   META_KEY_EMBEDDING_MODEL,
   META_KEY_REEMBED_IN_PROGRESS,
@@ -161,7 +162,7 @@ async function checkEmbeddingModelChange(db: Database): Promise<void> {
   });
 }
 
-async function reembedAllMemories(
+export async function reembedAllMemories(
   db: Database,
   newModel: string,
 ): Promise<void> {
@@ -220,6 +221,7 @@ async function reembedAllMemories(
 
     setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);
     logger.info(`Re-embedding complete: ${memories.length} memories updated`);
+    incrementRevision(db);
     markStale();
   } finally {
     // Clear the in-progress flag on completion or error
