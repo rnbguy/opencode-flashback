@@ -31,7 +31,9 @@ SKIP if: greetings, casual chat, no code/decisions made
 CAPTURE if: code changed, bug fixed, feature added, decision made`;
 
 export const getCaptureUserPrompt = (context: string): string =>
-  `${context}
+  `<user_conversation>
+${context}
+</user_conversation>
 
 Analyze this conversation. If it contains technical work (code, bugs, features, decisions), create a concise summary and relevant tags. If it's non-technical (greetings, casual chat, incomplete requests), return type="skip" with empty summary.`;
 
@@ -99,11 +101,11 @@ RULES:
 
 export const getProfileUserPrompt = (prompts: string[]): string => {
   const numbered = prompts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
-  return `Analyze these ${prompts.length} user prompts to extract the user profile.
-
+  return `<user_conversation>
 ## User Prompts
 
 ${numbered}
+</user_conversation>
 
 ## Guidelines
 
