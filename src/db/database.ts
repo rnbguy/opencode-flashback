@@ -441,6 +441,14 @@ export function listMemories(
   return rows.map(rowToMemory);
 }
 
+// -- LIKE query escaping helper -----------------------------------------------
+
+function escapeLike(query: string): string {
+  return query.replace(/[%_\\]/g, "\\$&");
+}
+
+// -- Search functions ---------------------------------------------------------
+
 export function searchMemoriesByText(
   db: Database,
   query: string,
@@ -450,9 +458,9 @@ export function searchMemoriesByText(
 ): Memory[] {
   const rows = db
     .query(
-      "SELECT * FROM memories WHERE content LIKE ? AND container_tag = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      "SELECT * FROM memories WHERE content LIKE ? ESCAPE '\\' AND container_tag = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
     )
-    .all(`%${query}%`, containerTag, limit, offset) as MemoryRow[];
+    .all(`%${escapeLike(query)}%`, containerTag, limit, offset) as MemoryRow[];
   return rows.map(rowToMemory);
 }
 
@@ -463,9 +471,9 @@ export function countSearchMemoriesByText(
 ): number {
   const row = db
     .query(
-      "SELECT COUNT(*) as count FROM memories WHERE content LIKE ? AND container_tag = ?",
+      "SELECT COUNT(*) as count FROM memories WHERE content LIKE ? ESCAPE '\\' AND container_tag = ?",
     )
-    .get(`%${query}%`, containerTag) as { count: number };
+    .get(`%${escapeLike(query)}%`, containerTag) as { count: number };
   return row.count;
 }
 
