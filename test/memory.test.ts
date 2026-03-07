@@ -25,6 +25,8 @@ import {
 } from "../src/core/ai/embed";
 import type { createEmbeddingProvider } from "../src/core/ai/providers";
 import {
+  _resetEnforceTagBudgetForTesting,
+  _setEnforceTagBudgetForTesting,
   addMemory,
   forgetMemory,
   getContext,
@@ -86,6 +88,7 @@ afterEach(() => {
   _resetConfigForTesting();
   _resetEmbedDepsForTesting();
   _resetSearchDepsForTesting();
+  _resetEnforceTagBudgetForTesting();
   resetEmbedder();
   closeDb();
   rmSync(tmpDir, { recursive: true, force: true });
@@ -238,6 +241,22 @@ describe("addMemory", () => {
     const mem = await getMemoryById(result.id);
     expect(mem!.provenance.sessionId).toBe("sess-1");
     expect(mem!.provenance.messageRange).toEqual([0, 5]);
+  });
+
+  test("succeeds even when enforceTagBudget throws", async () => {
+    _setEnforceTagBudgetForTesting(async () => {
+      throw new Error("budget-enforcement-fail");
+    });
+
+    const result = await addMemory({
+      content: "memory that survives budget failure",
+      containerTag: "test-tag",
+    });
+
+    expect(result.id).toBeTruthy();
+    expect(result.deduplicated).toBe(false);
+
+    _resetEnforceTagBudgetForTesting();
   });
 });
 

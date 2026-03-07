@@ -26,6 +26,19 @@ const TAG_BUDGET = 500;
 const EVICTION_GRACE_DAYS = 7;
 const DAY_MS = 86_400_000;
 
+// -- Test DI Hook for enforceTagBudget ----------------------------------------
+let _enforceTagBudgetFn: typeof enforceTagBudget = enforceTagBudget;
+
+export function _setEnforceTagBudgetForTesting(
+  fn: (containerTag: string) => Promise<void>,
+): void {
+  _enforceTagBudgetFn = fn;
+}
+
+export function _resetEnforceTagBudgetForTesting(): void {
+  _enforceTagBudgetFn = enforceTagBudget;
+}
+
 export interface AddMemoryOptions {
   content: string;
   containerTag: string;
@@ -137,7 +150,15 @@ export async function addMemory(
     throw error;
   }
 
-  await enforceTagBudget(opts.containerTag);
+  try {
+    await _enforceTagBudgetFn(opts.containerTag);
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : "unknown error";
+    logger.debug("enforceTagBudget failed after successful write", {
+      reason,
+      containerTag: opts.containerTag,
+    });
+  }
 
   return { id, deduplicated: false };
 }
