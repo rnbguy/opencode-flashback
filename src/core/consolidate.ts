@@ -142,15 +142,15 @@ export async function consolidateMemories(
       .slice(0, maxCandidates);
   }
 
+  // Pre-convert embeddings once to avoid O(n^2) Array.from() allocations
+  const embeddings = pool.map((m) => Array.from(m.embedding));
+
   const uf = new UnionFind();
   for (let i = 0; i < pool.length; i++) {
-    const a = pool[i];
-    const aEmbedding = Array.from(a.embedding);
     for (let j = i + 1; j < pool.length; j++) {
-      const b = pool[j];
-      const similarity = cosineSimilarity(aEmbedding, Array.from(b.embedding));
+      const similarity = cosineSimilarity(embeddings[i], embeddings[j]);
       if (similarity >= NEAR_DUPLICATE_THRESHOLD) {
-        uf.union(a.id, b.id);
+        uf.union(pool[i].id, pool[j].id);
       }
     }
   }
