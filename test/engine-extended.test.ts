@@ -229,6 +229,53 @@ describe("engine lifecycle and warmup", () => {
     expect(typeof result.merged).toBe("number");
   });
 
+  test("warmup re-embeds in chunks with heartbeat for >100 memories", async () => {
+    const db = getDb();
+    const createdAt = Date.now();
+    const updatedAt = createdAt;
+
+    // Insert 120 memories directly to force multiple chunks (REEMBED_CHUNK_SIZE = 50)
+    for (let i = 0; i < 120; i++) {
+      const vec = new Float32Array(seededVector(`chunk-content-${i}`));
+      db.query(
+        `INSERT INTO memories (id, content, embedding, container_tag, created_at,
+          updated_at, access_count, epistemic_confidence, epistemic_evidence_count,
+          stability, difficulty, suspended)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        `chunk-${i}`,
+        `chunk-content-${i}`,
+        Buffer.from(vec.buffer),
+        "test-tag",
+        createdAt,
+        updatedAt,
+        0,
+        0.7,
+        1,
+        0.5,
+        5.0,
+        0,
+      );
+    }
+
+    // Set stored model to a different value to trigger re-embed
+    setMetaValue(db, META_KEY_EMBEDDING_MODEL, "old-model");
+    resetEmbedder();
+
+    const engine = createEngine(makeResolver());
+    await engine.warmup();
+    await Bun.sleep(2000);
+
+    // Verify re-embed completed -- model key should be updated
+    expect(getMetaValue(getDb(), META_KEY_EMBEDDING_MODEL)).toBe(
+      "embeddinggemma:latest",
+    );
+
+    // Verify all 120 memories still exist
+    const page = await engine.listMemories("test-tag", 200, 0);
+    expect(page.total).toBe(120);
+  });
+
   // -- shutdown ---------------------------------------------------------------
 
   test("shutdown resets subsystems and closes database", async () => {

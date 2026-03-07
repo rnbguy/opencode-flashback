@@ -199,15 +199,23 @@ async function reembedAllMemories(
 
     logger.info(`Re-embedding ${memories.length} memories...`);
 
-    const texts = memories.map((m) => m.content);
-    const embeddings = await embed(texts, "document");
-
+    const REEMBED_CHUNK_SIZE = 50;
     const updateStmt = db.query(
       "UPDATE memories SET embedding = ? WHERE id = ?",
     );
-    for (let i = 0; i < memories.length; i++) {
-      const float32 = new Float32Array(embeddings[i]);
-      updateStmt.run(Buffer.from(float32.buffer), memories[i].id);
+
+    for (let i = 0; i < memories.length; i += REEMBED_CHUNK_SIZE) {
+      const chunk = memories.slice(i, i + REEMBED_CHUNK_SIZE);
+      const texts = chunk.map((m) => m.content);
+      const embeddings = await embed(texts, "document");
+
+      for (let j = 0; j < chunk.length; j++) {
+        const float32 = new Float32Array(embeddings[j]);
+        updateStmt.run(Buffer.from(float32.buffer), chunk[j].id);
+      }
+
+      // Heartbeat: update in-progress timestamp to prevent timeout
+      setMetaValue(db, META_KEY_REEMBED_IN_PROGRESS, String(Date.now()));
     }
 
     setMetaValue(db, META_KEY_EMBEDDING_MODEL, newModel);

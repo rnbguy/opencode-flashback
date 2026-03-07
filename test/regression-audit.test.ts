@@ -181,4 +181,20 @@ describe("regression: audit fixes", () => {
     expect(fnBody).toContain('db.exec("COMMIT")');
     expect(fnBody).toContain('db.exec("ROLLBACK")');
   });
+
+  test("F4: engine.ts reembedAllMemories processes in chunks with heartbeat", () => {
+    const src = readFileSync(join(SRC_DIR, "engine.ts"), "utf-8");
+    // Verify chunk constant exists
+    expect(src).toContain("REEMBED_CHUNK_SIZE");
+    // Verify chunked loop pattern
+    expect(src).toContain("i += REEMBED_CHUNK_SIZE");
+    // Verify heartbeat inside the loop
+    const reembedFn = src.match(
+      /async function reembedAllMemories[\s\S]*?\n\}/,
+    );
+    expect(reembedFn).not.toBeNull();
+    const fnBody = reembedFn![0];
+    // setMetaValue for heartbeat should appear inside the chunk loop
+    expect(fnBody).toContain("META_KEY_REEMBED_IN_PROGRESS");
+  });
 });
