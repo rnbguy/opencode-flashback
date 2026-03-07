@@ -20,6 +20,7 @@ import { getLastUncapturedPrompt, markCaptured } from "./prompts.ts";
 
 let state: SubsystemState = "uninitialized";
 let queuePromise: Promise<void> = Promise.resolve();
+const MAX_DEBOUNCE_TIMERS = 100;
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const DEBOUNCE_MS = 5_000;
 
@@ -100,6 +101,16 @@ export function enqueueCapture(opts: CaptureRequest): void {
       });
   }, DEBOUNCE_MS);
 
+  if (
+    debounceTimers.size >= MAX_DEBOUNCE_TIMERS &&
+    !debounceTimers.has(opts.sessionId)
+  ) {
+    const oldestKey = debounceTimers.keys().next().value;
+    if (oldestKey !== undefined) {
+      clearTimeout(debounceTimers.get(oldestKey));
+      debounceTimers.delete(oldestKey);
+    }
+  }
   debounceTimers.set(opts.sessionId, timer);
 }
 
@@ -274,3 +285,14 @@ function findLastUserMessage(
   }
   return undefined;
 }
+
+/** @internal -- test-only */
+export function _getDebounceTimersForTesting(): Map<
+  string,
+  ReturnType<typeof setTimeout>
+> {
+  return debounceTimers;
+}
+
+/** @internal -- test-only */
+export { MAX_DEBOUNCE_TIMERS };

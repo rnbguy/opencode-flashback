@@ -36,6 +36,7 @@ type ToolMode =
   | "consolidate"
   | "webui";
 
+const MAX_INJECTED_SESSIONS = 1000;
 const injectedSessionIds = new Set<string>();
 let lifecycleInstalled = false;
 const engine = createEngine({ resolve: resolveContainerTag });
@@ -784,6 +785,12 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         });
 
         if (config.memory.injection === "first") {
+          if (injectedSessionIds.size >= MAX_INJECTED_SESSIONS) {
+            const oldest = injectedSessionIds.values().next().value;
+            if (oldest !== undefined) {
+              injectedSessionIds.delete(oldest);
+            }
+          }
           injectedSessionIds.add(sessionID);
           logger?.debug("chat.message session marked as injected", {
             sessionID,
@@ -958,3 +965,11 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
     },
   };
 };
+
+/** @internal -- test-only */
+export function _getInjectedSessionIdsForTesting(): Set<string> {
+  return injectedSessionIds;
+}
+
+/** @internal -- test-only */
+export { MAX_INJECTED_SESSIONS };
