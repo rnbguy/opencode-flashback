@@ -10,6 +10,7 @@ import {
   getActiveMemoriesByContainerTag,
   getDb,
   getMemory,
+  incrementRevision,
   insertMemory,
   searchMemoriesByText,
 } from "../db/database.ts";
@@ -455,6 +456,8 @@ export async function suspendMemory(
   db.query(
     "UPDATE memories SET suspended = 1, suspended_reason = ?, suspended_at = ? WHERE id = ?",
   ).run(reason, Date.now(), id);
+  incrementRevision(db);
+  markStale();
   logger.debug("suspendMemory completed", { id, success: true });
   return true;
 }
@@ -469,6 +472,8 @@ export async function starMemory(id: string): Promise<boolean> {
   }
 
   db.query("UPDATE memories SET is_starred = 1 WHERE id = ?").run(id);
+  incrementRevision(db);
+  markStale();
   logger.debug("starMemory completed", { id, success: true });
   return true;
 }
@@ -483,6 +488,8 @@ export async function unstarMemory(id: string): Promise<boolean> {
   }
 
   db.query("UPDATE memories SET is_starred = 0 WHERE id = ?").run(id);
+  incrementRevision(db);
+  markStale();
   logger.debug("unstarMemory completed", { id, success: true });
   return true;
 }
@@ -510,6 +517,8 @@ export async function rateMemory(
   db.query(
     "UPDATE memories SET stability = ?, difficulty = ?, next_review_at = ? WHERE id = ?",
   ).run(result.stability, result.difficulty, result.nextReviewAt, id);
+  incrementRevision(db);
+  markStale();
 
   logger.debug("rateMemory completed", {
     id,
@@ -688,14 +697,21 @@ async function enforceTagBudget(containerTag: string): Promise<void> {
     return;
   }
 
-  for (const candidate of evictable) {
-    db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
-      now,
-      candidate.id,
-    );
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const candidate of evictable) {
+      db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
+        now,
+        candidate.id,
+      );
+    }
+    incrementRevision(db);
+    markStale();
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
-
-  markStale();
 }
 
 function clampImportance(value: number | undefined): number {
