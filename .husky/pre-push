@@ -1,0 +1,9 @@
+COVERAGE_OUT=$(mktemp)
+bun test --coverage >"$COVERAGE_OUT" 2>&1
+TEST_EXIT=$?
+cat "$COVERAGE_OUT"
+if [ "$TEST_EXIT" -ne 0 ]; then rm -f "$COVERAGE_OUT"; exit 1; fi
+AVG=$(awk -F'|' '/^ src\//{if($1 !~ /plugin\.ts/ && $1 !~ /search\.ts/) {gsub(/ /,"",$3); sum+=$3; n++}} END{if(n>0) printf "%.0f", sum/n; else print 0}' "$COVERAGE_OUT")
+rm -f "$COVERAGE_OUT"
+echo "Average line coverage: ${AVG}%"
+if [ "$AVG" -lt 90 ]; then echo "ERROR: Coverage ${AVG}% is below 90% threshold"; exit 1; fi
