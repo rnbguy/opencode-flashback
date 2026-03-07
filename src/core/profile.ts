@@ -529,7 +529,7 @@ function mergeProfileData(
   };
 }
 
-function mergePreferences(
+export function mergePreferences(
   existing: ProfilePreference[],
   extracted: ProfilePreference[],
 ): ProfilePreference[] {
@@ -546,6 +546,7 @@ function mergePreferences(
         evidence: [
           ...new Set([...(current.evidence ?? []), ...(item.evidence ?? [])]),
         ].slice(0, 5),
+        isStarred: current.isStarred,
       };
     } else {
       merged.push(item);
@@ -554,7 +555,7 @@ function mergePreferences(
   return merged;
 }
 
-function mergePatterns(
+export function mergePatterns(
   existing: ProfilePattern[],
   extracted: ProfilePattern[],
 ): ProfilePattern[] {
@@ -562,9 +563,10 @@ function mergePatterns(
   for (const item of extracted) {
     const index = merged.findIndex((entry) => entry.category === item.category);
     if (index >= 0) {
+      const current = merged[index];
       // Only overwrite if the new entry has a non-empty description
       if (!item.description.trim()) continue;
-      merged[index] = item;
+      merged[index] = { ...item, isStarred: current.isStarred };
     } else {
       merged.push(item);
     }
@@ -572,7 +574,7 @@ function mergePatterns(
   return merged;
 }
 
-function mergeWorkflows(
+export function mergeWorkflows(
   existing: ProfileWorkflow[],
   extracted: ProfileWorkflow[],
 ): ProfileWorkflow[] {
@@ -582,7 +584,8 @@ function mergeWorkflows(
       (entry) => entry.description === item.description,
     );
     if (index >= 0) {
-      merged[index] = item;
+      const current = merged[index];
+      merged[index] = { ...item, isStarred: current.isStarred };
     } else {
       merged.push(item);
     }
