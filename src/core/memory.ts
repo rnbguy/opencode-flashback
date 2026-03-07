@@ -748,16 +748,23 @@ function parsePreferenceLines(profileDataRaw: string | null): string[] {
   }
 }
 
-function trackAccess(results: SearchResult[]): void {
+export function trackAccess(results: SearchResult[]): void {
   if (results.length === 0) return;
   const db = getDb();
   const now = Date.now();
   const stmt = db.query(
     "UPDATE memories SET access_count = access_count + 1, last_accessed_at = ? WHERE id = ?",
   );
-  for (const result of results) {
-    stmt.run(now, result.memory.id);
-    result.memory.accessCount += 1;
-    result.memory.lastAccessedAt = now;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const result of results) {
+      stmt.run(now, result.memory.id);
+      result.memory.accessCount += 1;
+      result.memory.lastAccessedAt = now;
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
 }
