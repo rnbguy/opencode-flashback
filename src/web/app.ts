@@ -573,6 +573,7 @@ function startAutoRefresh(): void {
   }
 
   state.autoRefreshInterval = setInterval(() => {
+    if (document.visibilityState !== "visible") return;
     loadStats();
     if (!state.isSearching) {
       loadMemories();
@@ -623,9 +624,16 @@ function renderUserProfile(): void {
 
   const parseField = (field: unknown): Array<Record<string, unknown>> => {
     if (!field) return [];
+    const MAX_PARSE_DEPTH = 10;
     let result = field;
     let lastResult: string | null = null;
-    while (typeof result === "string" && result !== lastResult) {
+    let depth = 0;
+    while (
+      typeof result === "string" &&
+      result !== lastResult &&
+      depth < MAX_PARSE_DEPTH
+    ) {
+      depth++;
       lastResult = result;
       try {
         result = JSON.parse(
