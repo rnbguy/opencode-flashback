@@ -219,11 +219,18 @@ function runMigrations(db: Database): void {
 
   for (const migration of MIGRATIONS) {
     if (migration.version <= currentVersion) continue;
-    db.exec(migration.sql);
-    db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
-      "schema_version",
-      String(migration.version),
-    );
+    db.exec("BEGIN");
+    try {
+      db.exec(migration.sql);
+      db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+        "schema_version",
+        String(migration.version),
+      );
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
   }
 }
 

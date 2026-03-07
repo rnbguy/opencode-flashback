@@ -169,4 +169,16 @@ describe("regression: audit fixes", () => {
     expect(src).toContain("Math.max(1, Math.min(100,");
     expect(src).toContain("Math.max(0,");
   });
+
+  test("F6: database.ts runMigrations wraps each migration in a transaction", () => {
+    const src = readFileSync(join(SRC_DIR, "db", "database.ts"), "utf-8");
+    const fnMatch = src.match(
+      /function runMigrations\(db: Database\): void \{[\s\S]*?\n\}/,
+    );
+    expect(fnMatch).not.toBeNull();
+    const fnBody = fnMatch![0];
+    expect(fnBody).toContain('db.exec("BEGIN")');
+    expect(fnBody).toContain('db.exec("COMMIT")');
+    expect(fnBody).toContain('db.exec("ROLLBACK")');
+  });
 });

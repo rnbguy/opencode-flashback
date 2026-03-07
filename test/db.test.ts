@@ -610,6 +610,58 @@ describe("schema", () => {
   });
 });
 
+describe("migration atomicity", () => {
+  test("failed migration rolls back without advancing schema_version", () => {
+    const db = new Database(":memory:");
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
+    );
+    db.exec("INSERT INTO meta (key, value) VALUES ('schema_version', '0')");
+
+    db.exec("BEGIN");
+    try {
+      db.exec("CREATE TABLE test_success (id TEXT PRIMARY KEY)");
+      db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+        "schema_version",
+        "1",
+      );
+      db.exec("COMMIT");
+    } catch {
+      db.exec("ROLLBACK");
+      throw new Error("Migration 1 should not fail");
+    }
+
+    db.exec("BEGIN");
+    try {
+      db.exec("CREATE TABLE meta (key TEXT)");
+      db.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+        "schema_version",
+        "2",
+      );
+      db.exec("COMMIT");
+    } catch {
+      db.exec("ROLLBACK");
+    }
+
+    const row = db
+      .query("SELECT value FROM meta WHERE key = 'schema_version'")
+      .get() as {
+      value: string;
+    };
+    expect(row.value).toBe("1");
+
+    const tables = db
+      .query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'test_%'",
+      )
+      .all() as { name: string }[];
+    expect(tables.map((t) => t.name)).toContain("test_success");
+    expect(tables.map((t) => t.name)).not.toContain("test_fail");
+
+    db.close();
+  });
+});
+
 // -- db_revision meta key -------------------------------------------------------
 
 describe("db_revision meta key", () => {
