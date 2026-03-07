@@ -67,6 +67,10 @@ class UnionFind {
 }
 
 function chooseSurvivor(memories: Memory[]): Memory {
+  // Prefer starred memories (user-protected) regardless of ranking
+  const starred = memories.find((m) => m.isStarred);
+  if (starred) return starred;
+
   return [...memories].sort((a, b) => {
     if (a.epistemicStatus.confidence !== b.epistemicStatus.confidence) {
       return b.epistemicStatus.confidence - a.epistemicStatus.confidence;
@@ -200,6 +204,15 @@ export async function applyConsolidation(
 
       const survivor = chooseSurvivor(memories);
       const losers = memories.filter((memory) => memory.id !== survivor.id);
+      // Guard starred losers from eviction
+      const evictableLosers = losers.filter((loser) => !loser.isStarred);
+      const starredLosers = losers.filter((loser) => loser.isStarred);
+      for (const starredLoser of starredLosers) {
+        logger.warn("applyConsolidation skipping starred loser", {
+          loserId: starredLoser.id,
+          survivorId: survivor.id,
+        });
+      }
       const tags = [...new Set(memories.flatMap((memory) => memory.tags))].sort(
         (a, b) => a.localeCompare(b),
       );
@@ -235,7 +248,7 @@ export async function applyConsolidation(
       db.exec("BEGIN IMMEDIATE");
       transactionStarted = true;
       insertMemory(db, updated);
-      for (const loser of losers) {
+      for (const loser of evictableLosers) {
         db.query("UPDATE memories SET evicted_at = ? WHERE id = ?").run(
           now,
           loser.id,
