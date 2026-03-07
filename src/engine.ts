@@ -168,6 +168,11 @@ export async function reembedAllMemories(
 ): Promise<void> {
   const logger = getLogger();
 
+  // KNOWN LIMITATION (D8): cooperative re-embed lock is timestamp-based, not
+  // exclusive. Safe for single-process use. Multiple processes sharing the same
+  // DB could trigger duplicate re-embed work if the 10-minute timeout expires
+  // before the first finishes. An exclusive flock()-based lock would fix this
+  // but adds platform-specific complexity.
   // Check if re-embed is already in progress
   const inProgressValue = getMetaValue(db, META_KEY_REEMBED_IN_PROGRESS);
   if (inProgressValue) {
@@ -230,6 +235,13 @@ export async function reembedAllMemories(
   }
 }
 
+// KNOWN LIMITATION (D10): singleton lifecycle coupling. The DB (closeDb), search
+// index (markStale/initSearch), embedder (resetEmbedder), and capture (resetCapture)
+// subsystems are independent singletons with no coordinated shutdown. closeDb() does
+// not notify the search module to invalidate its index; resetCapture() does not
+// drain pending capture timers. In practice this is safe because the plugin lifecycle
+// ensures init-before-use, and tests use explicit reset hooks. A lifecycle manager
+// would formalize this but adds complexity without current user-facing bugs.
 export function createEngine(resolver: ContainerTagResolver): MemoryEngine {
   return {
     addMemory,

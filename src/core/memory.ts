@@ -614,6 +614,10 @@ function rerank(results: SearchResult[], config: PluginConfig): SearchResult[] {
     .sort((a, b) => b.score - a.score);
 }
 
+// KNOWN LIMITATION (B6): O(n) linear scan over all active memories for the
+// container tag. For typical usage (< 5k memories per tag) this is fast enough.
+// At scale (50k+), a content-hash pre-filter or an approximate nearest neighbor
+// index would reduce the scan to O(1) hash lookup + O(log n) ANN query.
 function findDuplicateMemory(
   containerTag: string,
   vector: number[],

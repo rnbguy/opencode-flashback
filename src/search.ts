@@ -15,6 +15,13 @@ import {
 import type { SearchResult, SubsystemState } from "./types.ts";
 import { getLogger } from "./util/logger.ts";
 
+// KNOWN LIMITATION (D9): there is a consistency window between SQLite writes
+// and Orama index rebuild. A memory inserted via insertMemory() is immediately
+// visible in SQL queries but invisible to vector/BM25 search until the next
+// rebuildIndex(). The revision-tracking mechanism (incrementRevision + markStale)
+// mitigates this by triggering a rebuild on the next search call, but searches
+// between the write and the rebuild may return stale results.
+
 // -- DI Hooks ----------------------------------------------------------------
 
 interface SearchDeps {
