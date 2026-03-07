@@ -35,6 +35,41 @@ const levelPriority: Record<LogLevel, number> = {
   error: 3,
 };
 
+const SENSITIVE_KEY_PATTERN =
+  /^(api[_-]?key|secret|token|password|authorization|credential|auth)$/i;
+const SENSITIVE_VALUE_PATTERNS = [
+  /^sk-[a-zA-Z0-9-]{20,}/, // OpenAI-style keys
+  /^key-[a-zA-Z0-9-]{20,}/, // generic key prefixes
+  /^AIza[a-zA-Z0-9_-]{30,}/, // Google API keys
+  /^Bearer\s+\S{20,}/i, // Bearer tokens
+];
+
+export function sanitizeContext(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === "string") {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        result[key] = "[REDACTED]";
+      } else if (SENSITIVE_VALUE_PATTERNS.some((p) => p.test(value))) {
+        result[key] = "[REDACTED]";
+      } else {
+        result[key] = value;
+      }
+    } else if (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      result[key] = sanitizeContext(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export function setToastSink(sink: ToastSink | null): void {
   toastSink = sink;
 }
@@ -97,7 +132,7 @@ export function createLogger(
       sid: sessionId,
       level: level.toUpperCase(),
       msg,
-      ...(data && Object.keys(data).length > 0 ? data : {}),
+      ...(data && Object.keys(data).length > 0 ? sanitizeContext(data) : {}),
     };
 
     const payload = JSON.stringify(logEntry) + "\n";
