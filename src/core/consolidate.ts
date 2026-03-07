@@ -2,7 +2,7 @@ import { getConfig } from "../config.ts";
 import {
   getAllActiveMemories,
   getDb,
-  getMemory,
+  getMemoriesByIds,
   insertMemory,
 } from "../db/database.ts";
 import { markStale } from "../search.ts";
@@ -191,12 +191,9 @@ export async function applyConsolidation(
     let transactionStarted = false;
 
     try {
-      const memories = candidate.memoryIds
-        .map((id) => getMemory(db, id))
-        .filter(
-          (memory): memory is Memory =>
-            memory !== null && memory.evictedAt === null,
-        );
+      const memories = getMemoriesByIds(db, candidate.memoryIds).filter(
+        (memory): memory is Memory => memory.evictedAt === null,
+      );
 
       if (memories.length < 2) {
         continue;

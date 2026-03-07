@@ -6,7 +6,7 @@ import {
   countSearchMemoriesByText,
   getAllActiveMemories,
   getDb,
-  getMemory,
+  getMemoriesByIds,
   getMetaValue,
   getRevision,
   META_KEY_EMBEDDING_DIMENSION,
@@ -242,9 +242,16 @@ async function hybridSearchImpl(
 
     const searchResults: SearchResult[] = [];
 
+    const memoryIds = resolved.hits.map(
+      (hit) => (hit.document as SearchDoc).memoryId,
+    );
+    const memoriesById = new Map(
+      getMemoriesByIds(db, memoryIds).map((m) => [m.id, m]),
+    );
+
     for (const hit of resolved.hits) {
       const doc = hit.document as SearchDoc;
-      const memory = getMemory(db, doc.memoryId);
+      const memory = memoriesById.get(doc.memoryId);
       if (!memory) continue;
 
       searchResults.push({

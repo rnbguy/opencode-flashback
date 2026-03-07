@@ -420,6 +420,15 @@ export function getMemory(db: Database, id: string): Memory | null {
   return row ? rowToMemory(row) : null;
 }
 
+export function getMemoriesByIds(db: Database, ids: string[]): Memory[] {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db
+    .query(`SELECT * FROM memories WHERE id IN (${placeholders})`)
+    .all(...ids) as MemoryRow[];
+  return rows.map(rowToMemory);
+}
+
 export function deleteMemory(db: Database, id: string): void {
   const logger = getLogger();
   logger.debug("deleteMemory start", { id });
