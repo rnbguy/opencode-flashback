@@ -70,7 +70,6 @@ function asNumber(value: unknown): number | undefined {
     : undefined;
 }
 
-
 function clampLimit(value: number | undefined): number {
   const raw = value ?? 10;
   return Math.max(1, Math.min(100, raw));

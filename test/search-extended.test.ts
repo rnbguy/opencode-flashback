@@ -276,7 +276,7 @@ describe("search-extended", () => {
     _setConfigForTesting(
       makeTestConfig({ storage: { path: "/dev/null/impossible" } }),
     );
-    await rebuildIndex();
+    await expect(rebuildIndex()).rejects.toThrow();
     expect(getSearchState()).toBe("error");
   });
 });

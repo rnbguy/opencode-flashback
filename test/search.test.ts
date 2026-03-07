@@ -1,9 +1,11 @@
+import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _resetConfigForTesting, _setConfigForTesting } from "../src/config.ts";
 import {
+  _setDbForTesting,
   closeDb,
   getDb,
   incrementRevision,
@@ -186,6 +188,21 @@ describe("search", () => {
       10,
     );
     expect(results.some((r) => r.memory.id === "external")).toBe(true);
+  });
+
+  test("rebuildIndex propagates doRebuild errors", async () => {
+    const failingDb = {
+      query() {
+        throw new Error("test-rebuild-fail");
+      },
+      exec() {},
+      close() {},
+    } as unknown as ReturnType<typeof getDb>;
+    _setDbForTesting(failingDb);
+
+    await expect(rebuildIndex()).rejects.toThrow("test-rebuild-fail");
+
+    _setDbForTesting(new Database(join(testDir, "restored.db")));
   });
 
   test("falls back to SQLite text search on error", async () => {

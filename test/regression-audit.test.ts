@@ -155,10 +155,10 @@ describe("regression: audit fixes", () => {
     const src = readFileSync(join(SRC_DIR, "web", "server.ts"), "utf-8");
     // Extract the catch block from startServer and verify it contains clearInterval
     const catchMatch = src.match(
-      /} catch \(error: unknown\) \{[^}]*clearInterval\(csrfRotationInterval\)[^}]*\}/s
+      /} catch \(error: unknown\) \{[^}]*clearInterval\(csrfRotationInterval\)[^}]*\}/s,
     );
     expect(catchMatch).not.toBeNull();
-  })
+  });
 
   test("F3: plugin.ts clamps limit to [1,100] and offset to >= 0 in search/recall/list/related/review", () => {
     const src = readFileSync(join(SRC_DIR, "plugin.ts"), "utf-8");

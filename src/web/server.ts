@@ -47,8 +47,6 @@ export async function startServer(
   csrfToken = crypto.randomUUID();
   cspScriptHash = computeCspHash();
 
-
-
   const config = getConfig();
   const basePort = config.web.port;
 
@@ -74,7 +72,6 @@ export async function startServer(
     serverState = "error";
     logger.error("startServer failed", { basePort });
     throw error;
-
   }
 }
 

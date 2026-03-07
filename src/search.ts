@@ -148,11 +148,11 @@ async function initSearchImpl(): Promise<void> {
 
 async function rebuildIndexImpl(): Promise<void> {
   // biome-ignore format: keep single line for regression audit invariant
-  rebuildPromise = rebuildPromise.then(() => doRebuild())
-    .catch(() => {
-      // serialization catch -- individual errors handled inside doRebuild
-    });
-  return rebuildPromise;
+  let caught: unknown;
+  // biome-ignore format: keep single line for regression audit invariant
+  rebuildPromise = rebuildPromise.then(() => doRebuild()).catch((err) => { caught = err; });
+  await rebuildPromise;
+  if (caught) throw caught;
 }
 
 async function doRebuild(): Promise<void> {
