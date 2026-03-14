@@ -771,7 +771,7 @@ export const OpenCodeFlashbackPlugin: Plugin = async (input) => {
         }
 
         output.parts.unshift({
-          id: crypto.randomUUID(),
+          id: `prt_${crypto.randomUUID()}`,
           sessionID,
           messageID: output.message.id,
           type: "text",
